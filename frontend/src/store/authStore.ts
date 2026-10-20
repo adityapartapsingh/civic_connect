@@ -8,7 +8,6 @@ const INITIAL_USER: UserProfile = {
   phone: '+91 98765 43210',
   email: 'priya.sharma@example.com',
   role: 'citizen',
-  ward: 'Ward 18 - Koramangala',
   points: 180,
   level: 3,
   reports_submitted_count: 5,
@@ -67,6 +66,9 @@ interface AuthState {
   token: string | null;
   role: 'citizen' | 'officer' | 'admin';
   isOfficer: boolean;
+  isAuthenticated: boolean;
+  isGuest: boolean;
+  login: (token: string, user: UserProfile) => void;
   setUser: (user: UserProfile | null) => void;
   setRole: (role: 'citizen' | 'officer' | 'admin') => void;
   toggleRole: () => void;
@@ -74,17 +76,52 @@ interface AuthState {
   logout: () => void;
 }
 
+const savedUserStr = localStorage.getItem('civic_user');
+const savedToken = localStorage.getItem('civic_auth_token');
+let initialUser: UserProfile | null = null;
+if (savedUserStr && savedToken) {
+  try {
+    initialUser = JSON.parse(savedUserStr);
+  } catch {
+    initialUser = null;
+    localStorage.removeItem('civic_user');
+    localStorage.removeItem('civic_auth_token');
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: INITIAL_USER,
-  token: 'mock-jwt-token-civic-connect',
-  role: 'citizen',
-  isOfficer: false,
+  user: initialUser,
+  token: savedToken || null,
+  role: initialUser ? initialUser.role : 'citizen',
+  isOfficer: initialUser?.role === 'officer' || initialUser?.role === 'admin',
+  isAuthenticated: Boolean(initialUser && savedToken),
+  isGuest: !initialUser,
+
+  login: (token: string, user: UserProfile) => {
+    localStorage.setItem('civic_auth_token', token);
+    localStorage.setItem('civic_user', JSON.stringify(user));
+    set({
+      token,
+      user,
+      role: user.role,
+      isOfficer: user.role === 'officer' || user.role === 'admin',
+      isAuthenticated: true,
+      isGuest: false,
+    });
+  },
 
   setUser: (user) => {
+    if (user) {
+      localStorage.setItem('civic_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('civic_user');
+    }
     set({
       user,
       role: user ? user.role : 'citizen',
       isOfficer: user?.role === 'officer' || user?.role === 'admin',
+      isAuthenticated: Boolean(user && get().token),
+      isGuest: !user,
     });
   },
 
@@ -98,6 +135,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             department: isOfficer ? 'Roads & Infrastructure Ward 18' : undefined,
           }
         : null;
+      if (updatedUser) {
+        localStorage.setItem('civic_user', JSON.stringify(updatedUser));
+      }
       return { role, isOfficer, user: updatedUser };
     });
   },
@@ -126,17 +166,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         points,
       });
 
+      const updated = {
+        ...state.user,
+        points: newPoints,
+        level: newLevel,
+      };
+      localStorage.setItem('civic_user', JSON.stringify(updated));
+
       return {
-        user: {
-          ...state.user,
-          points: newPoints,
-          level: newLevel,
-        },
+        user: updated,
       };
     });
   },
 
   logout: () => {
-    set({ user: null, token: null, role: 'citizen', isOfficer: false });
+    localStorage.removeItem('civic_auth_token');
+    localStorage.removeItem('civic_user');
+    set({
+      user: null,
+      token: null,
+      role: 'citizen',
+      isOfficer: false,
+      isAuthenticated: false,
+      isGuest: true,
+    });
   },
 }));

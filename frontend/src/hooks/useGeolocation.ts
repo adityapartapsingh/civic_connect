@@ -14,11 +14,11 @@ interface GeolocationState {
 }
 
 const DEFAULT_COORDS = {
-  latitude: 12.9352,
-  longitude: 77.6245,
-  address: '80 Feet Rd, 4th Block, Koramangala, Bengaluru',
-  landmark: 'Near Maharaja Signal',
-  ward: 'Ward 18 - Koramangala',
+  latitude: 31.3260,
+  longitude: 75.5762,
+  address: 'Civil Lines, Jalandhar, Punjab',
+  landmark: 'Near Company Bagh',
+  ward: 'Jalandhar Municipal Corporation',
 };
 
 export function useGeolocation() {
@@ -36,39 +36,40 @@ export function useGeolocation() {
 
   const reverseGeocode = useCallback(async (lat: number, lon: number) => {
     try {
-      // Free Nominatim OpenStreetMap reverse geocoding
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
         {
           headers: {
-            'User-Agent': 'CivicConnect-PWA-MVP/1.0',
+            'User-Agent': 'CivicConnect-App/1.0',
           },
         }
       );
       if (res.ok) {
         const data = await res.json();
-        const road = data.address?.road || data.address?.suburb || 'Main Road';
-        const suburb = data.address?.suburb || data.address?.neighbourhood || 'Koramangala';
-        const city = data.address?.city || data.address?.town || 'Bengaluru';
+        const addr = data.address || {};
+        
+        const road = addr.road || addr.suburb || addr.neighbourhood || addr.residential || '';
+        const suburb = addr.suburb || addr.neighbourhood || addr.subdistrict || addr.locality || '';
+        const city = addr.city || addr.town || addr.municipality || addr.county || addr.state_district || 'Local Area';
+        const state = addr.state || '';
+        
+        const fullAddress = [road, suburb, city, state].filter(Boolean).join(', ') || data.display_name?.split(',').slice(0, 3).join(',') || 'Current Location';
+        const landmark = addr.amenity || addr.building || (road ? `Near ${road}` : `Near ${city}`);
+        const ward = suburb ? `${suburb} Area` : `${city} Ward`;
+
         return {
-          address: `${road}, ${suburb}, ${city}`,
-          landmark: data.address?.amenity || data.address?.building || `Near ${road}`,
-          ward: suburb.includes('Koramangala')
-            ? 'Ward 18 - Koramangala'
-            : suburb.includes('Indiranagar')
-            ? 'Ward 12 - Indiranagar'
-            : suburb.includes('HSR')
-            ? 'Ward 31 - HSR Layout'
-            : 'Ward 18 - Koramangala',
+          address: fullAddress,
+          landmark,
+          ward,
         };
       }
     } catch {
-      // Fallback
+      // Network or CORS error on reverse geocode
     }
     return {
-      address: DEFAULT_COORDS.address,
-      landmark: DEFAULT_COORDS.landmark,
-      ward: DEFAULT_COORDS.ward,
+      address: `Coordinates: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+      landmark: 'Live GPS Location',
+      ward: 'Current Municipal Area',
     };
   }, []);
 
@@ -90,101 +91,113 @@ export function useGeolocation() {
 
     setGeoState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-    const readings: GeolocationPosition[] = [];
-    const MAX_READINGS = 4;
-    let readingCounter = 0;
-
-    const checkConsistency = (list: GeolocationPosition[]) => {
-      if (list.length < 2) return false;
-      const lats = list.map((p) => p.coords.latitude);
-      const longs = list.map((p) => p.coords.longitude);
-      const accuracies = list.map((p) => p.coords.accuracy);
-
-      const latVariance = Math.max(...lats) - Math.min(...lats);
-      const longVariance = Math.max(...longs) - Math.min(...longs);
-
-      // In real physical mobile GPS, hardware always exhibits minor micro-jitter.
-      // Perfectly identical lat/long down to 10 decimals with 0 accuracy variance can indicate simulated coordinates.
-      const isZeroJitter = latVariance === 0 && longVariance === 0 && accuracies.every((a) => a === accuracies[0]);
-      const isExtremeJump = latVariance > 0.05 || longVariance > 0.05; // > 5km jump in 1 second
-
-      return isZeroJitter || isExtremeJump;
-    };
-
-    const watchId = navigator.geolocation.watchPosition(
+    // Step 1: Immediate instant position capture via browser navigator.geolocation
+    navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        readings.push(pos);
-        readingCounter += 1;
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const acc = Math.round(pos.coords.accuracy);
 
-        if (readingCounter >= MAX_READINGS) {
-          navigator.geolocation.clearWatch(watchId);
-
-          // Pick the reading with highest accuracy (lowest accuracy number in meters)
-          const best = readings.reduce((prev, curr) =>
-            curr.coords.accuracy < prev.coords.accuracy ? curr : prev
-          );
-
-          const isMock = checkConsistency(readings);
-          const geoData = await reverseGeocode(best.coords.latitude, best.coords.longitude);
-
-          setGeoState({
-            coords: {
-              latitude: best.coords.latitude,
-              longitude: best.coords.longitude,
-            },
-            accuracy: Math.round(best.coords.accuracy),
-            readingsCount: readings.length,
-            isMockSuspected: isMock,
-            address: geoData.address,
-            landmark: geoData.landmark,
-            ward: geoData.ward,
-            isLoading: false,
-            error: null,
-          });
-        }
-      },
-      (err) => {
-        console.warn('Geolocation acquisition error, falling back to ward center:', err.message);
-        navigator.geolocation.clearWatch(watchId);
+        const geoData = await reverseGeocode(lat, lon);
         setGeoState({
-          coords: { latitude: DEFAULT_COORDS.latitude, longitude: DEFAULT_COORDS.longitude },
-          accuracy: 12,
+          coords: { latitude: lat, longitude: lon },
+          accuracy: acc,
           readingsCount: 1,
           isMockSuspected: false,
-          address: DEFAULT_COORDS.address,
-          landmark: DEFAULT_COORDS.landmark,
-          ward: DEFAULT_COORDS.ward,
+          address: geoData.address,
+          landmark: geoData.landmark,
+          ward: geoData.ward,
           isLoading: false,
           error: null,
         });
       },
+      async (err) => {
+        console.warn('Browser GPS permission not granted or timeout, attempting IP-based geolocation fallback...', err.message);
+        
+        // IP-based real location fallback (fetches user's real city/state e.g. Jalandhar, Punjab)
+        try {
+          const ipRes = await fetch('https://ipapi.co/json/');
+          if (ipRes.ok) {
+            const ipData = await ipRes.json();
+            if (ipData.latitude && ipData.longitude) {
+              const lat = ipData.latitude;
+              const lon = ipData.longitude;
+              const city = ipData.city || 'Jalandhar';
+              const region = ipData.region || 'Punjab';
+              
+              setGeoState({
+                coords: { latitude: lat, longitude: lon },
+                accuracy: 100,
+                readingsCount: 1,
+                isMockSuspected: false,
+                address: `${city}, ${region}, India`,
+                landmark: `${city} City Center`,
+                ward: `${city} Municipal Corporation`,
+                isLoading: false,
+                error: null,
+              });
+              return;
+            }
+          }
+        } catch {
+          // IP fallback failed
+        }
+
+        // Final fallback if all network & GPS fail
+        setGeoState({
+          coords: null,
+          accuracy: null,
+          readingsCount: 0,
+          isMockSuspected: false,
+          address: 'Location permission needed',
+          landmark: 'Please allow location access in your browser',
+          ward: 'Local Ward',
+          isLoading: false,
+          error: 'Please enable Location permission in your browser to view your live ward and map.',
+        });
+      },
       {
         enableHighAccuracy: true,
-        timeout: 6000,
-        maximumAge: 0,
+        timeout: 8000,
+        maximumAge: 10000,
       }
     );
 
-    // Timeout safety net
-    setTimeout(() => {
+    // Step 2: Continuous live position updates
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const acc = Math.round(pos.coords.accuracy);
+
+        // Update live coordinates immediately
+        setGeoState((prev) => ({
+          ...prev,
+          coords: { latitude: lat, longitude: lon },
+          accuracy: acc,
+          readingsCount: prev.readingsCount + 1,
+          isLoading: false,
+        }));
+      },
+      (err) => {
+        console.warn('Live watch error:', err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 5000,
+      }
+    );
+
+    // Safety clear watch on timeout
+    const timer = setTimeout(() => {
       navigator.geolocation.clearWatch(watchId);
-      setGeoState((curr) => {
-        if (curr.isLoading) {
-          return {
-            coords: { latitude: DEFAULT_COORDS.latitude, longitude: DEFAULT_COORDS.longitude },
-            accuracy: 15,
-            readingsCount: 1,
-            isMockSuspected: false,
-            address: DEFAULT_COORDS.address,
-            landmark: DEFAULT_COORDS.landmark,
-            ward: DEFAULT_COORDS.ward,
-            isLoading: false,
-            error: null,
-          };
-        }
-        return curr;
-      });
-    }, 7000);
+    }, 30000);
+
+    return () => {
+      clearTimeout(timer);
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [reverseGeocode]);
 
   useEffect(() => {

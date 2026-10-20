@@ -130,12 +130,15 @@ export const STATUS_CONFIG: Record<
 };
 
 export const WARDS_LIST = [
-  'Ward 12 - Indiranagar',
-  'Ward 18 - Koramangala',
-  'Ward 24 - Whitefield',
-  'Ward 31 - HSR Layout',
-  'Ward 42 - Jayanagar',
-  'Ward 55 - Malleshwaram',
-  'Ward 67 - Hebbal',
-  'Ward 89 - Electronic City',
+  'Ward 1 - Model Town, Jalandhar',
+  'Ward 2 - Civil Lines, Jalandhar',
+  'Ward 3 - Cantt Road, Jalandhar',
+  'Ward 4 - Rama Mandi, Jalandhar',
+  'Ward 5 - Phillaur Municipal Core',
+  'Ward 6 - Phillaur Fort Road',
+  'Ward 7 - GT Road, Jalandhar',
+  'Ward 8 - Urban Estate Phase II, Jalandhar',
+  'Ward 9 - BMC Chowk, Jalandhar',
+  'Ward 10 - Basti Sheikh, Jalandhar',
 ];
+

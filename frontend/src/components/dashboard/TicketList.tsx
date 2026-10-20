@@ -1,19 +1,11 @@
-import React, { useState } from 'react';
-import { Issue, IssueStatus } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Issue, ReportFilterParams } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { getSlaInfo, formatRelativeDate } from '../../utils/helpers';
-import { Button } from '../common/Button';
-import {
-  Clock,
-  ThumbsUp,
-  MapPin,
-  AlertOctagon,
-  ChevronRight,
-  Filter,
-  CheckCircle2,
-  Calendar,
-} from 'lucide-react';
+import { FilterBar } from '../common/FilterBar';
+import { Pagination } from '../common/Pagination';
 import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 
 interface TicketListProps {
   tickets: Issue[];
@@ -29,87 +21,164 @@ export const TicketList: React.FC<TicketListProps> = ({
   onOpenUpdater,
 }) => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-
-  const filteredTickets = tickets.filter((t) => {
-    if (statusFilter === 'sla_breached') {
-      const sla = getSlaInfo(t.sla_deadline, t.status === 'resolved');
-      return sla.isBreached && t.status !== 'resolved' && t.status !== 'closed';
-    }
-    if (statusFilter !== 'all' && t.status !== statusFilter) {
-      return false;
-    }
-    if (priorityFilter !== 'all' && t.priority !== priorityFilter) {
-      return false;
-    }
-    return true;
+  const [filters, setFilters] = useState<ReportFilterParams>({
+    priority: 'all',
+    date_range: 'all',
+    sort_by: 'newest',
+    page: 1,
+    page_size: 6,
   });
+
+  const handleFilterChange = (updated: Partial<ReportFilterParams>) => {
+    setFilters((prev) => ({ ...prev, ...updated, page: updated.page !== undefined ? updated.page : 1 }));
+  };
+
+  const processedTickets = useMemo(() => {
+    let list = [...tickets];
+
+    if (statusFilter === 'sla_breached') {
+      list = list.filter((t) => {
+        const sla = getSlaInfo(t.sla_deadline, t.status === 'resolved' || t.status === 'closed');
+        return sla.isBreached && t.status !== 'resolved' && t.status !== 'closed';
+      });
+    } else if (statusFilter !== 'all') {
+      list = list.filter((t) => t.status === statusFilter);
+    }
+
+    if (filters.priority && filters.priority !== 'all') {
+      list = list.filter((t) => t.priority === filters.priority);
+    }
+
+    if (filters.date_range && filters.date_range !== 'all') {
+      const now = Date.now();
+      const days = filters.date_range === 'today' ? 1 : filters.date_range === '7d' ? 7 : 30;
+      const cutoff = now - days * 24 * 3600 * 1000;
+      list = list.filter((t) => new Date(t.created_at).getTime() >= cutoff);
+    }
+
+    if (filters.sort_by === 'priority') {
+      const pOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
+      list.sort((a, b) => (pOrder[b.priority] || 0) - (pOrder[a.priority] || 0));
+    } else if (filters.sort_by === 'sla') {
+      list.sort((a, b) => new Date(a.sla_deadline).getTime() - new Date(b.sla_deadline).getTime());
+    } else if (filters.sort_by === 'oldest') {
+      list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    } else {
+      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    return list;
+  }, [tickets, statusFilter, filters]);
+
+  const totalItems = processedTickets.length;
+  const pageSize = filters.page_size || 6;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(filters.page || 1, totalPages);
+  const paginatedTickets = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return processedTickets.slice(start, start + pageSize);
+  }, [processedTickets, currentPage, pageSize]);
 
   return (
     <div className="space-y-4">
-      {/* Filter Toolbar */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
+      {/* Officer Workflow Quick Status Tabs */}
+      <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
           <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+            type="button"
+            onClick={() => {
+              setStatusFilter('all');
+              handleFilterChange({ page: 1 });
+            }}
+            className={`px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap transition border ${
               statusFilter === 'all'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            All Queue ({tickets.length})
+            All Dispatch ({tickets.length})
           </button>
           <button
-            onClick={() => setStatusFilter('reported')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+            type="button"
+            onClick={() => {
+              setStatusFilter('reported');
+              handleFilterChange({ page: 1 });
+            }}
+            className={`px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap transition border ${
               statusFilter === 'reported'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'bg-red-50 text-red-700 hover:bg-red-100'
+                ? 'bg-red-700 text-white border-red-700'
+                : 'bg-white text-red-700 border-red-200 hover:bg-red-50'
             }`}
           >
-            Pending New
+            Pending Review
           </button>
           <button
-            onClick={() => setStatusFilter('in_progress')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+            type="button"
+            onClick={() => {
+              setStatusFilter('in_progress');
+              handleFilterChange({ page: 1 });
+            }}
+            className={`px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap transition border ${
               statusFilter === 'in_progress'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                ? 'bg-amber-700 text-white border-amber-700'
+                : 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50'
             }`}
           >
-            In Field
+            Field Crew Active
           </button>
           <button
-            onClick={() => setStatusFilter('sla_breached')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${
-              statusFilter === 'sla_breached'
-                ? 'bg-red-700 text-white shadow-sm ring-2 ring-red-400'
-                : 'bg-red-100 text-red-800 hover:bg-red-200'
+            type="button"
+            onClick={() => {
+              setStatusFilter('resolved');
+              handleFilterChange({ page: 1 });
+            }}
+            className={`px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap transition border ${
+              statusFilter === 'resolved'
+                ? 'bg-emerald-800 text-white border-emerald-800'
+                : 'bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50'
             }`}
           >
-            <AlertOctagon className="w-3.5 h-3.5" />
+            Resolved
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter('sla_breached');
+              handleFilterChange({ page: 1 });
+            }}
+            className={`px-2.5 py-1 rounded text-xs font-bold whitespace-nowrap transition border ${
+              statusFilter === 'sla_breached'
+                ? 'bg-red-900 text-white border-red-900'
+                : 'bg-red-50 text-red-800 border-red-200 hover:bg-red-100'
+            }`}
+          >
             SLA Breached
           </button>
         </div>
 
         <div className="text-xs text-slate-500 font-medium">
-          Showing {filteredTickets.length} tickets
+          Showing {processedTickets.length} cases
         </div>
       </div>
 
-      {/* Ticket Cards List */}
+      {/* FilterBar */}
+      <FilterBar
+        filters={filters}
+        onChange={handleFilterChange}
+        showStatusFilter={false}
+      />
+
+      {/* Case List */}
       <div className="space-y-3">
-        {filteredTickets.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center text-slate-500">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
-            <p className="font-bold text-slate-700 text-sm">No tickets found in this view</p>
+        {paginatedTickets.length === 0 ? (
+          <div className="bg-white rounded-lg p-8 border border-slate-200 text-center text-slate-500">
+            <p className="font-bold text-slate-800 text-sm">No cases match this queue filter</p>
             <p className="text-xs text-slate-400 mt-1">
-              All municipal issues in this category are up to date.
+              Select other priority or date filters to review open municipal tickets.
             </p>
           </div>
         ) : (
-          filteredTickets.map((ticket) => {
+          paginatedTickets.map((ticket) => {
             const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
             const sla = getSlaInfo(ticket.sla_deadline, isResolved);
             const isSelected = selectedTicketId === ticket.id;
@@ -118,86 +187,90 @@ export const TicketList: React.FC<TicketListProps> = ({
               <div
                 key={ticket.id}
                 onClick={() => onSelectTicket?.(ticket)}
-                className={`group bg-white rounded-2xl p-4 border transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md ${
+                className={`bg-white rounded-lg p-4 border transition-colors cursor-pointer ${
                   isSelected
-                    ? 'border-brand-600 ring-2 ring-brand-500/20 bg-brand-50/20'
+                    ? 'border-slate-900 bg-slate-50/50'
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 mb-2.5 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                    <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                       {ticket.tracking_id}
                     </span>
                     <StatusBadge status={ticket.status} size="sm" />
-                    <span className="text-[11px] font-semibold text-slate-400">
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                      ticket.priority === 'urgent'
+                        ? 'bg-red-100 text-red-800'
+                        : ticket.priority === 'high'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {ticket.priority}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
                       • {formatRelativeDate(ticket.created_at)}
                     </span>
                   </div>
 
-                  {/* SLA Countdown Badge */}
-                  <div
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${sla.badgeColorClass}`}
-                  >
-                    <Clock className="w-3.5 h-3.5 shrink-0" />
-                    <span>{sla.formattedText}</span>
+                  {/* SLA Indicator */}
+                  <div className="font-mono text-xs font-semibold text-slate-700">
+                    {sla.formattedText}
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3.5">
+                <div className="flex items-start gap-3">
                   {ticket.photo_url && (
                     <img
                       src={ticket.photo_url}
                       alt={ticket.title}
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-slate-100 shrink-0"
+                      className="w-16 h-16 rounded object-cover border border-slate-200 shrink-0"
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors line-clamp-1">
+                    <h4 className="font-bold text-sm text-slate-900 line-clamp-1">
                       {ticket.title}
                     </h4>
-                    <p className="text-xs text-slate-600 line-clamp-2 mt-1 leading-relaxed">
+                    <p className="text-xs text-slate-600 line-clamp-2 mt-0.5">
                       {ticket.description}
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
-                      <span className="flex items-center gap-1 text-slate-600 font-medium truncate max-w-xs">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
+                      <span className="text-slate-700 truncate max-w-xs">
                         {ticket.location.landmark || ticket.location.ward}
                       </span>
-                      <span className="flex items-center gap-1 font-semibold text-brand-600">
-                        <ThumbsUp className="w-3.5 h-3.5" />
-                        {ticket.upvotes_count} upvotes
+                      <span>•</span>
+                      <span className="font-semibold text-slate-800">
+                        {ticket.upvotes_count} community confirmations
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Bottom Card Actions */}
-                <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <div className="text-[11px] text-slate-400">
-                    Assigned: <span className="font-semibold text-slate-600">{ticket.assigned_department || 'Pending Assignment'}</span>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                  <div className="text-[11px] text-slate-500">
+                    Dept: <span className="font-semibold text-slate-700">{ticket.assigned_department || 'General Administration'}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {onOpenUpdater && (
-                      <Button
+                      <button
                         type="button"
-                        size="sm"
-                        variant="primary"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpenUpdater(ticket);
                         }}
+                        className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition"
                       >
                         Update Status
-                      </Button>
+                      </button>
                     )}
                     <Link
                       to={`/tickets/${ticket.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-                      title="Inspect full ticket details"
+                      className="p-1 rounded text-slate-400 hover:text-slate-700 transition"
+                      title="Inspect Case"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </Link>
@@ -208,6 +281,16 @@ export const TicketList: React.FC<TicketListProps> = ({
           })
         )}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        page={currentPage}
+        totalPages={totalPages}
+        total={totalItems}
+        pageSize={pageSize}
+        onPageChange={(p) => handleFilterChange({ page: p })}
+        onPageSizeChange={(s) => handleFilterChange({ page_size: s, page: 1 })}
+      />
     </div>
   );
 };

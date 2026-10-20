@@ -18,18 +18,16 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.reported;
 
   const sizeClasses =
-    size === 'sm' ? 'px-2 py-0.5 text-xs font-medium' : 'px-2.5 py-1 text-xs font-semibold';
+    size === 'sm' ? 'px-2 py-0.5 text-[11px] font-semibold' : 'px-2.5 py-1 text-xs font-semibold';
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border ${config.bg} ${config.text} ${config.border} ${sizeClasses} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded border ${config.bg} ${config.text} ${config.border} ${sizeClasses} ${className}`}
       title={config.description}
     >
       {showDot && (
         <span
-          className={`h-1.5 w-1.5 rounded-full ${config.dot} ${
-            status === 'reported' || status === 'in_progress' ? 'animate-pulse' : ''
-          }`}
+          className={`h-1.5 w-1.5 rounded-sm ${config.dot}`}
         />
       )}
       {config.label}

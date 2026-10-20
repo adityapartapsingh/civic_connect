@@ -5,6 +5,8 @@ import { Button } from '../common/Button';
 import { Camera, Check, UploadCloud, AlertCircle, FileText, UserCheck } from 'lucide-react';
 import { useToastStore } from '../../store/toastStore';
 
+import { useAuthStore } from '../../store/authStore';
+
 interface StatusUpdaterProps {
   issue: Issue;
   onUpdate: (payload: StatusUpdatePayload) => Promise<void>;
@@ -16,6 +18,7 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
   onUpdate,
   onCancel,
 }) => {
+  const { user } = useAuthStore();
   const [status, setStatus] = useState<IssueStatus>(
     issue.status === 'reported' ? 'acknowledged' : issue.status === 'acknowledged' ? 'in_progress' : 'resolved'
   );
@@ -24,7 +27,19 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToast } = useToastStore();
 
-  // Quick mock resolution photos for easy demonstration
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setPhotoUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Quick proof photos for convenient verification
   const sampleProofPhotos = [
     'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=800&q=80',
@@ -44,12 +59,17 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
 
     setIsSubmitting(true);
     try {
+      const officerTitle = user
+        ? `${user.name}${user.designation ? ` (${user.designation})` : ''}`
+        : 'Field Officer';
+      const officerDept = user?.department || issue.assigned_department || 'Municipal Division';
+
       await onUpdate({
         status,
         notes,
         resolution_photo_data_url: photoUrl || undefined,
-        assigned_officer: 'Field AE S. K. Murthy',
-        assigned_department: issue.assigned_department || 'Ward Infrastructure Unit',
+        assigned_officer: officerTitle,
+        assigned_department: officerDept,
       });
       addToast({
         type: 'success',
@@ -78,7 +98,7 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as IssueStatus)}
-          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="w-full px-3 py-2 rounded border border-slate-300 bg-white text-slate-900 text-xs font-semibold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
         >
           <option value="acknowledged">Acknowledged (Field Team Assigned)</option>
           <option value="in_progress">In Progress (Maintenance Squad On-Site)</option>
@@ -100,7 +120,7 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="E.g., Deployed 2 tons cold asphalt mix. Leveled and tamped surface with roller."
-          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400"
+          className="w-full px-3 py-2 rounded border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 placeholder:text-slate-400"
         />
       </div>
 
@@ -111,46 +131,65 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
         </label>
 
         {photoUrl ? (
-          <div className="relative rounded-2xl overflow-hidden border border-slate-200">
+          <div className="relative rounded-lg overflow-hidden border border-slate-300">
             <img src={photoUrl} alt="Resolution Proof" className="w-full h-36 object-cover" />
             <button
               type="button"
               onClick={() => setPhotoUrl('')}
-              className="absolute top-2 right-2 px-2.5 py-1 bg-black/70 hover:bg-black text-white text-xs rounded-lg font-medium"
+              className="absolute top-2 right-2 px-2.5 py-1 bg-black/80 hover:bg-black text-white text-xs rounded font-medium"
             >
               Change Photo
             </button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-slate-300 hover:border-slate-800 rounded bg-slate-50 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition">
+                <UploadCloud className="w-4 h-4 text-slate-600" />
+                <span>Upload Camera Proof Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </label>
+            </div>
+
+            <div className="text-[11px] text-slate-500 font-medium">Or select standard municipal field proof:</div>
             <div className="grid grid-cols-3 gap-2">
               {sampleProofPhotos.map((url, i) => (
                 <button
                   type="button"
                   key={i}
                   onClick={() => setPhotoUrl(url)}
-                  className="group relative rounded-xl overflow-hidden border border-slate-200 hover:border-brand-500 h-20"
+                  className="group relative rounded overflow-hidden border border-slate-300 hover:border-slate-900 h-20"
                 >
                   <img src={url} alt={`Proof ${i}`} className="w-full h-full object-cover group-hover:scale-105 transition" />
-                  <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] py-0.5 text-center font-medium">
-                    Select Proof #{i + 1}
+                  <span className="absolute inset-x-0 bottom-0 bg-slate-900/80 text-white text-[10px] py-0.5 text-center font-medium">
+                    Proof #{i + 1}
                   </span>
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400 text-center">
-              Tap a verified field proof photo above to attach to this resolution.
-            </p>
           </div>
         )}
       </div>
 
       {/* Officer Credential Confirmation */}
-      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-2.5 text-xs text-slate-600">
+      <div className="p-3 bg-slate-50 rounded border border-slate-300 flex items-center gap-2.5 text-xs text-slate-600">
         <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-        <span>
-          Signed off by: <strong>Field Officer S. K. Murthy</strong> (BBMP South Zone)
-        </span>
+        <div>
+          <span>
+            Signed off by: <strong>{user?.name || 'Field Inspector'}</strong>
+            {user?.designation ? ` (${user.designation})` : ''}
+          </span>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Unit: {user?.department || issue.assigned_department || 'Municipal Division'}
+            {user?.employee_id ? ` · Badge: ${user.employee_id}` : ''}
+          </p>
+        </div>
       </div>
 
       {/* Action Buttons */}

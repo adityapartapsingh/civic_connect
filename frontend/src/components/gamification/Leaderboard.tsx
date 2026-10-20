@@ -61,31 +61,31 @@ export const Leaderboard: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
       {/* Header */}
       <div className="p-5 border-b border-slate-200 bg-slate-900 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-slate-800 rounded-xl text-amber-400 border border-slate-700">
-              <Trophy className="w-5 h-5" />
+            <div className="p-1.5 bg-slate-800 rounded text-amber-400 border border-slate-700">
+              <Trophy className="w-4 h-4" />
             </div>
             <div>
               <h3 className="font-bold text-base tracking-tight">Ward Resolution Leaderboard</h3>
               <p className="text-xs text-slate-400">Public transparency ranking of municipal zones</p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-full">
-            <Flame className="w-3 h-3 text-amber-400" /> Live Metrics
+          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-0.5 rounded">
+            Live Metrics
           </span>
         </div>
 
         {/* Sort switch */}
-        <div className="mt-4 flex rounded-xl bg-slate-800 p-1 border border-slate-700">
+        <div className="mt-4 flex rounded bg-slate-800 p-0.5 border border-slate-700">
           <button
             onClick={() => setSortBy('speed')}
-            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition-colors ${
               sortBy === 'speed'
-                ? 'bg-brand-600 text-white'
+                ? 'bg-slate-700 text-white'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -93,9 +93,9 @@ export const Leaderboard: React.FC = () => {
           </button>
           <button
             onClick={() => setSortBy('rate')}
-            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition-colors ${
               sortBy === 'rate'
-                ? 'bg-brand-600 text-white'
+                ? 'bg-slate-700 text-white'
                 : 'text-slate-400 hover:text-white'
             }`}
           >

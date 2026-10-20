@@ -51,3 +51,28 @@ class UserTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 1)
         self.assertEqual(res.data[0]["volunteer_scheme"], "NSS")
+
+    def test_jwt_generation_and_verification(self):
+        from civic_connect.authentication import generate_jwt, verify_jwt
+
+        payload = {
+            "user_id": "usr_test_123",
+            "phone": "+919876543210",
+            "name": "Officer Test",
+            "role": "officer",
+            "department": "Engineering",
+        }
+        token = generate_jwt(payload)
+        self.assertTrue(bool(token))
+        self.assertEqual(token.count("."), 2)
+
+        is_valid, decoded, err = verify_jwt(token)
+        self.assertTrue(is_valid)
+        self.assertIsNotNone(decoded)
+        self.assertEqual(decoded["user_id"], "usr_test_123")
+        self.assertEqual(decoded["role"], "officer")
+
+        # Tampered token check
+        tampered = token[:-4] + "abcd"
+        is_val_tamp, _, _ = verify_jwt(tampered)
+        self.assertFalse(is_val_tamp)

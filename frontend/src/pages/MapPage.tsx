@@ -53,28 +53,26 @@ export const MapPage: React.FC = () => {
         </div>
 
         {/* View Switcher: Map vs Ward Leaderboard */}
-        <div className="inline-flex rounded-2xl bg-white p-1 border border-slate-200 shadow-xs self-start sm:self-auto">
+        <div className="inline-flex rounded border border-slate-300 bg-slate-100 p-0.5 self-start sm:self-auto">
           <button
             onClick={() => setActiveTab('map')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            className={`px-3 py-1.5 rounded text-xs font-semibold transition ${
               activeTab === 'map'
-                ? 'bg-brand-600 text-white shadow-sm'
+                ? 'bg-white text-slate-900 border border-slate-300 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <MapPin className="w-4 h-4" />
-            <span>Interactive Map</span>
+            Interactive Map
           </button>
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            className={`px-3 py-1.5 rounded text-xs font-semibold transition ${
               activeTab === 'leaderboard'
-                ? 'bg-brand-600 text-white shadow-sm'
+                ? 'bg-white text-slate-900 border border-slate-300 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Trophy className="w-4 h-4 text-amber-300" />
-            <span>Ward Rankings</span>
+            Ward Rankings
           </button>
         </div>
       </div>
@@ -83,25 +81,25 @@ export const MapPage: React.FC = () => {
         <div className="space-y-4">
           {/* Controls Bar: Category filter & Heatmap toggle */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="md:col-span-2 flex flex-wrap items-center gap-1.5">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                className={`px-3 py-1.5 rounded text-xs font-medium transition ${
                   selectedCategory === 'all'
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 All Categories ({issues.length})
               </button>
-              {CATEGORIES.slice(0, 5).map((cat) => (
+              {CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition border ${
                     selectedCategory === cat.id
-                      ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   {cat.label}
@@ -119,11 +117,11 @@ export const MapPage: React.FC = () => {
           </div>
 
           {/* Interactive Leaflet Map Box */}
-          <div className="h-[520px] sm:h-[600px] w-full rounded-3xl overflow-hidden shadow-lg border border-slate-200">
+          <div className="h-[520px] sm:h-[600px] w-full rounded-lg overflow-hidden border border-slate-300 shadow-xs">
             <IssueMap
               issues={filteredIssues}
               userLocation={coords}
-              center={coords ? [coords.latitude, coords.longitude] : [12.9352, 77.6245]}
+              center={coords ? [coords.latitude, coords.longitude] : [31.3260, 75.5762]}
               zoom={14}
               showHeatmap={showHeatmap}
             />

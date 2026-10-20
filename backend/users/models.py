@@ -93,6 +93,10 @@ class UserManager:
             "volunteer_scheme": user_data.get("volunteer_scheme", VolunteerScheme.NONE),
             "ward_id": user_data.get("ward_id"),
             "department_id": user_data.get("department_id"),
+            "department": user_data.get("department"),
+            "designation": user_data.get("designation"),
+            "employee_id": user_data.get("employee_id"),
+            "jurisdiction_zone": user_data.get("jurisdiction_zone"),
             "updated_at": now,
         }
         if phone:

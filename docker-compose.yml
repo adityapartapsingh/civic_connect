@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: civic_connect_mongo
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: civic_connect
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - civic_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: civic_connect_backend
+    restart: always
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY:-civic-connect-production-secret-key-2026-punjab}
+      - ALLOWED_HOSTS=*
+      - CORS_ALLOW_ALL_ORIGINS=True
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DB_NAME=civic_connect
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-}
+      - CLOUDINARY_URL=${CLOUDINARY_URL:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+    networks:
+      - civic_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: civic_connect_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - civic_net
+
+volumes:
+  mongo_data:
+    driver: local
+
+networks:
+  civic_net:
+    driver: bridge

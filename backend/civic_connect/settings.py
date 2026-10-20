@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     # Third-party Apps
     "rest_framework",
     "corsheaders",
+    "cloudinary",
     # Civic Connect Domain Apps
     "users.apps.UsersConfig",
     "reports.apps.ReportsConfig",
@@ -55,7 +56,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -131,6 +131,12 @@ MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
 MEDIA_ROOT = BASE_DIR / os.getenv("MEDIA_ROOT", "media")
 os.makedirs(MEDIA_ROOT, exist_ok=True)
 
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -144,6 +150,9 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
         "rest_framework.parsers.MultiPartParser",
         "rest_framework.parsers.FormParser",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "civic_connect.authentication.JWTBearerAuthentication",
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,

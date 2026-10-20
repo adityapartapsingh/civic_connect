@@ -76,7 +76,7 @@ export function getSlaInfo(deadlineIso: string, isResolved = false): SlaInfo {
       minutesLeft: -overdueMinutes,
       totalSeconds: seconds,
       formattedText: `SLA BREACHED (${overdueHours}h ${overdueMinutes}m ago)`,
-      badgeColorClass: 'bg-red-600 text-white animate-pulse',
+      badgeColorClass: 'bg-red-700 text-white font-mono border-red-800',
       urgency: 'breached',
     };
   }

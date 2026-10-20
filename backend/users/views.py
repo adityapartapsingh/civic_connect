@@ -1,5 +1,6 @@
 """Views for Users App."""
 
+from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -92,3 +93,113 @@ class VolunteersListAPIView(APIView):
             UserProfileSerializer(serialize_docs(list(docs)), many=True).data,
             status=status.HTTP_200_OK,
         )
+
+
+class SendOTPAPIView(APIView):
+    """
+    POST /api/users/send-otp/
+    Request OTP for phone authentication with 60-second cooldown rate limiting.
+    """
+
+    def post(self, request, *args, **kwargs):
+        from users.otp import OTPManager
+
+        phone = request.data.get("phone", "").strip()
+        role = request.data.get("role", "citizen").lower()
+        if not phone or len(phone) < 10:
+            return Response(
+                {"detail": "A valid 10-digit phone number is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR"))
+        success, err, retry_after, dev_otp = OTPManager.request_otp(
+            phone=phone, role=role, ip_address=ip
+        )
+
+        if not success:
+            return Response(
+                {
+                    "detail": err,
+                    "retry_after": retry_after,
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        response_payload = {
+            "message": f"OTP sent to {phone}. Valid for 5 minutes.",
+            "retry_after": retry_after,
+            "phone": phone,
+        }
+        # In development, return the code for testing convenience
+        if settings.DEBUG:
+            response_payload["dev_otp"] = dev_otp
+
+        return Response(response_payload, status=status.HTTP_200_OK)
+
+
+class VerifyOTPAPIView(APIView):
+    """
+    POST /api/users/verify-otp/
+    Verify OTP code and authenticate or register citizen/officer profile.
+    """
+
+    def post(self, request, *args, **kwargs):
+        from users.otp import OTPManager
+        import uuid
+
+        phone = request.data.get("phone", "").strip()
+        otp = request.data.get("otp", "").strip()
+        name = request.data.get("name", "").strip()
+        role = request.data.get("role", "").strip().lower()
+
+        if not phone or not otp:
+            return Response(
+                {"detail": "Phone and OTP code are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_valid, err, record = OTPManager.verify_otp(phone, otp)
+        if not is_valid:
+            return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check existing user or create new profile
+        user = UserManager.find_by_phone(phone)
+        user_role = role or (record.get("role") if record else "citizen")
+
+        upsert_payload = {
+            "user_id": user["user_id"] if user else f"usr_{uuid.uuid4().hex[:8]}",
+            "phone": phone,
+            "name": name or ("Municipal Officer" if user_role == "officer" else "Verified Citizen"),
+            "role": user_role,
+        }
+
+        email = request.data.get("email", "").strip()
+        if email:
+            upsert_payload["email"] = email
+
+        if user_role == "officer":
+            department = request.data.get("department", "").strip()
+            designation = request.data.get("designation", "").strip()
+            employee_id = request.data.get("employee_id", "").strip()
+            jurisdiction_zone = request.data.get("jurisdiction_zone", "").strip()
+            if department:
+                upsert_payload["department"] = department
+            if designation:
+                upsert_payload["designation"] = designation
+            if employee_id:
+                upsert_payload["employee_id"] = employee_id
+            if jurisdiction_zone:
+                upsert_payload["jurisdiction_zone"] = jurisdiction_zone
+
+        user = UserManager.upsert_user(upsert_payload)
+
+        from civic_connect.authentication import generate_jwt
+        auth_token = generate_jwt(user)
+
+        return Response({
+            "message": "Authentication successful.",
+            "token": auth_token,
+            "user": UserProfileSerializer(user).data,
+        }, status=status.HTTP_200_OK)
+

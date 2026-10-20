@@ -198,3 +198,58 @@ class ReportAPITests(TestCase):
         }, format="json")
         self.assertEqual(evid_res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(len(evid_res.data["report"]["evidence"]), 1)
+
+    def test_report_create_with_image_upload_and_cloudinary_service(self):
+        import io
+        from unittest.mock import patch
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from utils.cloudinary_service import upload_media, is_cloudinary_configured
+
+        # Generate a small in-memory test image
+        img = Image.new("RGB", (100, 100), color=(73, 109, 137))
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format="JPEG")
+        img_bytes.seek(0)
+
+        uploaded_file = SimpleUploadedFile(
+            "test_hazard.jpg",
+            img_bytes.read(),
+            content_type="image/jpeg",
+        )
+
+        # 1. Test fallback when Cloudinary is not configured
+        with patch("utils.cloudinary_service.is_cloudinary_configured", return_value=False):
+            url, meta = upload_media(uploaded_file, folder="test_folder")
+            self.assertTrue(url.endswith(".jpg"))
+            self.assertEqual(meta["provider"], "local_storage")
+
+        # 2. Test when Cloudinary is configured
+        uploaded_file.seek(0)
+        mock_cloudinary_response = {
+            "secure_url": "https://res.cloudinary.com/civic-test/image/upload/v1/civic_connect/reports/test_hazard.jpg",
+            "public_id": "civic_connect/reports/test_hazard",
+            "format": "jpg",
+            "bytes": 1024,
+            "resource_type": "image",
+        }
+        with patch("utils.cloudinary_service.is_cloudinary_configured", return_value=True), \
+             patch("cloudinary.uploader.upload", return_value=mock_cloudinary_response):
+            url, meta = upload_media(uploaded_file, folder="civic_connect/reports")
+            self.assertEqual(url, mock_cloudinary_response["secure_url"])
+            self.assertEqual(meta["provider"], "cloudinary")
+
+        # 3. Test API endpoint with file upload
+        uploaded_file.seek(0)
+        with patch("utils.cloudinary_service.is_cloudinary_configured", return_value=True), \
+             patch("cloudinary.uploader.upload", return_value=mock_cloudinary_response):
+            api_res = self.client.post("/api/reports/", {
+                "title": "Cloudinary Test Hazard",
+                "description": "Hazard reported with live camera capture",
+                "category": "pothole",
+                "latitude": 12.9716,
+                "longitude": 77.5946,
+                "photo": uploaded_file,
+            }, format="multipart")
+            self.assertEqual(api_res.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(api_res.data["photo_url"], mock_cloudinary_response["secure_url"])

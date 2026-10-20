@@ -17,11 +17,20 @@ class UserProfileSerializer(serializers.Serializer):
     )
     ward_id = serializers.CharField(required=False, allow_null=True)
     department_id = serializers.CharField(required=False, allow_null=True)
+    department = serializers.CharField(required=False, allow_null=True)
+    designation = serializers.CharField(required=False, allow_null=True)
+    employee_id = serializers.CharField(required=False, allow_null=True)
+    jurisdiction_zone = serializers.CharField(required=False, allow_null=True)
     points = serializers.IntegerField(default=0, read_only=True)
+    level = serializers.SerializerMethodField()
     badge = serializers.ChoiceField(choices=BadgeTier.CHOICES, default=BadgeTier.BRONZE, read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
     is_active = serializers.BooleanField(default=True, read_only=True)
+
+    def get_level(self, obj):
+        pts = obj.get("points", 0) if isinstance(obj, dict) else getattr(obj, "points", 0)
+        return max(1, (pts // 60) + 1)
 
 
 class UserSyncSerializer(serializers.Serializer):

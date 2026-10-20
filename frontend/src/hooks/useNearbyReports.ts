@@ -20,11 +20,13 @@ export function useNearbyReports(
     setIsLoading(true);
     setError(null);
     try {
-      const all = await issuesApi.getAll();
-      const lat = userLat ?? 12.9352;
-      const lng = userLng ?? 77.6245;
+      const lat = userLat ?? 31.3260;
+      const lng = userLng ?? 75.5762;
 
-      const itemsWithDistance: NearbyIssueItem[] = all.map((issue) => {
+      // Query real MongoDB 2dsphere geospatial API
+      const rawIssues = await issuesApi.getNearby(lat, lng, radiusMeters);
+
+      const itemsWithDistance: NearbyIssueItem[] = rawIssues.map((issue) => {
         const dist = calculateDistanceMeters(
           lat,
           lng,
@@ -37,7 +39,7 @@ export function useNearbyReports(
         };
       });
 
-      // Filter by radius and sort by closest first
+      // Sort by closest distance first
       const nearby = itemsWithDistance
         .filter((i) => i.distanceMeters <= radiusMeters)
         .sort((a, b) => a.distanceMeters - b.distanceMeters);

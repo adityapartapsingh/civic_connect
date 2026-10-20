@@ -24,6 +24,7 @@ from rest_framework import status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from utils.cloudinary_service import upload_media
 from civic_connect.mongo import get_collection, serialize_docs
 from fraud.phash import compute_image_phash
 from fraud.services import analyze_report_fraud
@@ -51,20 +52,85 @@ class ReportListCreateAPIView(APIView):
     def get(self, request, *args, **kwargs):
         status_param = request.query_params.get("status")
         category_param = request.query_params.get("category")
+        priority_param = request.query_params.get("priority")
         ward_param = request.query_params.get("ward_id")
+        reporter_id = request.query_params.get("reporter_id")
+        date_from = request.query_params.get("date_from")
+        date_to = request.query_params.get("date_to")
+        sort_by = request.query_params.get("sort_by", "newest")
+
+        # Pagination params
+        try:
+            page = max(1, int(request.query_params.get("page", 1)))
+        except (ValueError, TypeError):
+            page = 1
+
+        try:
+            page_size = min(50, max(1, int(request.query_params.get("page_size", 10))))
+        except (ValueError, TypeError):
+            page_size = 10
 
         query = {}
-        if status_param:
+        if status_param and status_param != "all":
             query["status"] = status_param
-        if category_param:
+        if category_param and category_param != "all":
             query["category"] = category_param.lower().strip()
-        if ward_param:
+        if priority_param and priority_param != "all":
+            query["priority_level"] = priority_param.upper().strip()
+        if ward_param and ward_param != "all":
             query["ward_id"] = ward_param
+        if reporter_id:
+            query["reporter_id"] = reporter_id
+
+        # Date range filtering
+        date_query = {}
+        if date_from:
+            try:
+                date_query["$gte"] = datetime.datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                date_query["$lte"] = datetime.datetime.fromisoformat(date_to.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        if date_query:
+            query["created_at"] = date_query
+
+        # Sort criteria
+        sort_field = "created_at"
+        sort_dir = -1
+        if sort_by == "oldest":
+            sort_field = "created_at"
+            sort_dir = 1
+        elif sort_by in ("priority_desc", "priority"):
+            sort_field = "priority_score"
+            sort_dir = -1
+        elif sort_by == "priority_asc":
+            sort_field = "priority_score"
+            sort_dir = 1
+        elif sort_by == "sla_urgency":
+            sort_field = "sla_deadline"
+            sort_dir = 1
 
         col = get_collection("reports")
-        docs = col.find(query).sort("created_at", -1).limit(50)
+        total_count = col.count_documents(query)
+        skip = (page - 1) * page_size
+        total_pages = max(1, (total_count + page_size - 1) // page_size)
+
+        docs = col.find(query).sort(sort_field, sort_dir).skip(skip).limit(page_size)
+        serialized_results = ReportDetailSerializer(serialize_docs(list(docs)), many=True).data
+
         return Response(
-            ReportDetailSerializer(serialize_docs(list(docs)), many=True).data,
+            {
+                "total": total_count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1,
+                "results": serialized_results,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -78,19 +144,21 @@ class ReportListCreateAPIView(APIView):
         lng = data["longitude"]
         accuracy = data.get("accuracy", 15.0)
         is_mock = data.get("is_mock_location", False)
-        reporter_id = data.get("reporter_id")
+        
+        # Attribute authenticated user or fallback to payload
+        reporter_id = getattr(request.user, "user_id", None) or data.get("reporter_id")
+        reporter_name = getattr(request.user, "name", None) or data.get("reporter_name", "Citizen")
+        reporter_phone = getattr(request.user, "phone", None) or data.get("reporter_phone", "")
 
         photo_url = data.get("photo_url", "")
         photo_file = request.FILES.get("photo")
         photos_list = list(data.get("photos", []))
 
-        # Handle photo file upload
+        # Handle photo file upload via Cloudinary (with local fallback)
         image_for_analysis = None
         if photo_file:
-            timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"report_{timestamp_str}_{photo_file.name}"
-            save_path = default_storage.save(f"reports/{filename}", photo_file)
-            photo_url = request.build_absolute_uri(settings.MEDIA_URL + save_path)
+            uploaded_url, _ = upload_media(photo_file, folder="civic_connect/reports", request=request)
+            photo_url = uploaded_url
             photos_list.insert(0, photo_url)
             image_for_analysis = photo_file
         elif photo_url and photo_url not in photos_list:
@@ -267,16 +335,17 @@ class ReportStatusUpdateAPIView(APIView):
         resolution_photo_url = data.get("resolution_photo_url", "")
         photo_file = request.FILES.get("resolution_photo")
         if photo_file:
-            timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"res_{timestamp_str}_{photo_file.name}"
-            save_path = default_storage.save(f"resolutions/{filename}", photo_file)
-            resolution_photo_url = request.build_absolute_uri(settings.MEDIA_URL + save_path)
+            uploaded_url, _ = upload_media(photo_file, folder="civic_connect/resolutions", request=request)
+            resolution_photo_url = uploaded_url
+
+        officer_name = getattr(request.user, "name", None) or data.get("changed_by", "Officer")
+        officer_role = getattr(request.user, "role", None) or data.get("role", "officer")
 
         updated = ReportManager.update_status(
             report_id=report_id,
             new_status=data["status"],
-            changed_by=data.get("changed_by", "Officer"),
-            role=data.get("role", "officer"),
+            changed_by=officer_name,
+            role=officer_role,
             notes=data.get("notes", ""),
             resolution_photo=resolution_photo_url if resolution_photo_url else None,
         )
@@ -302,9 +371,10 @@ class ReportConfirmAPIView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
+        citizen_id = getattr(request.user, "user_id", None) or data.get("citizen_id", "citizen")
         updated = ReportManager.confirm_resolution(
             report_id=report_id,
-            citizen_id=data.get("citizen_id", "citizen"),
+            citizen_id=citizen_id,
             notes=data.get("notes", "Citizen confirmed resolution."),
         )
 
@@ -369,10 +439,8 @@ class ReportEvidenceAPIView(APIView):
 
         phash_str = ""
         if photo_file:
-            timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"evid_{timestamp_str}_{photo_file.name}"
-            save_path = default_storage.save(f"evidence/{filename}", photo_file)
-            photo_url = request.build_absolute_uri(settings.MEDIA_URL + save_path)
+            uploaded_url, _ = upload_media(photo_file, folder="civic_connect/evidence", request=request)
+            photo_url = uploaded_url
             phash_str = compute_image_phash(photo_file)
 
         if not photo_url:
@@ -419,15 +487,16 @@ class ReportUpvoteAPIView(APIView):
         photo_file = request.FILES.get("photo")
 
         if photo_file:
-            timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"upvote_{timestamp_str}_{photo_file.name}"
-            save_path = default_storage.save(f"upvotes/{filename}", photo_file)
-            photo_url = request.build_absolute_uri(settings.MEDIA_URL + save_path)
+            uploaded_url, _ = upload_media(photo_file, folder="civic_connect/upvotes", request=request)
+            photo_url = uploaded_url
+
+        user_id = getattr(request.user, "user_id", None) or data.get("user_id")
+        device_id = data.get("device_id") or request.META.get("HTTP_X_DEVICE_ID", "device_client")
 
         success, msg, updated = ReportManager.add_upvote(
             report_id=report_id,
-            user_id=data.get("user_id"),
-            device_id=data.get("device_id"),
+            user_id=user_id,
+            device_id=device_id,
             photo_url=photo_url,
         )
 

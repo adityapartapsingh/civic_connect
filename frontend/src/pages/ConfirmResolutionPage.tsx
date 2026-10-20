@@ -146,34 +146,33 @@ export const ConfirmResolutionPage: React.FC = () => {
       </button>
 
       {/* Header Banner */}
-      <div className="bg-emerald-800 text-white rounded-2xl p-5 sm:p-6 border border-emerald-900">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-900/60 text-xs font-bold mb-2 text-emerald-200">
-          <ShieldCheck className="w-4 h-4 text-emerald-300" />
-          <span>Citizen Resolution Audit</span>
+      <div className="bg-slate-900 text-white rounded-lg p-5 sm:p-6 border border-slate-800">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-800 text-[11px] font-mono uppercase tracking-wider mb-2 text-slate-300 border border-slate-700">
+          <ShieldCheck className="w-3.5 h-3.5 text-slate-300" />
+          <span>Citizen Resolution Verification</span>
         </div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
           Verify Civic Fix on the Ground
         </h1>
-        <p className="text-xs sm:text-sm text-emerald-100 mt-1 max-w-lg leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-lg leading-relaxed">
           Help close the municipal feedback loop. Confirm if the reported issue has been properly resolved by municipal crews.
         </p>
       </div>
 
       {verificationDone === 'confirmed' ? (
         /* Confirmed Success State */
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center space-y-4 shadow-sm">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-            <CheckCircle2 className="w-10 h-10" />
+        <div className="bg-white rounded-lg p-8 border border-slate-300 text-center space-y-4 shadow-xs">
+          <div className="w-14 h-14 rounded bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto border border-emerald-300">
+            <CheckCircle2 className="w-8 h-8" />
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold">
-            <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
-            <span>+20 Civic Points Added to Your Profile!</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-100 text-slate-800 border border-slate-300 text-xs font-mono font-medium">
+            <span>+20 Civic Points Added to Your Profile</span>
           </div>
 
-          <h2 className="text-2xl font-black text-slate-900">Resolution Confirmed!</h2>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-            Thank you for verifying this fix on-site. Your community score and ward ranking have been updated!
+          <h2 className="text-xl font-bold text-slate-900">Resolution Confirmed</h2>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+            Thank you for verifying this fix on-site. Your community score and ward ranking have been updated.
           </p>
 
           <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
@@ -196,14 +195,14 @@ export const ConfirmResolutionPage: React.FC = () => {
         </div>
       ) : verificationDone === 'disputed' ? (
         /* Disputed State */
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center space-y-4 shadow-sm">
-          <div className="w-16 h-16 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mx-auto">
-            <AlertTriangle className="w-10 h-10" />
+        <div className="bg-white rounded-lg p-8 border border-slate-300 text-center space-y-4 shadow-xs">
+          <div className="w-14 h-14 rounded bg-rose-100 text-rose-800 flex items-center justify-center mx-auto border border-rose-300">
+            <AlertTriangle className="w-8 h-8" />
           </div>
 
-          <h2 className="text-2xl font-black text-slate-900">Dispute Escalated to Ward Supervisor</h2>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-            The status has been set to <strong>Disputed</strong> and flagged for inspection review. The field contractor will be held accountable.
+          <h2 className="text-xl font-bold text-slate-900">Dispute Escalated to Ward Supervisor</h2>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+            The status has been set to <strong>Disputed</strong> and flagged for inspection review. The field contractor will be re-dispatched.
           </p>
 
           <div className="pt-3">
@@ -218,12 +217,12 @@ export const ConfirmResolutionPage: React.FC = () => {
         </div>
       ) : (
         /* Active Inspection Mode */
-        <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm space-y-6">
+        <div className="bg-white rounded-lg p-5 sm:p-7 border border-slate-300 shadow-xs space-y-6">
           {/* Ticket Reference */}
-          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-4">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-4">
             <div>
-              <span className="font-mono text-xs font-bold text-slate-400">{ticket.tracking_id}</span>
-              <h3 className="font-bold text-base text-slate-900 mt-0.5">{ticket.title}</h3>
+              <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 border border-slate-300 rounded">{ticket.tracking_id}</span>
+              <h3 className="font-bold text-base text-slate-900 mt-1.5">{ticket.title}</h3>
               <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
                 {ticket.location.address || ticket.location.ward}
@@ -240,35 +239,35 @@ export const ConfirmResolutionPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Before Photo */}
-              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 flex flex-col justify-between">
+              <div className="rounded-lg overflow-hidden border border-slate-300 bg-slate-50 flex flex-col justify-between">
                 <div className="relative aspect-video bg-black">
                   <img
                     src={ticket.photo_url || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80'}
                     alt="Before: Citizen Report"
                     className="w-full h-full object-cover"
                   />
-                  <span className="absolute top-2.5 left-2.5 bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase shadow">
+                  <span className="absolute top-2.5 left-2.5 bg-slate-900/90 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase border border-white/20">
                     Before: Citizen Report
                   </span>
                 </div>
-                <div className="p-3 text-xs text-slate-500">
+                <div className="p-3 text-xs text-slate-600">
                   Initial hazard reported by citizen
                 </div>
               </div>
 
               {/* After Photo (Resolution) */}
-              <div className="rounded-2xl overflow-hidden border border-emerald-300 bg-emerald-50/50 flex flex-col justify-between">
+              <div className="rounded-lg overflow-hidden border border-slate-300 bg-slate-50 flex flex-col justify-between">
                 <div className="relative aspect-video bg-black">
                   <img
                     src={ticket.resolution_photo || 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=800&q=80'}
                     alt="After: Officer Resolution Proof"
                     className="w-full h-full object-cover"
                   />
-                  <span className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase shadow">
+                  <span className="absolute top-2.5 left-2.5 bg-slate-900/90 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase border border-white/20">
                     After: Crew Resolution Proof
                   </span>
                 </div>
-                <div className="p-3 text-xs text-emerald-900 font-medium">
+                <div className="p-3 text-xs text-slate-700 font-medium">
                   {ticket.resolution_notes || 'Field repair completed by municipal maintenance team.'}
                 </div>
               </div>
@@ -277,8 +276,8 @@ export const ConfirmResolutionPage: React.FC = () => {
 
           {/* Dispute Input Section (if user clicked Dispute) */}
           {isDisputeOpen ? (
-            <form onSubmit={handleDispute} className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-orange-950 uppercase tracking-wide">
+            <form onSubmit={handleDispute} className="p-4 bg-slate-50 border border-slate-300 rounded-lg space-y-3">
+              <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wide">
                 Contest / Dispute Reason
               </h4>
               <textarea
@@ -286,7 +285,7 @@ export const ConfirmResolutionPage: React.FC = () => {
                 value={disputeReason}
                 onChange={(e) => setDisputeReason(e.target.value)}
                 placeholder="Explain what is still broken (e.g., Streetlight turns off after 5 minutes, or pothole repair was incomplete)."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-orange-300 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 rounded border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                 required
               />
               <div className="flex items-center justify-end gap-2">
@@ -318,7 +317,7 @@ export const ConfirmResolutionPage: React.FC = () => {
                 loading={isSubmitting}
                 onClick={handleConfirmFixed}
                 icon={<CheckCircle2 className="w-5 h-5 text-white" />}
-                className="w-full sm:flex-1 shadow-lg shadow-emerald-500/20"
+                className="w-full sm:flex-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-medium"
               >
                 Yes, Fixed! (+20 pts)
               </Button>
@@ -329,7 +328,7 @@ export const ConfirmResolutionPage: React.FC = () => {
                 size="lg"
                 onClick={() => setIsDisputeOpen(true)}
                 icon={<XCircle className="w-5 h-5 text-white" />}
-                className="w-full sm:flex-1 bg-orange-600 hover:bg-orange-700 shadow-orange-500/20"
+                className="w-full sm:flex-1 bg-rose-700 hover:bg-rose-800 text-white rounded font-medium"
               >
                 No, Still Broken (Dispute)
               </Button>

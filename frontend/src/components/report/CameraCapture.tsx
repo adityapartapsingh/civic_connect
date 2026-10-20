@@ -47,7 +47,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
   };
 
   return (
-    <div className="relative w-full max-w-lg mx-auto bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 text-white flex flex-col min-h-[520px]">
+    <div className="relative w-full max-w-lg mx-auto bg-slate-950 rounded-lg overflow-hidden border border-slate-800 text-white flex flex-col min-h-[520px]">
       {/* Top Header Bar */}
       <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
         <div className="flex items-center gap-2">
@@ -167,11 +167,11 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
           <div className="flex items-center gap-3">
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="lg"
-              className="flex-1 bg-slate-800 text-white border-slate-700 hover:bg-slate-700"
+              className="flex-1 bg-slate-800 text-white font-bold border border-slate-600 hover:bg-slate-700 hover:text-white"
               onClick={handleRetake}
-              icon={<RefreshCw className="w-4 h-4" />}
+              icon={<RefreshCw className="w-4 h-4 text-white" />}
             >
               Retake
             </Button>
@@ -239,7 +239,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
                   className="w-18 h-18 p-1 rounded-full border-4 border-red-400/60 hover:border-red-400 transition flex items-center justify-center group active:scale-90 disabled:opacity-40"
                   aria-label="Record 3-second pan video"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-red-600 group-hover:scale-95 transition-transform flex items-center justify-center shadow-lg shadow-red-600/30">
+                  <div className="w-14 h-14 rounded bg-red-600 group-hover:scale-95 transition-transform flex items-center justify-center">
                     <Video className="w-6 h-6 text-white" />
                   </div>
                 </button>

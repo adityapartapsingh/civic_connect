@@ -49,6 +49,7 @@ class ReportDetailSerializer(serializers.Serializer):
     category = serializers.CharField()
     photos = serializers.ListField(child=serializers.CharField(), default=list)
     primary_photo = serializers.CharField(allow_null=True, required=False)
+    photo_url = serializers.CharField(source="primary_photo", allow_null=True, required=False)
     phash = serializers.CharField(allow_blank=True, required=False)
     location = serializers.DictField()
     latitude = serializers.FloatField()

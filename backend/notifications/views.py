@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from civic_connect.mongo import get_collection, parse_object_id, serialize_doc
 from notifications.serializers import PublicUpdateStatusSerializer
 from notifications.tokens import generate_action_token, record_token_usage, verify_action_token
+from utils.cloudinary_service import upload_media
 
 
 class PublicUpdateAPIView(APIView):
@@ -72,14 +73,12 @@ class PublicUpdateAPIView(APIView):
         notes = data.get("notes", "")
         officer_name = data.get("officer_name") or payload.get("officer_email", "Field Officer")
 
-        # Handle resolution photo upload
+        # Handle resolution photo upload via Cloudinary (with local fallback)
         resolution_photo_url = data.get("resolution_photo_url", "")
         photo_file = request.FILES.get("resolution_photo")
         if photo_file:
-            timestamp_prefix = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"resolution_{timestamp_prefix}_{photo_file.name}"
-            save_path = default_storage.save(f"resolutions/{filename}", photo_file)
-            resolution_photo_url = request.build_absolute_uri(settings.MEDIA_URL + save_path)
+            uploaded_url, _ = upload_media(photo_file, folder="civic_connect/resolutions", request=request)
+            resolution_photo_url = uploaded_url
 
         now = datetime.datetime.now(datetime.timezone.utc)
         status_entry = {

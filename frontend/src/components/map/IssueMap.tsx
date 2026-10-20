@@ -78,15 +78,24 @@ const userLocationIcon = L.divIcon({
 
 export const IssueMap: React.FC<IssueMapProps> = ({
   issues,
-  center = [12.9352, 77.6245],
+  center = [31.3260, 75.5762],
   zoom = 14,
   userLocation,
   selectedIssueId,
   onSelectIssue,
   showHeatmap = false,
 }) => {
-  const [mapCenter, setMapCenter] = useState<[number, number]>(center);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(
+    userLocation ? [userLocation.latitude, userLocation.longitude] : center
+  );
   const [currentZoom, setCurrentZoom] = useState<number>(zoom);
+
+  // When live GPS coordinates are captured, center on the user automatically
+  useEffect(() => {
+    if (userLocation) {
+      setMapCenter([userLocation.latitude, userLocation.longitude]);
+    }
+  }, [userLocation?.latitude, userLocation?.longitude]);
 
   const handleLocateUser = () => {
     if (userLocation) {
@@ -95,14 +104,19 @@ export const IssueMap: React.FC<IssueMapProps> = ({
     }
   };
 
+  const [internalHeatmap, setInternalHeatmap] = useState<boolean>(showHeatmap);
+
+  useEffect(() => {
+    setInternalHeatmap(showHeatmap);
+  }, [showHeatmap]);
+
   return (
-    <div className="relative w-full h-full min-h-[420px] rounded-3xl overflow-hidden shadow-inner border border-slate-200">
+    <div className="relative w-full h-full rounded-lg overflow-hidden border border-slate-300">
       <MapContainer
         center={mapCenter}
         zoom={currentZoom}
         scrollWheelZoom={true}
         className="w-full h-full z-0"
-        style={{ minHeight: '420px' }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -111,7 +125,7 @@ export const IssueMap: React.FC<IssueMapProps> = ({
 
         <RecenterMap lat={mapCenter[0]} lng={mapCenter[1]} zoom={currentZoom} />
 
-        {/* User GPS pulse location marker */}
+        {/* Live User GPS Pulse Location Marker */}
         {userLocation && (
           <Marker
             position={[userLocation.latitude, userLocation.longitude]}
@@ -119,25 +133,27 @@ export const IssueMap: React.FC<IssueMapProps> = ({
           >
             <Popup>
               <div className="p-1 font-semibold text-xs text-slate-800">
-                You are here (Within 10m accuracy)
+                Live Location (Within ±10m accuracy)
               </div>
             </Popup>
           </Marker>
         )}
 
-        {/* Heatmap density circles if enabled */}
-        {showHeatmap &&
+        {/* Heatmap Density Circles (Mode 2) */}
+        {internalHeatmap &&
           issues.map((issue) => {
             const isResolved = issue.status === 'resolved' || issue.status === 'closed';
             return (
               <Circle
                 key={`heat_${issue.id}`}
                 center={[issue.location.latitude, issue.location.longitude]}
-                radius={240}
+                radius={280}
                 pathOptions={{
                   fillColor: isResolved ? '#10b981' : '#ef4444',
-                  fillOpacity: 0.28,
-                  stroke: false,
+                  fillOpacity: 0.35,
+                  stroke: true,
+                  weight: 1,
+                  color: isResolved ? '#059669' : '#dc2626',
                 }}
               />
             );
@@ -178,7 +194,7 @@ export const IssueMap: React.FC<IssueMapProps> = ({
                   </h4>
 
                   <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
-                    {issue.location.address || issue.location.ward}
+                    {issue.location.address || issue.location.landmark || `${issue.location.latitude.toFixed(4)}, ${issue.location.longitude.toFixed(4)}`}
                   </p>
 
                   <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -201,36 +217,65 @@ export const IssueMap: React.FC<IssueMapProps> = ({
         })}
       </MapContainer>
 
-      {/* Floating map controls */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+      {/* Floating map controls: 2 Map Modes (Normal vs Heatmap) + Recenter GPS */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+        {/* Mode 1 & 2 Toggle */}
+        <div className="flex items-center bg-white rounded border border-slate-300 shadow-xs p-1">
+          <button
+            type="button"
+            onClick={() => setInternalHeatmap(false)}
+            className={`px-2.5 py-1 text-xs font-bold rounded transition-colors flex items-center gap-1.5 ${
+              !internalHeatmap
+                ? 'bg-slate-900 text-white'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Normal</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setInternalHeatmap(true)}
+            className={`px-2.5 py-1 text-xs font-bold rounded transition-colors flex items-center gap-1.5 ${
+              internalHeatmap
+                ? 'bg-red-700 text-white'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <span>Heatmap</span>
+          </button>
+        </div>
+
+        {/* Recenter Live GPS Button */}
         {userLocation && (
           <button
+            type="button"
             onClick={handleLocateUser}
-            className="p-3 bg-white rounded-xl shadow-md border border-slate-200 text-slate-700 hover:text-brand-600 hover:bg-slate-50 transition"
-            title="Recenter on my GPS position"
+            className="p-2 bg-white rounded border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
+            title="Recenter on my live GPS position"
           >
-            <Crosshair className="w-5 h-5 text-brand-600" />
+            <Crosshair className="w-4 h-4 text-slate-800" />
           </button>
         )}
       </div>
 
       {/* Status Legend Bar */}
-      <div className="absolute bottom-4 left-4 right-4 z-10 bg-white px-3.5 py-2.5 rounded-xl shadow-md border border-slate-200 flex items-center justify-between overflow-x-auto text-xs gap-3">
-        <div className="flex items-center gap-4 shrink-0 font-medium text-slate-600">
+      <div className="absolute bottom-3 left-3 right-3 z-10 bg-white px-3 py-2 rounded border border-slate-300 shadow-xs flex items-center justify-between overflow-x-auto text-xs gap-3">
+        <div className="flex items-center gap-3 shrink-0 font-medium text-slate-700">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Reported
+            <span className="w-2.5 h-2.5 rounded-full bg-red-600" /> Reported
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Acknowledged
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-600" /> Acknowledged
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> In Progress
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-600" /> In Progress
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Resolved
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" /> Resolved
           </span>
         </div>
-        <span className="text-[11px] text-slate-400 shrink-0 hidden sm:inline">
+        <span className="text-[11px] font-mono text-slate-400 shrink-0 hidden sm:inline">
           {issues.length} active issues plotted
         </span>
       </div>

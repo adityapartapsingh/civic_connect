@@ -97,6 +97,9 @@ export interface UserProfile {
   role: 'citizen' | 'officer' | 'admin';
   ward?: string;
   department?: string; // if officer
+  designation?: string; // if officer (e.g., Assistant Engineer, Junior Engineer, SDO, Sanitary Inspector)
+  employee_id?: string; // if officer (e.g., PB-MCJ-2024-ENG-082)
+  jurisdiction_zone?: string; // if officer (e.g., Central Zone, North Division, Phillaur Sub-Division)
   points: number;
   level: number;
   badges: UserBadge[];
@@ -125,6 +128,7 @@ export interface CategoryInfo {
 }
 
 export interface CreateReportPayload {
+  title?: string;
   category: IssueCategory;
   description: string;
   latitude: number;
@@ -153,3 +157,27 @@ export interface VerificationPayload {
   dispute_reason?: string;
   evidence_blob?: Blob;
 }
+
+export interface PaginatedResponse<T> {
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+  results: T[];
+}
+
+export interface ReportFilterParams {
+  page?: number;
+  page_size?: number;
+  priority?: string;
+  status?: string;
+  category?: string;
+  date_from?: string;
+  date_to?: string;
+  date_range?: 'all' | 'today' | '7d' | '30d';
+  sort_by?: 'newest' | 'oldest' | 'priority' | 'sla';
+  ward?: string;
+}
+

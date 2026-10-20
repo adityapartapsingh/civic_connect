@@ -58,7 +58,7 @@ export const PublicUpdatePage: React.FC = () => {
 
   if (error || !issue) {
     return (
-      <div className="max-w-md mx-auto py-16 text-center bg-white rounded-3xl p-8 border border-slate-200">
+      <div className="max-w-md mx-auto py-16 text-center bg-white rounded-lg p-8 border border-slate-300">
         <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
         <h2 className="font-bold text-lg text-slate-900">Invalid Dispatch Token</h2>
         <p className="text-xs text-slate-500 mt-1 mb-4">
@@ -76,9 +76,9 @@ export const PublicUpdatePage: React.FC = () => {
   return (
     <div className="max-w-xl mx-auto py-4 space-y-5">
       {/* Officer Security Header */}
-      <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 border border-slate-800">
+      <div className="bg-slate-900 text-white rounded-lg p-5 sm:p-6 border border-slate-800">
         <div className="flex items-center gap-2 mb-2">
-          <ShieldCheck className="w-5 h-5 text-emerald-400" />
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
           <span className="text-xs font-mono font-medium tracking-wide text-slate-300">
             Field Officer Status Update
           </span>
@@ -92,12 +92,12 @@ export const PublicUpdatePage: React.FC = () => {
       </div>
 
       {isSuccess ? (
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center space-y-4 shadow-sm">
-          <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+        <div className="bg-white rounded-lg p-8 border border-slate-300 text-center space-y-4 shadow-xs">
+          <div className="w-14 h-14 rounded bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto border border-emerald-300">
             <CheckCircle2 className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-black text-slate-900">Status Successfully Updated!</h2>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          <h2 className="text-xl font-bold text-slate-900">Status Successfully Updated</h2>
+          <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
             The civic ticket <strong>{issue.tracking_id}</strong> has been updated in the municipal registry and reporting citizens have been notified.
           </p>
 
@@ -110,11 +110,11 @@ export const PublicUpdatePage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5">
+        <div className="bg-white rounded-lg p-5 sm:p-6 border border-slate-300 shadow-xs space-y-5">
           {/* Target Issue Summary Card */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/90 space-y-3">
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-300 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+              <span className="font-mono text-xs font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-300">
                 {issue.tracking_id}
               </span>
               <StatusBadge status={issue.status} size="sm" />
@@ -125,10 +125,10 @@ export const PublicUpdatePage: React.FC = () => {
 
             <div className="flex items-center justify-between pt-1 text-xs text-slate-500">
               <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-brand-600" />
+                <MapPin className="w-3.5 h-3.5 text-slate-500" />
                 {issue.location.landmark || issue.location.ward}
               </span>
-              <span className={`font-bold px-2 py-0.5 rounded ${sla.badgeColorClass}`}>
+              <span className={`font-mono text-xs font-medium px-2 py-0.5 rounded border ${sla.badgeColorClass}`}>
                 {sla.formattedText}
               </span>
             </div>
@@ -136,7 +136,7 @@ export const PublicUpdatePage: React.FC = () => {
 
           {/* Issue Photo Thumbnail */}
           {issue.photo_url && (
-            <div className="rounded-2xl overflow-hidden border border-slate-200">
+            <div className="rounded-lg overflow-hidden border border-slate-300">
               <img
                 src={issue.photo_url}
                 alt="Citizen Reported Issue"
