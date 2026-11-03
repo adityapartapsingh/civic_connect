@@ -59,9 +59,12 @@ def generate_jwt(user_payload: Dict[str, Any], expiry_days: int = JWT_DEFAULT_EX
         "phone": str(user_payload.get("phone", "")),
         "name": user_payload.get("name", "Citizen"),
         "role": user_payload.get("role", "citizen").lower(),
+        "ward_id": user_payload.get("ward_id"),
+        "ward_name": user_payload.get("ward_name"),
         "department": user_payload.get("department"),
         "designation": user_payload.get("designation"),
         "employee_id": user_payload.get("employee_id"),
+        "assigned_tasks": user_payload.get("assigned_tasks", []),
         "iat": int(now.timestamp()),
         "exp": int(expires_at.timestamp()),
     }
@@ -128,16 +131,23 @@ class CivicUserPrincipal:
         self.department = payload.get("department")
         self.designation = payload.get("designation")
         self.employee_id = payload.get("employee_id")
+        self.ward_id = payload.get("ward_id")
+        self.ward_name = payload.get("ward_name")
+        self.assigned_tasks = payload.get("assigned_tasks", [])
         self.is_authenticated = True
         self.is_anonymous = False
 
     @property
     def is_officer(self) -> bool:
-        return self.role in ("officer", "admin")
+        return self.role in ("officer", "admin", "super_admin")
 
     @property
     def is_admin(self) -> bool:
-        return self.role == "admin"
+        return self.role in ("admin", "super_admin")
+
+    @property
+    def is_super_admin(self) -> bool:
+        return self.role == "super_admin"
 
     def __str__(self) -> str:
         return f"CivicUser({self.user_id}, role={self.role})"
@@ -172,14 +182,38 @@ class JWTBearerAuthentication(BaseAuthentication):
 
 class IsOfficerOrAdmin(permissions.BasePermission):
     """
-    Permission check: Request must be authenticated and have role 'officer' or 'admin'.
+    Permission check: Request must be authenticated and have role 'officer', 'admin', or 'super_admin'.
     """
 
     def has_permission(self, request, view) -> bool:
         user = getattr(request, "user", None)
         if not user or not getattr(user, "is_authenticated", False):
             return False
-        return getattr(user, "role", "") in ("officer", "admin")
+        return getattr(user, "role", "") in ("officer", "admin", "super_admin")
+
+
+class IsSuperAdmin(permissions.BasePermission):
+    """
+    Permission check: Request must be authenticated as 'super_admin' (Civic Connect Team).
+    """
+
+    def has_permission(self, request, view) -> bool:
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            return False
+        return getattr(user, "role", "") == "super_admin"
+
+
+class IsWardAdminOrSuperAdmin(permissions.BasePermission):
+    """
+    Permission check: Request must be authenticated as 'admin' or 'super_admin'.
+    """
+
+    def has_permission(self, request, view) -> bool:
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            return False
+        return getattr(user, "role", "") in ("admin", "super_admin")
 
 
 class IsAuthenticatedCivicUser(permissions.BasePermission):

@@ -2,77 +2,24 @@ import { create } from 'zustand';
 import { UserProfile } from '../types';
 import { useToastStore } from './toastStore';
 
-const INITIAL_USER: UserProfile = {
-  id: 'usr_c19284',
-  name: 'Priya Sharma',
-  phone: '+91 98765 43210',
-  email: 'priya.sharma@example.com',
-  role: 'citizen',
-  points: 180,
-  level: 3,
-  reports_submitted_count: 5,
-  reports_resolved_count: 4,
-  upvotes_given_count: 14,
-  badges: [
-    {
-      id: 'first_report',
-      name: 'Civic Scout',
-      description: 'Submitted your first verified civic issue',
-      icon: 'Eye',
-      is_unlocked: true,
-      points_reward: 20,
-      unlocked_at: '2026-09-12T10:30:00Z',
-    },
-    {
-      id: 'pothole_patrol',
-      name: 'Pothole Patrol',
-      description: 'Reported 3 road or pothole safety hazards',
-      icon: 'ShieldCheck',
-      is_unlocked: true,
-      points_reward: 50,
-      unlocked_at: '2026-09-28T14:15:00Z',
-    },
-    {
-      id: 'fix_verifier',
-      name: 'Resolution Guardian',
-      description: 'Verified a completed resolution on-site',
-      icon: 'CheckCircle2',
-      is_unlocked: true,
-      points_reward: 30,
-      unlocked_at: '2026-10-02T16:00:00Z',
-    },
-    {
-      id: 'community_champion',
-      name: 'Ward Champion',
-      description: 'Reached Top 5 citizens in your municipal ward',
-      icon: 'Trophy',
-      is_unlocked: false,
-      points_reward: 100,
-    },
-    {
-      id: 'video_sleuth',
-      name: 'Video Sleuth',
-      description: 'Recorded a 3-second pan video for critical evidence',
-      icon: 'Video',
-      is_unlocked: true,
-      points_reward: 40,
-      unlocked_at: '2026-10-10T11:20:00Z',
-    },
-  ],
-};
-
 interface AuthState {
   user: UserProfile | null;
   token: string | null;
-  role: 'citizen' | 'officer' | 'admin';
+  role: 'citizen' | 'volunteer' | 'officer' | 'admin' | 'super_admin';
   isOfficer: boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
   isAuthenticated: boolean;
   isGuest: boolean;
   login: (token: string, user: UserProfile) => void;
   setUser: (user: UserProfile | null) => void;
-  setRole: (role: 'citizen' | 'officer' | 'admin') => void;
+  setRole: (role: 'citizen' | 'volunteer' | 'officer' | 'admin' | 'super_admin') => void;
   toggleRole: () => void;
   addPoints: (points: number, reason: string) => void;
+  addReward: (points: number, coins: number, reason: string) => void;
+  deductPoints: (points: number, reason: string) => boolean;
+  deductCoins: (coins: number, reason: string) => boolean;
+  applyFraudPenalty: (pointsPenalty: number, coinsPenalty: number, reason: string) => void;
   logout: () => void;
 }
 
@@ -82,6 +29,9 @@ let initialUser: UserProfile | null = null;
 if (savedUserStr && savedToken) {
   try {
     initialUser = JSON.parse(savedUserStr);
+    if (initialUser && !initialUser.badges) {
+      initialUser.badges = [];
+    }
   } catch {
     initialUser = null;
     localStorage.removeItem('civic_user');
@@ -93,7 +43,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: initialUser,
   token: savedToken || null,
   role: initialUser ? initialUser.role : 'citizen',
-  isOfficer: initialUser?.role === 'officer' || initialUser?.role === 'admin',
+  isOfficer: initialUser?.role === 'officer' || initialUser?.role === 'admin' || initialUser?.role === 'super_admin',
+  isAdmin: initialUser?.role === 'admin' || initialUser?.role === 'super_admin',
+  isSuperAdmin: initialUser?.role === 'super_admin',
   isAuthenticated: Boolean(initialUser && savedToken),
   isGuest: !initialUser,
 
@@ -104,7 +56,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       token,
       user,
       role: user.role,
-      isOfficer: user.role === 'officer' || user.role === 'admin',
+      isOfficer: user.role === 'officer' || user.role === 'admin' || user.role === 'super_admin',
+      isAdmin: user.role === 'admin' || user.role === 'super_admin',
+      isSuperAdmin: user.role === 'super_admin',
       isAuthenticated: true,
       isGuest: false,
     });
@@ -119,7 +73,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       user,
       role: user ? user.role : 'citizen',
-      isOfficer: user?.role === 'officer' || user?.role === 'admin',
+      isOfficer: user?.role === 'officer' || user?.role === 'admin' || user?.role === 'super_admin',
+      isAdmin: user?.role === 'admin' || user?.role === 'super_admin',
+      isSuperAdmin: user?.role === 'super_admin',
       isAuthenticated: Boolean(user && get().token),
       isGuest: !user,
     });
@@ -127,18 +83,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setRole: (role) => {
     set((state) => {
-      const isOfficer = role === 'officer' || role === 'admin';
+      const isOfficer = role === 'officer' || role === 'admin' || role === 'super_admin';
+      const isAdmin = role === 'admin' || role === 'super_admin';
+      const isSuperAdmin = role === 'super_admin';
       const updatedUser = state.user
         ? {
             ...state.user,
             role,
-            department: isOfficer ? 'Roads & Infrastructure Ward 18' : undefined,
+            department: isOfficer ? (state.user.department || 'Roads & Infrastructure Ward 2') : undefined,
           }
         : null;
       if (updatedUser) {
         localStorage.setItem('civic_user', JSON.stringify(updatedUser));
       }
-      return { role, isOfficer, user: updatedUser };
+      return { role, isOfficer, isAdmin, isSuperAdmin, user: updatedUser };
     });
   },
 
@@ -157,11 +115,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set((state) => {
       if (!state.user) return state;
       const newPoints = state.user.points + points;
+      const curCoins = state.user.coins ?? state.user.points ?? 0;
+      const newCoins = curCoins + points;
       const newLevel = Math.floor(newPoints / 60) + 1;
 
       useToastStore.getState().addToast({
         type: 'points',
-        title: `+${points} Civic Points!`,
+        title: `+${points} Points & +${points} Coins!`,
         message: reason,
         points,
       });
@@ -169,6 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const updated = {
         ...state.user,
         points: newPoints,
+        coins: newCoins,
         level: newLevel,
       };
       localStorage.setItem('civic_user', JSON.stringify(updated));
@@ -179,6 +140,126 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
+  addReward: (points, coins, reason) => {
+    set((state) => {
+      if (!state.user) return state;
+      const newPoints = state.user.points + points;
+      const curCoins = state.user.coins ?? state.user.points ?? 0;
+      const newCoins = curCoins + coins;
+      const newLevel = Math.floor(newPoints / 60) + 1;
+
+      useToastStore.getState().addToast({
+        type: 'points',
+        title: `+${points} Points & +${coins} Coins!`,
+        message: reason,
+        points,
+      });
+
+      const updated = {
+        ...state.user,
+        points: newPoints,
+        coins: newCoins,
+        level: newLevel,
+      };
+      localStorage.setItem('civic_user', JSON.stringify(updated));
+
+      return {
+        user: updated,
+      };
+    });
+  },
+
+  deductCoins: (coins, reason) => {
+    const user = get().user;
+    const currentCoins = user?.coins ?? user?.points ?? 0;
+    if (currentCoins < coins) {
+      useToastStore.getState().addToast({
+        type: 'error',
+        title: 'Insufficient Civic Coins',
+        message: `You have ${currentCoins} coins, but this reward requires ${coins} coins.`,
+      });
+      return false;
+    }
+
+    set((state) => {
+      if (!state.user) return state;
+      const userCoins = state.user.coins ?? state.user.points ?? 0;
+      const newCoins = Math.max(0, userCoins - coins);
+      // CRITICAL RULE: state.user.points and level are NOT reduced when buying rewards!
+      const updated: UserProfile = {
+        ...state.user,
+        coins: newCoins,
+      };
+      localStorage.setItem('civic_user', JSON.stringify(updated));
+      return { user: updated };
+    });
+
+    useToastStore.getState().addToast({
+      type: 'success',
+      title: `-${coins} Coins Redeemed!`,
+      message: `${reason}. Your Civic Reputation Points remain 100% intact!`,
+    });
+    return true;
+  },
+
+  applyFraudPenalty: (pointsPenalty, coinsPenalty, reason) => {
+    set((state) => {
+      if (!state.user) return state;
+      const currentPts = state.user.points ?? 0;
+      const currentCoins = state.user.coins ?? currentPts;
+      const newPoints = Math.max(0, currentPts - pointsPenalty);
+      const newCoins = Math.max(0, currentCoins - coinsPenalty);
+      const newLevel = Math.max(1, Math.floor(newPoints / 60) + 1);
+
+      const updated: UserProfile = {
+        ...state.user,
+        points: newPoints,
+        coins: newCoins,
+        level: newLevel,
+      };
+      localStorage.setItem('civic_user', JSON.stringify(updated));
+
+      useToastStore.getState().addToast({
+        type: 'error',
+        title: 'Civic Penalty Applied',
+        message: `${reason} (-${pointsPenalty} Points, -${coinsPenalty} Coins).`,
+      });
+
+      return { user: updated };
+    });
+  },
+
+  deductPoints: (points, reason) => {
+    const currentPoints = get().user?.points ?? 0;
+    if (currentPoints < points) {
+      useToastStore.getState().addToast({
+        type: 'error',
+        title: 'Insufficient Points',
+        message: `You have ${currentPoints} points, but this reward requires ${points} points.`,
+      });
+      return false;
+    }
+
+    set((state) => {
+      if (!state.user) return state;
+      const newPoints = state.user.points - points;
+      const updated: UserProfile = {
+        ...state.user,
+        points: newPoints,
+      };
+      localStorage.setItem('civic_user', JSON.stringify(updated));
+      return { user: updated };
+    });
+
+    useToastStore.getState().addToast({
+      type: 'points',
+      title: `-${points} Points Redeemed!`,
+      message: reason,
+      points: -points,
+    });
+    return true;
+  },
+
   logout: () => {
     localStorage.removeItem('civic_auth_token');
     localStorage.removeItem('civic_user');
@@ -187,6 +268,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       token: null,
       role: 'citizen',
       isOfficer: false,
+      isAdmin: false,
+      isSuperAdmin: false,
       isAuthenticated: false,
       isGuest: true,
     });

@@ -22,6 +22,12 @@ class ReportCreateSerializer(serializers.Serializer):
     reporter_name = serializers.CharField(required=False, allow_blank=True, default="Citizen")
     reporter_phone = serializers.CharField(required=False, allow_blank=True, default="")
 
+    def validate_reporter_phone(self, value):
+        if not value:
+            return ""
+        from users.validators import normalize_phone_number
+        return normalize_phone_number(value)
+
 
 class StatusHistoryEntrySerializer(serializers.Serializer):
     status = serializers.CharField()
@@ -63,7 +69,10 @@ class ReportDetailSerializer(serializers.Serializer):
     priority_factors = serializers.DictField(required=False)
     reporter_id = serializers.CharField(required=False)
     reporter_name = serializers.CharField(required=False)
-    upvote_count = serializers.IntegerField()
+    reporter_phone = serializers.CharField(required=False, allow_blank=True)
+    upvote_count = serializers.IntegerField(default=0)
+    has_upvoted = serializers.BooleanField(required=False, default=False)
+    upvoted_by = serializers.ListField(child=serializers.CharField(), required=False, default=list)
     status_history = StatusHistoryEntrySerializer(many=True, required=False, default=list)
     evidence = EvidenceEntrySerializer(many=True, required=False, default=list)
     is_flagged_fraud = serializers.BooleanField(default=False)
@@ -74,6 +83,9 @@ class ReportDetailSerializer(serializers.Serializer):
     dispute_reason = serializers.CharField(allow_blank=True, required=False)
     disputed_at = serializers.CharField(allow_null=True, required=False)
     distance_meters = serializers.FloatField(required=False)
+    is_duplicate = serializers.BooleanField(required=False, default=False)
+    merged_into_ticket_id = serializers.CharField(required=False, allow_null=True)
+    message = serializers.CharField(required=False, allow_blank=True)
     created_at = serializers.CharField()
     updated_at = serializers.CharField()
 

@@ -50,6 +50,7 @@ class GamificationManager:
         # Apply youth volunteer incentive multiplier
         multiplier = 1.25 if scheme in (VolunteerScheme.NSS, VolunteerScheme.NCC, VolunteerScheme.NYKS) else 1.0
         points_awarded = int(round(base_points * multiplier))
+        coins_awarded = points_awarded
 
         now = datetime.datetime.now(datetime.timezone.utc)
         transaction = {
@@ -58,6 +59,7 @@ class GamificationManager:
             "base_points": base_points,
             "multiplier": multiplier,
             "points_awarded": points_awarded,
+            "coins_awarded": coins_awarded,
             "report_id": report_id,
             "notes": notes,
             "created_at": now,
@@ -66,9 +68,10 @@ class GamificationManager:
         # 1. Insert into immutable ledger
         cls.get_ledger_collection().insert_one(transaction)
 
-        # 2. Update user profile total points and tier
-        updated_user = UserManager.add_points(user_id, points_awarded) or {}
+        # 2. Update user profile total points, spendable coins, and tier
+        updated_user = UserManager.add_points_and_coins(user_id, points_awarded, coins_awarded) or {}
         total_points = updated_user.get("points", points_awarded)
+        total_coins = updated_user.get("coins", total_points)
         badge = updated_user.get("badge", "Bronze")
 
         unlocked_badges = evaluate_user_badges(
@@ -80,7 +83,9 @@ class GamificationManager:
             "user_id": user_id,
             "action": action,
             "points_awarded": points_awarded,
+            "coins_awarded": coins_awarded,
             "total_points": total_points,
+            "total_coins": total_coins,
             "badge": badge,
             "unlocked_badges": unlocked_badges,
             "created_at": now.isoformat(),

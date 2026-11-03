@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Issue, IssueStatus } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { Button } from '../common/Button';
 import { Link } from 'react-router-dom';
-import { Crosshair, Layers, ArrowRight, Clock, AlertTriangle, Eye } from 'lucide-react';
+import { Crosshair, Layers, ArrowRight, Clock, AlertTriangle, Eye, Flame } from 'lucide-react';
 import { getSlaInfo } from '../../utils/helpers';
+import { HeatmapLayer } from './Heatmap';
 
 interface IssueMapProps {
   issues: Issue[];
@@ -139,25 +140,8 @@ export const IssueMap: React.FC<IssueMapProps> = ({
           </Marker>
         )}
 
-        {/* Heatmap Density Circles (Mode 2) */}
-        {internalHeatmap &&
-          issues.map((issue) => {
-            const isResolved = issue.status === 'resolved' || issue.status === 'closed';
-            return (
-              <Circle
-                key={`heat_${issue.id}`}
-                center={[issue.location.latitude, issue.location.longitude]}
-                radius={280}
-                pathOptions={{
-                  fillColor: isResolved ? '#10b981' : '#ef4444',
-                  fillOpacity: 0.35,
-                  stroke: true,
-                  weight: 1,
-                  color: isResolved ? '#059669' : '#dc2626',
-                }}
-              />
-            );
-          })}
+        {/* Continuous Thermal Density Heatmap Layer */}
+        {internalHeatmap && <HeatmapLayer issues={issues} />}
 
         {/* Issue Pins */}
         {issues.map((issue) => {
@@ -169,6 +153,7 @@ export const IssueMap: React.FC<IssueMapProps> = ({
               key={issue.id}
               position={[issue.location.latitude, issue.location.longitude]}
               icon={createCustomPin(issue.status, issue.upvotes_count)}
+              opacity={internalHeatmap ? 0.75 : 1.0}
               eventHandlers={{
                 click: () => onSelectIssue?.(issue),
               }}
@@ -259,24 +244,43 @@ export const IssueMap: React.FC<IssueMapProps> = ({
         )}
       </div>
 
-      {/* Status Legend Bar */}
-      <div className="absolute bottom-3 left-3 right-3 z-10 bg-white px-3 py-2 rounded border border-slate-300 shadow-xs flex items-center justify-between overflow-x-auto text-xs gap-3">
-        <div className="flex items-center gap-3 shrink-0 font-medium text-slate-700">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-600" /> Reported
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-600" /> Acknowledged
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-600" /> In Progress
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" /> Resolved
-          </span>
-        </div>
-        <span className="text-[11px] font-mono text-slate-400 shrink-0 hidden sm:inline">
-          {issues.length} active issues plotted
+      {/* Dynamic Status / Heatmap Density Legend Bar */}
+      <div className="absolute bottom-3 left-3 right-3 z-10 bg-white/95 px-3.5 py-2 rounded-lg border border-slate-300 shadow-xs flex items-center justify-between overflow-x-auto text-xs gap-3">
+        {internalHeatmap ? (
+          <div className="flex items-center gap-3 shrink-0 font-medium text-slate-800">
+            <span className="flex items-center gap-1.5 font-bold text-slate-900">
+              <Flame className="w-4 h-4 text-red-600" />
+              <span>Thermal Cluster Density:</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-sky-700 font-semibold">Low</span>
+              <div
+                className="h-2.5 w-32 sm:w-44 rounded-full border border-slate-300 shadow-inner"
+                style={{
+                  background: 'linear-gradient(to right, #38bdf8 0%, #22c55e 30%, #facc15 55%, #f97316 75%, #dc2626 100%)',
+                }}
+              />
+              <span className="text-[11px] text-red-700 font-bold">Severe Hotspot</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 shrink-0 font-medium text-slate-700">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-600" /> Reported
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-600" /> Acknowledged
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-600" /> In Progress
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" /> Resolved
+            </span>
+          </div>
+        )}
+        <span className="text-[11px] font-mono text-slate-500 shrink-0 hidden sm:inline">
+          {issues.length} records analyzed
         </span>
       </div>
     </div>

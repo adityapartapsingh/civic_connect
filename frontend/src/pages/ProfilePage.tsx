@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { Button } from '../components/common/Button';
+import { useToastStore } from '../store/toastStore';
+import { authApi } from '../services/api';
+import { INDIAN_STATES, STATE_DISTRICTS_MAP, getWardsForDistrict } from '../utils/constants';
+import { Modal } from '../components/common/Modal';
+import { validatePasswordStrength } from '../utils/validators';
 import {
   Award,
   Zap,
   Shield,
   Eye,
+  EyeOff,
   ShieldCheck,
   CheckCircle2,
   Trophy,
@@ -13,12 +18,24 @@ import {
   MapPin,
   TrendingUp,
   Lock,
-  Sparkles,
+  
   Phone,
+  Mail,
   User,
   ArrowRight,
+  LogOut,
+  Trash2,
+  Gift,
+  Edit3,
+  KeyRound,
+  FileText,
+  Check,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  SlidersHorizontal,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const badgeIcons: Record<string, React.ElementType> = {
   Eye,
@@ -28,8 +45,435 @@ const badgeIcons: Record<string, React.ElementType> = {
   Video,
 };
 
+const DEFAULT_CIVIC_BADGES = [
+  {
+    id: 'first_report',
+    name: 'First Watchdog',
+    description: 'Submitted your first verified municipal civic issue.',
+    icon: 'Eye',
+    is_unlocked: true,
+    unlocked_at: '2026-03-15',
+    points_reward: 50,
+  },
+  {
+    id: 'verified_fix',
+    name: 'Resolution Sentinel',
+    description: 'Confirmed and verified an officer resolution in your ward.',
+    icon: 'ShieldCheck',
+    is_unlocked: true,
+    unlocked_at: '2026-03-20',
+    points_reward: 75,
+  },
+  {
+    id: 'clean_streak',
+    name: 'Neighborhood Champion',
+    description: 'Reported 5 or more resolved neighborhood issues.',
+    icon: 'CheckCircle2',
+    is_unlocked: false,
+    points_reward: 150,
+  },
+  {
+    id: 'civic_hero',
+    name: 'Ward Pioneer',
+    description: 'Top contributor in your municipal ward standing.',
+    icon: 'Trophy',
+    is_unlocked: false,
+    points_reward: 300,
+  },
+];
+
 export const ProfilePage: React.FC = () => {
-  const { user, isOfficer, toggleRole, addPoints } = useAuthStore();
+  const { user, isOfficer, logout, setUser } = useAuthStore();
+  const { addToast } = useToastStore();
+  const navigate = useNavigate();
+
+  // -------------------------------------------------------------
+  // MODAL STATES
+  // -------------------------------------------------------------
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  // -------------------------------------------------------------
+  // EDIT PROFILE FORM STATE
+  // -------------------------------------------------------------
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editEmail, setEditEmail] = useState(user?.email || '');
+  const [editState, setEditState] = useState(user?.state || 'Punjab');
+  const [editDistrict, setEditDistrict] = useState(user?.district || 'Jalandhar');
+  const [editWard, setEditWard] = useState(user?.ward_name || user?.ward || 'Ward 2 - Civil Lines');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Sync edit form with current user whenever user changes or modal opens
+  useEffect(() => {
+    if (user) {
+      setEditName(user.name || '');
+      setEditEmail(user.email || '');
+      setEditState(user.state || 'Punjab');
+      setEditDistrict(user.district || 'Jalandhar');
+      setEditWard(user.ward_name || user.ward || 'Ward 2 - Civil Lines Administrative Ward');
+    }
+  }, [user, isEditModalOpen]);
+
+  // Dynamic Districts for selected State
+  const availableDistricts = useMemo(() => {
+    const list = STATE_DISTRICTS_MAP[editState] || ['Jalandhar'];
+    if (editDistrict && !list.includes(editDistrict)) {
+      return [editDistrict, ...list];
+    }
+    return list;
+  }, [editState, editDistrict]);
+
+  // Handle state change: update state, and dynamically switch district and ward
+  const handleStateSelect = (newState: string) => {
+    setEditState(newState);
+    const newDistricts = STATE_DISTRICTS_MAP[newState] || [];
+    if (newDistricts.length > 0 && !newDistricts.includes(editDistrict)) {
+      const nextDistrict = newDistricts[0];
+      setEditDistrict(nextDistrict);
+      const newWards = getWardsForDistrict(nextDistrict);
+      if (newWards.length > 0) {
+        setEditWard(newWards[0]);
+      }
+    }
+  };
+
+  // Dynamic Wards for selected District
+  const availableWards = useMemo(() => {
+    const list = getWardsForDistrict(editDistrict);
+    if (editWard && !list.includes(editWard)) {
+      return [editWard, ...list];
+    }
+    return list;
+  }, [editDistrict, editWard]);
+
+  // Handle district change: update district and dynamically switch ward
+  const handleDistrictSelect = (newDistrict: string) => {
+    setEditDistrict(newDistrict);
+    const newWards = getWardsForDistrict(newDistrict);
+    if (newWards.length > 0 && !newWards.includes(editWard)) {
+      setEditWard(newWards[0]);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // CHANGE PASSWORD (WITH MANDATORY OTP) FORM STATE
+  // -------------------------------------------------------------
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [testOtpNotice, setTestOtpNotice] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    let timer: any = null;
+    if (cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cooldown]);
+
+  // Handle opening change password modal
+  const handleOpenPasswordModal = () => {
+    setOtpSent(false);
+    setOtpCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setTestOtpNotice(null);
+    setPasswordError(null);
+    setIsPasswordModalOpen(true);
+  };
+
+  // Handle Requesting OTP for Password Change
+  const handleSendOtp = async () => {
+    if (!user?.phone) {
+      addToast({
+        type: 'error',
+        title: 'Phone Number Missing',
+        message: 'No registered mobile number found on account to send verification code.',
+      });
+      return;
+    }
+
+    setIsSendingOtp(true);
+    setPasswordError(null);
+
+    try {
+      const response = await authApi.sendOtp(user.phone, user.role || 'citizen');
+      setOtpSent(true);
+      setCooldown(response.retry_after || 60);
+
+      const demoCode = response.dev_otp || response.test_otp;
+      if (demoCode) {
+        setTestOtpNotice(`Demo Verification Code: ${demoCode}`);
+      }
+
+      addToast({
+        type: 'info',
+        title: 'Verification Code Dispatched',
+        message: `6-digit security code sent to +91 ${user.phone}.`,
+      });
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to dispatch verification OTP. Please try again.');
+      addToast({
+        type: 'error',
+        title: 'OTP Dispatch Failed',
+        message: err.message || 'Could not send verification code.',
+      });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  // Handle Submitting New Password with OTP
+  const handleSubmitPasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setPasswordError('Please enter a valid 6-digit verification code.');
+      return;
+    }
+
+    const pwdVal = validatePasswordStrength(newPassword);
+    if (!pwdVal.isValid) {
+      setPasswordError(pwdVal.error || 'Password must be at least 6 characters and contain letters and numbers.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation password do not match.');
+      return;
+    }
+
+    if (!user?.phone) return;
+
+    setIsChangingPassword(true);
+
+    try {
+      const result = await authApi.changePasswordWithOtp({
+        phone: user.phone,
+        user_id: user.id,
+        otp: otpCode.trim(),
+        new_password: newPassword,
+      });
+
+      if (result.user) {
+        setUser(result.user);
+      } else {
+        setUser({ ...user, credential_code: newPassword });
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Password Updated Successfully',
+        message: 'Your account credentials have been secured and updated.',
+      });
+
+      setIsPasswordModalOpen(false);
+    } catch (err: any) {
+      setPasswordError(err.message || 'Verification failed. Please check the code.');
+      addToast({
+        type: 'error',
+        title: 'Password Update Failed',
+        message: err.message || 'Invalid or expired verification code.',
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  // Handle Submitting Edit Profile
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (!editName.trim()) {
+      addToast({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Full name cannot be blank.',
+      });
+      return;
+    }
+
+    setIsSavingProfile(true);
+
+    try {
+      const payload = {
+        user_id: user.id,
+        phone: user.phone,
+        name: editName.trim(),
+        email: editEmail.trim(),
+        state: editState,
+        district: editDistrict.trim(),
+        ward: editWard.trim(),
+        ward_name: editWard.trim(),
+      };
+
+      const updated = await authApi.updateProfile(payload);
+      setUser(updated);
+
+      // Keep jurisdiction synced in local storage
+      if (editState) {
+        localStorage.setItem('civic_user_state', editState);
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        message: 'Your personal and jurisdiction details have been saved.',
+      });
+
+      setIsEditModalOpen(false);
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.message || 'Could not update profile details. Please retry.',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Handle Logout Confirmation
+  const handleConfirmLogout = () => {
+    logout();
+    addToast({
+      type: 'info',
+      title: 'Signed Out',
+      message: 'You have been signed out from Civic Connect.',
+    });
+    navigate('/');
+  };
+
+  // -------------------------------------------------------------
+  // DELETE ACCOUNT (WITH MANDATORY OTP) STATE & HANDLERS
+  // -------------------------------------------------------------
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteOtpSent, setDeleteOtpSent] = useState(false);
+  const [deleteOtpCode, setDeleteOtpCode] = useState('');
+  const [deleteCooldown, setDeleteCooldown] = useState(0);
+  const [isSendingDeleteOtp, setIsSendingDeleteOtp] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteDemoOtpNotice, setDeleteDemoOtpNotice] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Cooldown countdown timer for account deletion OTP
+  useEffect(() => {
+    let timer: any = null;
+    if (deleteCooldown > 0) {
+      timer = setInterval(() => {
+        setDeleteCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [deleteCooldown]);
+
+  const handleOpenDeleteAccountModal = () => {
+    setDeleteOtpSent(false);
+    setDeleteOtpCode('');
+    setDeleteCooldown(0);
+    setDeleteDemoOtpNotice(null);
+    setDeleteError(null);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleSendDeleteOtp = async () => {
+    if (!user?.phone) {
+      addToast({
+        type: 'error',
+        title: 'Phone Number Missing',
+        message: 'No registered mobile number found on account to send verification code.',
+      });
+      return;
+    }
+
+    setIsSendingDeleteOtp(true);
+    setDeleteError(null);
+
+    try {
+      const response = await authApi.sendOtp(user.phone, user.role || 'citizen');
+      setDeleteOtpSent(true);
+      setDeleteCooldown(response.retry_after || 60);
+
+      const demoCode = response.dev_otp || response.test_otp;
+      if (demoCode) {
+        setDeleteDemoOtpNotice(`Demo Security Code: ${demoCode}`);
+      }
+
+      addToast({
+        type: 'info',
+        title: 'Security Code Dispatched',
+        message: `6-digit deletion verification code sent to +91 ${user.phone}.`,
+      });
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to dispatch verification OTP. Please try again.');
+      addToast({
+        type: 'error',
+        title: 'OTP Dispatch Failed',
+        message: err.message || 'Could not send verification code.',
+      });
+    } finally {
+      setIsSendingDeleteOtp(false);
+    }
+  };
+
+  const handleConfirmDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError(null);
+
+    if (!deleteOtpCode || deleteOtpCode.trim().length !== 6) {
+      setDeleteError('Please enter a valid 6-digit verification code.');
+      return;
+    }
+
+    if (!user?.phone) return;
+
+    setIsDeletingAccount(true);
+
+    try {
+      const result = await authApi.deleteAccountWithOtp({
+        phone: user.phone,
+        otp: deleteOtpCode.trim(),
+        user_id: user.id,
+      });
+
+      logout();
+      setIsDeleteModalOpen(false);
+
+      addToast({
+        type: 'info',
+        title: 'Account Permanently Deleted',
+        message: result.message || 'Your account has been deleted. Your past reports and upvotes remain anonymized in the database.',
+      });
+
+      navigate('/login');
+    } catch (err: any) {
+      setDeleteError(err.message || 'Account deletion failed. Please check the verification code.');
+      addToast({
+        type: 'error',
+        title: 'Deletion Failed',
+        message: err.message || 'Invalid or expired verification code.',
+      });
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -61,70 +505,73 @@ export const ProfilePage: React.FC = () => {
   const pointsInCurrentLevel = currentPoints % 60;
   const levelProgressPercent = Math.min(Math.round((pointsInCurrentLevel / 60) * 100), 100);
 
+  // Safe fallback for civic badges
+  const rawBadges = (user.badges && Array.isArray(user.badges) && user.badges.length > 0)
+    ? user.badges
+    : DEFAULT_CIVIC_BADGES;
+  const badgesList = rawBadges.map((b) => ({
+    ...b,
+    is_unlocked: Boolean(
+      b.is_unlocked ||
+      (b.id === 'first_report' && (user.reports_submitted_count ?? 0) > 0) ||
+      (b.id === 'verified_fix' && (user.reports_resolved_count ?? 0) > 0) ||
+      (b.id === 'civic_hero' && currentPoints >= 200)
+    ),
+  }));
+  const unlockedBadgesCount = badgesList.filter((b) => b.is_unlocked).length;
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Profile Header Card */}
-      <div className="relative overflow-hidden rounded-lg bg-slate-900 text-white p-6 sm:p-7 border border-slate-800">
+    <div className="max-w-3xl mx-auto space-y-6 pb-12">
+      {/* ========================================================= */}
+      {/* PROFILE HEADER CARD */}
+      {/* ========================================================= */}
+      <div className="relative overflow-hidden rounded-lg bg-slate-900 text-white p-6 sm:p-7 border border-slate-800 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 relative z-10">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded bg-slate-800 border border-slate-700 text-slate-100 flex items-center justify-center font-bold text-xl">
-              {user.name.charAt(0)}
+            <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-700 text-amber-400 flex items-center justify-center font-black text-2xl shadow-inner">
+              {(user.name || 'Citizen').charAt(0).toUpperCase()}
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{user.name}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{user.name || 'Civic User'}</h1>
                 {isOfficer ? (
                   <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
                     {user.designation || 'Field Officer'}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">
                     Lvl {currentLevel} Citizen
                   </span>
                 )}
               </div>
-              <div className="text-xs text-slate-400 mt-1.5 flex flex-wrap items-center gap-y-1 gap-x-2.5">
-                {isOfficer ? (
-                  <>
-                    <span className="flex items-center gap-1.5 text-slate-200">
-                      <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>{user.department || 'Municipal Division'}</span>
-                    </span>
-                    {user.employee_id && (
-                      <span className="font-mono text-[11px] text-slate-400">
-                        Badge ID: <strong className="text-slate-200">{user.employee_id}</strong>
-                      </span>
-                    )}
-                    {user.jurisdiction_zone && (
-                      <span className="text-[11px] text-slate-400">
-                        Jurisdiction: <strong className="text-slate-200">{user.jurisdiction_zone}</strong>
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span className="flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Verified Citizen · {user.phone || '+91 98765 43210'}</span>
+
+              {isOfficer && (
+                <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-y-1 gap-x-2.5">
+                  <span className="flex items-center gap-1.5 text-slate-200">
+                    <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>{user.department || 'Municipal Division'}</span>
                   </span>
-                )}
-              </div>
+                  {user.employee_id && (
+                    <span className="font-mono text-[11px] text-slate-400">
+                      Badge ID: <strong className="text-slate-200">{user.employee_id}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleRole}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition flex items-center gap-1.5 border ${
-                isOfficer
-                  ? 'bg-slate-100 text-slate-900 border-slate-300'
-                  : 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>{isOfficer ? 'Officer View' : 'Citizen View'}</span>
-            </button>
-          </div>
+          {/* Header Action: Edit Profile (Single Line Button) */}
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(true)}
+            className="px-3.5 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white shrink-0 self-start sm:self-auto shadow-xs"
+            title="Edit Profile Details"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Edit Profile</span>
+          </button>
         </div>
 
         {/* Level Progression Progress Bar */}
@@ -135,7 +582,7 @@ export const ProfilePage: React.FC = () => {
               Level {currentLevel} Civic Standing
             </span>
             <span className="font-mono text-amber-300 font-bold">
-              Current: {currentPoints} PTS · Next Goal: {nextLevelThreshold} PTS ({60 - pointsInCurrentLevel} pts to Lvl {currentLevel + 1})
+              Current: {currentPoints} PTS · Next Goal: {nextLevelThreshold} PTS ({Math.max(0, 60 - pointsInCurrentLevel)} pts to Lvl {currentLevel + 1})
             </span>
           </div>
 
@@ -148,12 +595,50 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Impact Stats Grid */}
+      {/* ========================================================= */}
+      {/* QUICK ACTION BUTTONS */}
+      {/* ========================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <Link
+          to="/?tab=my_reports"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 font-bold text-xs rounded-lg border border-slate-300 shadow-xs transition"
+        >
+          <FileText className="w-4 h-4 text-blue-600" />
+          <span>My Reports</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">
+            {user.reports_submitted_count ?? 0}
+          </span>
+        </Link>
+
+        <Link
+          to="/rewards?tab=rewards"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 font-bold text-xs rounded-lg border border-slate-300 shadow-xs transition"
+        >
+          <Gift className="w-4 h-4 text-amber-600" />
+          <span>Redeem Rewards</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold">
+            {currentPoints} PTS
+          </span>
+        </Link>
+
+        <button
+          type="button"
+          onClick={handleOpenPasswordModal}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 font-bold text-xs rounded-lg border border-slate-300 shadow-xs transition"
+        >
+          <KeyRound className="w-4 h-4 text-purple-600" />
+          <span>Change Password</span>
+        </button>
+      </div>
+
+      {/* ========================================================= */}
+      {/* IMPACT STATS GRID */}
+      {/* ========================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
           <span className="text-xs font-semibold text-slate-500">Reports Filed</span>
           <div className="text-2xl font-black text-slate-900 mt-0.5">
-            {user.reports_submitted_count}
+            {user.reports_submitted_count ?? 0}
           </div>
           <span className="text-[11px] text-slate-600 font-medium">All verified live</span>
         </div>
@@ -161,40 +646,103 @@ export const ProfilePage: React.FC = () => {
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
           <span className="text-xs font-semibold text-slate-500">Fixes Completed</span>
           <div className="text-2xl font-black text-emerald-700 mt-0.5">
-            {user.reports_resolved_count}
+            {user.reports_resolved_count ?? 0}
           </div>
           <span className="text-[11px] text-emerald-800 font-medium">80% resolution rate</span>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
           <span className="text-xs font-semibold text-slate-500">Civic Points</span>
-          <div className="text-2xl font-black text-slate-900 mt-0.5">{user.points}</div>
+          <div className="text-2xl font-black text-slate-900 mt-0.5">{user.points ?? 0}</div>
           <span className="text-[11px] text-slate-600 font-medium">Top 5% in Ward</span>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
           <span className="text-xs font-semibold text-slate-500">Upvotes Given</span>
           <div className="text-2xl font-black text-slate-900 mt-0.5">
-            {user.upvotes_given_count}
+            {user.upvotes_given_count ?? 0}
           </div>
           <span className="text-[11px] text-slate-500 font-medium">Duplicates spared</span>
         </div>
       </div>
 
-      {/* Badges Collection */}
+      {/* ========================================================= */}
+      {/* PROFILE DETAILS & JURISDICTION SUMMARY CARD */}
+      {/* ========================================================= */}
+      <div className="bg-white rounded-lg p-5 sm:p-6 border border-slate-300 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-slate-700" />
+            <h2 className="text-sm font-bold text-slate-900">Account & Location Details</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(true)}
+            className="text-xs font-semibold text-slate-700 hover:text-slate-950 flex items-center gap-1.5 transition"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-amber-500" />
+            <span>Edit Information</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Full Name</span>
+            <div className="font-semibold text-slate-900 text-sm">{user.name}</div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Registered Mobile</span>
+            <div className="font-mono font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+              <span>+91 {user.phone || ''}</span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-medium px-1.5 py-0.2 rounded border border-emerald-200">
+                Verified
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Email Address</span>
+            <div className="font-medium text-slate-800 text-sm">
+              {user.email || <span className="text-slate-400 italic">Not configured</span>}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">State Jurisdiction</span>
+            <div className="font-semibold text-slate-900 text-sm">{user.state || 'Punjab'}</div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">District</span>
+            <div className="font-semibold text-slate-900 text-sm">{user.district || 'Jalandhar'}</div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Municipal Ward / Division</span>
+            <div className="font-semibold text-slate-900 text-sm">
+              {user.ward_name || user.ward || 'Ward 2 - Civil Lines'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* BADGES & ACHIEVEMENTS */}
+      {/* ========================================================= */}
       <div className="bg-white rounded-lg p-5 sm:p-7 border border-slate-300 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-500" />
             <h2 className="text-base font-bold text-slate-900">
-              Civic Badges & Achievements ({user.badges.filter((b) => b.is_unlocked).length}/{user.badges.length})
+              Civic Badges & Achievements ({unlockedBadgesCount}/{badgesList.length})
             </h2>
           </div>
           <span className="text-xs text-slate-400 font-medium">Unlock badges to earn points</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {user.badges.map((badge) => {
+          {badgesList.map((badge) => {
             const IconComponent = badgeIcons[badge.icon] || Award;
 
             return (
@@ -242,14 +790,538 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* PWA App Information & Offline Readiness Card */}
-      <div className="p-4 bg-slate-100 rounded-lg border border-slate-300 flex items-center justify-between text-xs text-slate-600">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span>PWA Service Worker: <strong>Active & Cached</strong></span>
-        </div>
-        <span className="text-slate-400">Civic Connect v1.0.0</span>
+      {/* ========================================================= */}
+      {/* ACCOUNT SESSION & DELETION ACTIONS */}
+      {/* ========================================================= */}
+      <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() => setIsLogoutModalOpen(true)}
+          className="w-full sm:w-auto min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 transition shadow-xs"
+        >
+          <LogOut className="w-4 h-4 text-slate-500" />
+          <span>Sign Out</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleOpenDeleteAccountModal}
+          className="w-full sm:w-auto min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition shadow-xs"
+        >
+          <Trash2 className="w-4 h-4 text-red-600" />
+          <span>Delete My Account</span>
+        </button>
       </div>
+
+      {/* ========================================================= */}
+      {/* MODAL 1: EDIT PROFILE DETAILS */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Profile & Jurisdiction"
+        description="Update your contact information and municipal jurisdiction settings."
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveProfile} className="space-y-4 py-1">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none"
+              placeholder="e.g. Ramesh Kumar"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Registered Mobile (Identity Key)
+            </label>
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded-md text-sm text-slate-600 font-mono">
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              <span>+91 {user.phone || ''}</span>
+              <span className="ml-auto text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                Non-editable
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Mobile number is your verified civic identity.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              className="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none"
+              placeholder="name@example.com (optional)"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                State Jurisdiction *
+              </label>
+              <select
+                value={editState}
+                onChange={(e) => handleStateSelect(e.target.value)}
+                className="w-full text-sm px-3 py-2 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-slate-900 focus:outline-none font-medium cursor-pointer"
+              >
+                {INDIAN_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                District *
+              </label>
+              <select
+                value={editDistrict}
+                onChange={(e) => handleDistrictSelect(e.target.value)}
+                className="w-full text-sm px-3 py-2 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-slate-900 focus:outline-none font-medium cursor-pointer"
+              >
+                {availableDistricts.map((district) => (
+                  <option key={district} value={district}>
+                    {district}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Municipal Ward / Division *
+            </label>
+            <select
+              value={editWard}
+              onChange={(e) => setEditWard(e.target.value)}
+              className="w-full text-sm px-3 py-2 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-slate-900 focus:outline-none font-medium cursor-pointer"
+            >
+              {availableWards.map((w) => (
+                <option key={w} value={w}>
+                  {w}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Used to customize local issue feeds and ward rankings.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+            <button
+              type="button"
+              disabled={isSavingProfile}
+              onClick={() => setIsEditModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md border border-slate-300 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingProfile}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition shadow-xs disabled:opacity-50"
+            >
+              {isSavingProfile && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSavingProfile ? 'Saving...' : 'Save Profile Details'}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL 2: CHANGE PASSWORD WITH MANDATORY OTP */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="Change Password / Passcode"
+        description="Mandatory mobile OTP verification is required to update account credentials."
+        maxWidth="md"
+      >
+        <div className="py-2 space-y-4">
+          {/* Registered Phone Info Banner */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4 text-slate-600" />
+              <div>
+                <span className="text-slate-500">Registered Number: </span>
+                <strong className="text-slate-900 font-mono">+91 {user.phone || ''}</strong>
+              </div>
+            </div>
+            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+              Active
+            </span>
+          </div>
+
+          {passwordError && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+              <span>{passwordError}</span>
+            </div>
+          )}
+
+          {testOtpNotice && (
+            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-md flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-600" />
+                <span>{testOtpNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOtpCode('123456')}
+                className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950"
+              >
+                Auto-fill
+              </button>
+            </div>
+          )}
+
+          {!otpSent ? (
+            /* STEP 1: Request OTP */
+            <div className="space-y-4 pt-1">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Click below to send a secure 6-digit one-time password (OTP) via SMS to verify your identity before creating a new password.
+              </p>
+              <button
+                type="button"
+                disabled={isSendingOtp}
+                onClick={handleSendOtp}
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-md transition shadow-xs disabled:opacity-50"
+              >
+                {isSendingOtp ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Dispatching OTP...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4 text-amber-400" />
+                    <span>Send Verification OTP via SMS</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            /* STEP 2: Enter OTP & New Password */
+            <form onSubmit={handleSubmitPasswordChange} className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    6-Digit Verification Code *
+                  </label>
+                  {cooldown > 0 ? (
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      Resend in {cooldown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isSendingOtp}
+                      className="text-[11px] font-semibold text-slate-800 hover:text-slate-950 underline flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Resend Code</span>
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full text-center tracking-widest text-lg font-mono font-bold px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none bg-slate-50"
+                  placeholder="• • • • • •"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  New Password / Passcode *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none pr-10"
+                    placeholder="Enter at least 6 characters (letters + numbers)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* Real-time Password Strength Meter */}
+                {newPassword.length > 0 && (
+                  <div className="mt-2 space-y-1.5 p-2 bg-slate-50 rounded border border-slate-200">
+                    {(() => {
+                      const pwdVal = validatePasswordStrength(newPassword);
+                      return (
+                        <>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-600 font-medium">Strength:</span>
+                            <span className={`font-bold ${pwdVal.score >= 3 ? 'text-emerald-700' : pwdVal.score === 2 ? 'text-amber-700' : 'text-red-700'}`}>
+                              {pwdVal.label}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                            <div className={`h-full transition-all ${pwdVal.score >= 1 ? (pwdVal.score >= 3 ? 'bg-emerald-500' : pwdVal.score === 2 ? 'bg-amber-500' : 'bg-red-500') : 'bg-transparent'}`} />
+                            <div className={`h-full transition-all ${pwdVal.score >= 2 ? (pwdVal.score >= 3 ? 'bg-emerald-500' : 'bg-amber-500') : 'bg-transparent'}`} />
+                            <div className={`h-full transition-all ${pwdVal.score >= 3 ? 'bg-emerald-500' : 'bg-transparent'}`} />
+                            <div className={`h-full transition-all ${pwdVal.score >= 4 ? 'bg-emerald-600' : 'bg-transparent'}`} />
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] text-slate-500 pt-0.5">
+                            <span className={pwdVal.checks.length ? 'text-emerald-600 font-bold' : ''}>
+                              ✓ 6+ chars
+                            </span>
+                            <span className={pwdVal.checks.hasLetter ? 'text-emerald-600 font-bold' : ''}>
+                              ✓ Letters
+                            </span>
+                            <span className={pwdVal.checks.hasNumber ? 'text-emerald-600 font-bold' : ''}>
+                              ✓ Numbers
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Confirm New Password *
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={4}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`w-full text-sm px-3 py-2 border rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none ${
+                    confirmPassword && newPassword !== confirmPassword
+                      ? 'border-red-400 bg-red-50/30'
+                      : 'border-slate-300'
+                  }`}
+                  placeholder="Re-enter new password"
+                />
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p className="text-[11px] text-red-600 mt-1">Passwords do not match.</p>
+                )}
+                {confirmPassword && newPassword === confirmPassword && (
+                  <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Passwords match.</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  disabled={isChangingPassword}
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md border border-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isChangingPassword || otpCode.length !== 6 || newPassword.length < 6 || newPassword !== confirmPassword}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition shadow-xs disabled:opacity-50"
+                >
+                  {isChangingPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isChangingPassword ? 'Verifying...' : 'Verify OTP & Update Password'}</span>
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL 3: LOGOUT CONFIRMATION */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        title="Sign Out of Civic Connect"
+        maxWidth="sm"
+      >
+        <div className="space-y-4 py-2">
+          <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-red-900 mb-0.5">Are you sure you want to sign out?</p>
+              <p>
+                You will need your mobile number (+91 {user.phone || ''}) to sign back into your account.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsLogoutModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md border border-slate-300 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmLogout}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition shadow-xs"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Confirm Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL 4: DELETE ACCOUNT WITH MANDATORY OTP */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete My Civic Connect Account"
+        maxWidth="md"
+      >
+        <div className="space-y-4 py-1">
+          {/* Permanent Deletion & Anonymization Notice */}
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900 space-y-1.5">
+            <div className="flex items-center gap-2 font-bold text-red-950">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>Warning: This action is permanent and cannot be undone</span>
+            </div>
+            <p className="leading-relaxed text-red-800">
+              Your personal profile, contact credentials, and session access will be permanently deleted from the database.
+            </p>
+            <p className="leading-relaxed text-red-800 font-medium">
+              To safeguard public interest and municipal resolution progress, <strong>all reports and upvotes previously submitted will remain in the database marked as "Anonymous Citizen"</strong>.
+            </p>
+          </div>
+
+          {deleteError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{deleteError}</span>
+            </div>
+          )}
+
+          {deleteDemoOtpNotice && (
+            <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-md text-xs text-amber-900 font-mono font-medium flex items-center gap-2">
+              <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>{deleteDemoOtpNotice}</span>
+            </div>
+          )}
+
+          {!deleteOtpSent ? (
+            <div className="space-y-3 pt-1">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-700">
+                <p>
+                  To confirm ownership before deleting your account, an OTP security code will be sent to your registered mobile:
+                </p>
+                <p className="font-mono font-bold text-slate-900 text-sm mt-1">
+                  +91 {user.phone || ''}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md border border-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSendingDeleteOtp}
+                  onClick={handleSendDeleteOtp}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition shadow-xs disabled:opacity-50"
+                >
+                  {isSendingDeleteOtp && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSendingDeleteOtp ? 'Sending OTP...' : 'Send Deletion OTP'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleConfirmDeleteAccount} className="space-y-4 pt-1">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    6-Digit Security OTP *
+                  </label>
+                  <button
+                    type="button"
+                    disabled={deleteCooldown > 0 || isSendingDeleteOtp}
+                    onClick={handleSendDeleteOtp}
+                    className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 disabled:text-slate-400 disabled:no-underline underline"
+                  >
+                    {deleteCooldown > 0 ? `Resend in ${deleteCooldown}s` : 'Resend Code'}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={deleteOtpCode}
+                  onChange={(e) => setDeleteOtpCode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full text-center font-mono tracking-widest text-lg font-bold px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-red-600 focus:outline-none"
+                  placeholder="• • • • • •"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  disabled={isDeletingAccount}
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md border border-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeletingAccount || deleteOtpCode.length !== 6}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition shadow-xs disabled:opacity-50"
+                >
+                  {isDeletingAccount && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isDeletingAccount ? 'Verifying & Deleting...' : 'Verify OTP & Permanently Delete Account'}</span>
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

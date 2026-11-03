@@ -150,51 +150,68 @@ class ReportListCreateAPIView(APIView):
         reporter_name = getattr(request.user, "name", None) or data.get("reporter_name", "Citizen")
         reporter_phone = getattr(request.user, "phone", None) or data.get("reporter_phone", "")
 
-        photo_url = data.get("photo_url", "")
-        photo_file = request.FILES.get("photo")
-        photos_list = list(data.get("photos", []))
+        # Rapid duplicate / double-click idempotency guard (prevent duplicate ticket punch)
+        try:
+            col = ReportManager.get_collection()
+            twenty_sec_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=20)
+            idempotency_query = {
+                "category": data["category"],
+                "description": data["description"],
+                "created_at": {"$gte": twenty_sec_ago},
+            }
+            if reporter_phone:
+                idempotency_query["reporter_phone"] = reporter_phone
+            elif reporter_id:
+                idempotency_query["reporter_id"] = reporter_id
+            else:
+                idempotency_query["latitude"] = {"$gte": lat - 0.0003, "$lte": lat + 0.0003}
+                idempotency_query["longitude"] = {"$gte": lng - 0.0003, "$lte": lng + 0.0003}
+
+            recent_duplicate = col.find_one(idempotency_query)
+            if recent_duplicate:
+                return Response(
+                    ReportDetailSerializer(recent_duplicate).data,
+                    status=status.HTTP_201_CREATED,
+                )
+        except Exception:
+            pass
 
         # Handle photo file upload via Cloudinary (with local fallback)
-        image_for_analysis = None
+        photo_url = data.get("photo_url", "")
+        photo_file = request.FILES.get("photo")
         if photo_file:
             uploaded_url, _ = upload_media(photo_file, folder="civic_connect/reports", request=request)
             photo_url = uploaded_url
-            photos_list.insert(0, photo_url)
-            image_for_analysis = photo_file
-        elif photo_url and photo_url not in photos_list:
-            photos_list.insert(0, photo_url)
 
-        # Execute Fraud Detection Pipeline
-        fraud_result = analyze_report_fraud(
-            image_input=image_for_analysis,
-            lat=lat,
-            lng=lng,
+        # Execute AI Content Quality, Fraud Verification & Duplicate Merging Pipeline
+        from fraud.pipeline import run_report_verification_pipeline
+        pipeline_res = run_report_verification_pipeline(
+            title=data.get("title", ""),
+            description=data["description"],
+            category=data["category"],
+            latitude=lat,
+            longitude=lng,
             accuracy=accuracy,
-            is_mock_location=is_mock,
-            reporter_id=reporter_id,
+            is_mock=is_mock,
+            photo_file=photo_file,
+            photo_url=photo_url,
+            reporter_id=reporter_id or "anonymous",
+            reporter_name=reporter_name or "Citizen",
+            reporter_phone=reporter_phone or "",
+            address=data.get("address", ""),
+            ward_id=request.data.get("ward_id") or data.get("ward_id"),
         )
 
-        create_payload = {
-            "title": data.get("title"),
-            "description": data["description"],
-            "category": data["category"],
-            "latitude": lat,
-            "longitude": lng,
-            "address": data.get("address", ""),
-            "photos": photos_list,
-            "primary_photo": photos_list[0] if photos_list else None,
-            "phash": fraud_result.get("phash", ""),
-            "reporter_id": reporter_id,
-            "reporter_name": data.get("reporter_name", "Citizen"),
-            "reporter_phone": data.get("reporter_phone", ""),
-            "fraud_metadata": fraud_result,
-            "is_flagged_fraud": fraud_result.get("is_flagged_fraud", False),
-        }
+        if not pipeline_res["is_valid"]:
+            return Response(
+                {"detail": pipeline_res["error_message"]},
+                status=pipeline_res["status_code"],
+            )
 
-        report_doc = ReportManager.create_report(create_payload)
+        report_data = pipeline_res["report_data"]
         return Response(
-            ReportDetailSerializer(report_doc).data,
-            status=status.HTTP_201_CREATED,
+            ReportDetailSerializer(report_data).data,
+            status=pipeline_res["status_code"],
         )
 
 
@@ -491,11 +508,13 @@ class ReportUpvoteAPIView(APIView):
             photo_url = uploaded_url
 
         user_id = getattr(request.user, "user_id", None) or data.get("user_id")
+        user_phone = getattr(request.user, "phone", None) or data.get("user_phone")
         device_id = data.get("device_id") or request.META.get("HTTP_X_DEVICE_ID", "device_client")
 
-        success, msg, updated = ReportManager.add_upvote(
+        success, msg, updated, has_upvoted = ReportManager.toggle_upvote(
             report_id=report_id,
             user_id=user_id,
+            user_phone=user_phone,
             device_id=device_id,
             photo_url=photo_url,
         )
@@ -503,10 +522,16 @@ class ReportUpvoteAPIView(APIView):
         if not success:
             return Response(
                 {"detail": msg, "report": ReportDetailSerializer(updated).data if updated else None},
-                status=status.HTTP_409_CONFLICT if "already upvoted" in msg else status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST if "cannot upvote" in msg else status.HTTP_404_NOT_FOUND,
             )
+
+        report_data = ReportDetailSerializer(updated).data if updated else {}
+        report_data["has_upvoted"] = has_upvoted
+        report_data["upvotes_count"] = updated.get("upvote_count", 0) if updated else 0
 
         return Response({
             "message": msg,
-            "report": ReportDetailSerializer(updated).data,
+            "has_upvoted": has_upvoted,
+            "upvotes_count": updated.get("upvote_count", 0) if updated else 0,
+            "report": report_data,
         }, status=status.HTTP_200_OK)

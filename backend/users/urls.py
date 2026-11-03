@@ -1,9 +1,17 @@
 from django.urls import path
 from users.views import (
+    AdminProvisionAPIView,
+    AdminQuickLoginAPIView,
+    AdminRevokeAPIView,
+    AdminRosterAPIView,
     SendOTPAPIView,
     UserProfileAPIView,
     UserSyncAPIView,
     VerifyOTPAPIView,
+    PasswordLoginAPIView,
+    ChangePasswordAPIView,
+    DeleteAccountAPIView,
+    RedeemRewardAPIView,
     VolunteersListAPIView,
 )
 
@@ -13,4 +21,12 @@ urlpatterns = [
     path("volunteers/", VolunteersListAPIView.as_view(), name="volunteers-list"),
     path("send-otp/", SendOTPAPIView.as_view(), name="user-send-otp"),
     path("verify-otp/", VerifyOTPAPIView.as_view(), name="user-verify-otp"),
+    path("login-password/", PasswordLoginAPIView.as_view(), name="user-login-password"),
+    path("change-password/", ChangePasswordAPIView.as_view(), name="user-change-password"),
+    path("delete-account/", DeleteAccountAPIView.as_view(), name="user-delete-account"),
+    path("redeem/", RedeemRewardAPIView.as_view(), name="user-redeem"),
+    path("admin/provision/", AdminProvisionAPIView.as_view(), name="admin-provision"),
+    path("admin/roster/", AdminRosterAPIView.as_view(), name="admin-roster"),
+    path("admin/quick-login/", AdminQuickLoginAPIView.as_view(), name="admin-quick-login"),
+    path("admin/revoke/", AdminRevokeAPIView.as_view(), name="admin-revoke"),
 ]

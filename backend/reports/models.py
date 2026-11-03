@@ -355,6 +355,19 @@ class ReportManager:
             },
             return_document=True,
         )
+
+        # FRAUD PENALTY RULE: If a report is rejected as fake or fraudulent,
+        # deduct 50 points and 50 coins from the reporter.
+        # CRITICAL RULE: Points decrease ONLY if a report is fake / fraudulent.
+        if doc and (new_status == ReportStatus.REJECTED or "fake" in str(notes).lower() or "fraud" in str(notes).lower()):
+            reporter_id = doc.get("reporter_id")
+            if reporter_id and reporter_id != "anonymous":
+                try:
+                    from users.models import UserManager
+                    UserManager.apply_fraud_penalty(user_id=reporter_id, points_penalty=50, coins_penalty=50)
+                except Exception as exc:
+                    logger.warning(f"Error applying fraud penalty: {exc}")
+
         return serialize_doc(doc)
 
     @classmethod
@@ -508,17 +521,20 @@ class ReportManager:
         return serialize_doc(updated_doc)
 
     @classmethod
-    def add_upvote(
+    def toggle_upvote(
         cls,
         report_id: str,
         user_id: Optional[str] = None,
+        user_phone: Optional[str] = None,
         device_id: Optional[str] = None,
         photo_url: Optional[str] = None,
-    ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    ) -> Tuple[bool, str, Optional[Dict[str, Any]], bool]:
         """
-        'I see this too' upvote with optional photo.
-        Prevents duplicate upvote from same user or device.
-        Recalculates priority score on success.
+        'I see this too' community corroboration toggle.
+        - Prevents user from upvoting their own report.
+        - If not yet upvoted: creates upvote record, increments upvote_count, awards points, returns has_upvoted=True.
+        - If already upvoted: deletes upvote record, decrements upvote_count, removes awarded points, returns has_upvoted=False.
+        Returns: (success: bool, message: str, updated_doc: Optional[Dict], has_upvoted: bool)
         """
         if not user_id and not device_id:
             device_id = "device_guest"
@@ -530,72 +546,130 @@ class ReportManager:
         query = {"$or": [{"_id": oid}, {"ticket_id": report_id}]} if oid else {"ticket_id": report_id}
         doc = reports_col.find_one(query)
         if not doc:
-            return False, "Report not found.", None
+            return False, "Report not found.", None, False
 
         rep_id_str = str(doc["_id"])
 
-        # Check existing upvote
+        # 1. PREVENT UPVOTING OWN REPORT (No fake points / self-endorsements)
+        reporter_id = doc.get("reporter_id")
+        reporter_phone = doc.get("reporter_phone")
+        if (user_id and reporter_id and str(reporter_id) == str(user_id)) or \
+           (user_phone and reporter_phone and str(reporter_phone) == str(user_phone)):
+            return False, "You cannot upvote your own report.", serialize_doc(doc), False
+
+        # 2. Check existing upvote from this user or device
         dup_query: Dict[str, Any] = {"report_id": rep_id_str}
         if user_id:
-            dup_query["user_id"] = user_id
+            dup_query["user_id"] = str(user_id)
         else:
-            dup_query["device_id"] = device_id
+            dup_query["device_id"] = str(device_id)
 
         existing = upvotes_col.find_one(dup_query)
-        if existing:
-            return False, "You have already upvoted this report.", serialize_doc(doc)
-
         now = datetime.datetime.now(datetime.timezone.utc)
-        upvote_record = {
-            "report_id": rep_id_str,
-            "user_id": user_id,
-            "device_id": device_id,
-            "photo_url": photo_url,
-            "created_at": now,
-        }
-        upvotes_col.insert_one(upvote_record)
-
-        # Recalculate priority
-        new_upvote_count = doc.get("upvote_count", 0) + 1
         coords = doc.get("location", {}).get("coordinates", [0, 0])
-        score, level, breakdown = calculate_priority_score(
-            category=doc.get("category", "other"),
-            upvote_count=new_upvote_count,
-            lat=coords[1],
-            lng=coords[0],
-            is_recurring=doc.get("priority_factors", {}).get("is_recurring", False),
-            is_flagged_fraud=doc.get("is_flagged_fraud", False),
-        )
 
-        update_ops: Dict[str, Any] = {
-            "$inc": {"upvote_count": 1},
-            "$set": {
-                "priority_score": score,
-                "priority_level": level,
-                "priority_factors": breakdown,
-                "updated_at": now,
-            },
-        }
-        if photo_url:
-            update_ops["$push"] = {"photos": photo_url}
+        if existing:
+            # TOGGLE OFF: REMOVE UPVOTE
+            upvotes_col.delete_one({"_id": existing["_id"]})
+            new_upvote_count = max(0, doc.get("upvote_count", 1) - 1)
+            score, level, breakdown = calculate_priority_score(
+                category=doc.get("category", "other"),
+                upvote_count=new_upvote_count,
+                lat=coords[1],
+                lng=coords[0],
+                is_recurring=doc.get("priority_factors", {}).get("is_recurring", False),
+                is_flagged_fraud=doc.get("is_flagged_fraud", False),
+            )
+            update_ops: Dict[str, Any] = {
+                "$set": {
+                    "upvote_count": new_upvote_count,
+                    "priority_score": score,
+                    "priority_level": level,
+                    "priority_factors": breakdown,
+                    "updated_at": now,
+                }
+            }
+            if user_id:
+                update_ops["$pull"] = {"upvoted_by": str(user_id)}
 
-        updated_doc = reports_col.find_one_and_update(
-            {"_id": doc["_id"]},
-            update_ops,
-            return_document=True,
-        )
+            updated_doc = reports_col.find_one_and_update(
+                {"_id": doc["_id"]},
+                update_ops,
+                return_document=True,
+            )
 
-        # Award upvote points
-        if user_id and user_id != "anonymous":
-            try:
-                GamificationManager.record_points(
-                    user_id=user_id,
-                    action="UPVOTE_GIVEN",
-                    base_points=ActionPoints.UPVOTE_GIVEN,
-                    report_id=doc.get("ticket_id"),
-                    notes="Corroborated report ('I see this too').",
-                )
-            except Exception as exc:
-                logger.warning(f"Error awarding upvote points: {exc}")
+            # Revert awarded gamification points
+            if user_id and user_id != "anonymous":
+                try:
+                    GamificationManager.record_points(
+                        user_id=str(user_id),
+                        action="UPVOTE_REMOVED",
+                        base_points=-ActionPoints.UPVOTE_GIVEN,
+                        report_id=doc.get("ticket_id"),
+                        notes="Removed upvote on report.",
+                    )
+                except Exception as exc:
+                    logger.warning(f"Error reverting upvote points: {exc}")
 
-        return True, "Upvote recorded successfully.", serialize_doc(updated_doc)
+            serialized = serialize_doc(updated_doc) or {}
+            serialized["has_upvoted"] = False
+            return True, "Upvote removed.", serialized, False
+
+        else:
+            # TOGGLE ON: ADD UPVOTE
+            upvote_record = {
+                "report_id": rep_id_str,
+                "user_id": str(user_id) if user_id else None,
+                "device_id": str(device_id) if device_id else None,
+                "photo_url": photo_url,
+                "created_at": now,
+            }
+            upvotes_col.insert_one(upvote_record)
+
+            new_upvote_count = doc.get("upvote_count", 0) + 1
+            score, level, breakdown = calculate_priority_score(
+                category=doc.get("category", "other"),
+                upvote_count=new_upvote_count,
+                lat=coords[1],
+                lng=coords[0],
+                is_recurring=doc.get("priority_factors", {}).get("is_recurring", False),
+                is_flagged_fraud=doc.get("is_flagged_fraud", False),
+            )
+            update_ops: Dict[str, Any] = {
+                "$set": {
+                    "upvote_count": new_upvote_count,
+                    "priority_score": score,
+                    "priority_level": level,
+                    "priority_factors": breakdown,
+                    "updated_at": now,
+                }
+            }
+            if user_id:
+                update_ops["$addToSet"] = {"upvoted_by": str(user_id)}
+            if photo_url:
+                update_ops.setdefault("$push", {})["photos"] = photo_url
+
+            updated_doc = reports_col.find_one_and_update(
+                {"_id": doc["_id"]},
+                update_ops,
+                return_document=True,
+            )
+
+            # Award upvote points
+            if user_id and user_id != "anonymous":
+                try:
+                    GamificationManager.record_points(
+                        user_id=str(user_id),
+                        action="UPVOTE_GIVEN",
+                        base_points=ActionPoints.UPVOTE_GIVEN,
+                        report_id=doc.get("ticket_id"),
+                        notes="Corroborated report ('I see this too').",
+                    )
+                except Exception as exc:
+                    logger.warning(f"Error awarding upvote points: {exc}")
+
+            serialized = serialize_doc(updated_doc) or {}
+            serialized["has_upvoted"] = True
+            return True, "Upvote registered (+5 pts).", serialized, True
+
+    add_upvote = toggle_upvote

@@ -225,6 +225,8 @@ export function adaptBackendReportToIssue(doc: any): Issue {
     status,
     priority,
     location,
+    ward_id: doc.ward_id || doc.ward || location.ward,
+    ward_name: doc.ward_name,
     evidence,
     photo_url: primaryPhotoUrl,
     video_url: doc.video_url,
@@ -266,5 +268,52 @@ export function adaptWardLeaderboardItem(doc: any, idx?: number): WardLeaderboar
     avg_resolution_hours: Math.round((doc.avg_resolution_hours ?? 24) * 10) / 10,
     rank: doc.rank ?? (idx ? idx + 1 : 1),
     active_citizens: doc.active_citizens ?? Math.max(1, Math.round((doc.total_reports ?? 0) * 0.8)),
+  };
+}
+
+/**
+ * Adapts raw Django REST API User response into a strongly-typed UserProfile.
+ */
+export function adaptUserProfile(doc: any): import('../types').UserProfile {
+  if (!doc) {
+    return {
+      id: 'usr_unknown',
+      name: 'Unknown User',
+      phone: '',
+      role: 'citizen',
+      points: 0,
+      level: 1,
+      badges: [],
+      reports_submitted_count: 0,
+      reports_resolved_count: 0,
+      upvotes_given_count: 0,
+    };
+  }
+  return {
+    id: doc.id || doc.user_id || doc._id || 'usr_unknown',
+    name: doc.name || 'Verified Civic User',
+    phone: doc.phone || '',
+    email: doc.email,
+    role: doc.role || 'citizen',
+    ward: doc.ward || doc.ward_name,
+    ward_id: doc.ward_id,
+    ward_name: doc.ward_name,
+    district: doc.district,
+    state: doc.state,
+    department: doc.department,
+    designation: doc.designation,
+    employee_id: doc.employee_id,
+    jurisdiction_zone: doc.jurisdiction_zone,
+    assigned_tasks: doc.assigned_tasks || [],
+    credential_code: doc.credential_code,
+    created_by: doc.created_by,
+    officers_count: doc.officers_count ?? 0,
+    points: doc.points ?? 0,
+    coins: doc.coins ?? doc.points ?? 50,
+    level: doc.level ?? Math.max(1, Math.floor((doc.points ?? 0) / 60) + 1),
+    badges: doc.badges || [],
+    reports_submitted_count: doc.reports_submitted_count ?? 0,
+    reports_resolved_count: doc.reports_resolved_count ?? 0,
+    upvotes_given_count: doc.upvotes_given_count ?? 0,
   };
 }

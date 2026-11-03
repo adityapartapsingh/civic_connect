@@ -50,6 +50,8 @@ export interface Issue {
   status: IssueStatus;
   priority: IssuePriority;
   location: LocationData;
+  ward_id?: string;
+  ward_name?: string;
   evidence: EvidenceItem[];
   photo_url?: string; // primary photo
   video_url?: string;
@@ -94,18 +96,49 @@ export interface UserProfile {
   name: string;
   phone: string;
   email?: string;
-  role: 'citizen' | 'officer' | 'admin';
+  role: 'citizen' | 'volunteer' | 'officer' | 'admin' | 'super_admin';
   ward?: string;
-  department?: string; // if officer
+  ward_id?: string;
+  ward_name?: string;
+  district?: string;
+  state?: string;
+  department?: string; // if officer or admin
   designation?: string; // if officer (e.g., Assistant Engineer, Junior Engineer, SDO, Sanitary Inspector)
-  employee_id?: string; // if officer (e.g., PB-MCJ-2024-ENG-082)
-  jurisdiction_zone?: string; // if officer (e.g., Central Zone, North Division, Phillaur Sub-Division)
+  employee_id?: string; // if officer/admin (e.g., PB-MCJ-2024-ENG-082)
+  jurisdiction_zone?: string; // if officer/admin (e.g., Central Zone, North Division, Phillaur Sub-Division)
+  assigned_tasks?: string[]; // specific tasks assigned to officer (e.g. ['pothole', 'road_damage'])
+  credential_code?: string; // temporary / generated passcode
+  created_by?: string; // user id of creator (super admin created admin; admin created officer)
+  officers_count?: number; // count of officers in ward (for admins)
   points: number;
+  coins?: number; // Spendable Civic Coins for municipal merchandise & reward redemption
   level: number;
   badges: UserBadge[];
+  badge?: string;
   reports_submitted_count: number;
   reports_resolved_count: number;
   upvotes_given_count: number;
+}
+
+export interface AdminProvisionPayload {
+  target_role: 'admin' | 'officer';
+  name: string;
+  phone: string;
+  email?: string;
+  ward_id?: string;
+  ward_name?: string;
+  department?: string;
+  designation?: string;
+  assigned_tasks?: string[];
+  jurisdiction_zone?: string;
+}
+
+export interface AdminCredentialsSlip {
+  employee_id: string;
+  passcode: string;
+  ward_id?: string;
+  ward_name?: string;
+  assigned_tasks?: string[];
 }
 
 export interface UserBadge {

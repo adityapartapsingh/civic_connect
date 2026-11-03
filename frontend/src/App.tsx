@@ -14,6 +14,9 @@ const MapPage = lazy(() => import('./pages/MapPage').then((m) => ({ default: m.M
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const PublicUpdatePage = lazy(() => import('./pages/PublicUpdatePage').then((m) => ({ default: m.PublicUpdatePage })));
 const ConfirmResolutionPage = lazy(() => import('./pages/ConfirmResolutionPage').then((m) => ({ default: m.ConfirmResolutionPage })));
+const RewardsPage = lazy(() => import('./pages/RewardsPage').then((m) => ({ default: m.RewardsPage })));
+const AdminPortalPage = lazy(() => import('./pages/AdminPortalPage').then((m) => ({ default: m.AdminPortalPage })));
+const SuperAdminPortalPage = lazy(() => import('./pages/SuperAdminPortalPage').then((m) => ({ default: m.SuperAdminPortalPage })));
 
 const RouteLoadingFallback: React.FC = () => (
   <div className="py-24 flex flex-col items-center justify-center text-center">
@@ -30,6 +33,8 @@ export const App: React.FC = () => {
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<LoginPage />} />
+            <Route path="/register" element={<LoginPage />} />
             <Route path="/report" element={<ReportPage />} />
             <Route path="/tickets/:id" element={<TicketPage />} />
             <Route
@@ -49,9 +54,46 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/rewards"
+              element={
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <RewardsPage />
+                </Suspense>
+              }
+            />
+            {/* Super Admin Dedicated Portal (Single Unified URL: /super-admin) */}
+            <Route
+              path="/super-admin"
+              element={
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <SuperAdminPortalPage />
+                </Suspense>
+              }
+            />
+            <Route path="/super-admin-portal" element={<Navigate to="/super-admin" replace />} />
+            <Route path="/super-admin/login" element={<Navigate to="/super-admin" replace />} />
+
+            {/* Municipal Corporation Ward Admin Dedicated Portal (Protected - Login via /login) */}
+            <Route
+              path="/admin-portal"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                  <Suspense fallback={<RouteLoadingFallback />}>
+                    <AdminPortalPage />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Remove all other /admin, /ward-admin, /staff-portal login routes -> Redirect to /login */}
+            <Route path="/admin" element={<Navigate to="/login" replace />} />
+            <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+            <Route path="/ward-admin" element={<Navigate to="/login" replace />} />
+            <Route path="/staff-portal" element={<Navigate to="/login" replace />} />
+            <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['officer', 'admin']}>
+                <ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}>
                   <Suspense fallback={<RouteLoadingFallback />}>
                     <DashboardPage />
                   </Suspense>

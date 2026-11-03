@@ -3,18 +3,28 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { MobileNav } from './MobileNav';
 import { Toast } from '../common/Toast';
 import { useAuthStore } from '../../store/authStore';
+import { useToastStore } from '../../store/toastStore';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import { LogOut, LogIn, UserPlus } from 'lucide-react';
 
 export const Layout: React.FC = () => {
-  const { isOfficer, setRole, user } = useAuthStore();
+  const { isOfficer, isAdmin, isSuperAdmin, setRole, user, logout } = useAuthStore();
+  const { addToast } = useToastStore();
   const { address, accuracy, isMockSuspected } = useGeolocation();
   const location = useLocation();
 
-  // Hide mobile nav during active in-app camera capture to maximize viewfinder
+  // Hide mobile nav during active in-app camera capture to maximize viewfinder,
+  // and on login / signup pages to keep the authentication flow clean and uncluttered
+  const isAuthPage =
+    location.pathname === '/login' ||
+    location.pathname === '/signup' ||
+    location.pathname === '/register';
+
   const isCameraPage = location.pathname === '/report';
+  const hideMobileNav = isCameraPage || isAuthPage;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 pb-20 sm:pb-8">
+    <div className={`min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 ${hideMobileNav ? 'pb-8' : 'pb-20 sm:pb-8'}`}>
       {/* Top Notification Toast Layer */}
       <Toast />
 
@@ -26,7 +36,8 @@ export const Layout: React.FC = () => {
       )}
 
       {/* Main Human-Designed Civic Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200">
+      {!isAuthPage && (
+        <header className="sticky top-0 z-30 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Left: Brand & Understated Municipal Jurisdiction */}
           <div className="flex items-center gap-3">
@@ -67,7 +78,50 @@ export const Layout: React.FC = () => {
               City Map
             </NavLink>
 
-            {isOfficer && (
+            <NavLink
+              to="/rewards"
+              className={({ isActive }) =>
+                `h-16 flex items-center px-1 text-sm font-semibold transition-colors border-b-2 ${
+                  isActive
+                    ? 'border-slate-900 text-slate-900'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`
+              }
+            >
+              Rewards &amp; Rankings
+            </NavLink>
+
+            {isSuperAdmin && (
+              <NavLink
+                to="/super-admin"
+                className={({ isActive }) =>
+                  `h-16 flex items-center px-1 text-sm font-semibold transition-colors border-b-2 ${
+                    isActive
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`
+                }
+              >
+                Super Admin
+              </NavLink>
+            )}
+
+            {isAdmin && !isSuperAdmin && (
+              <NavLink
+                to="/admin-portal"
+                className={({ isActive }) =>
+                  `h-16 flex items-center px-1 text-sm font-semibold transition-colors border-b-2 ${
+                    isActive
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`
+                }
+              >
+                Ward Admin
+              </NavLink>
+            )}
+
+            {isOfficer && !isAdmin && (
               <NavLink
                 to="/dashboard"
                 className={({ isActive }) =>
@@ -85,8 +139,22 @@ export const Layout: React.FC = () => {
 
           {/* Right: Actions, Role Badge, User Profile */}
           <div className="flex items-center gap-4">
-            {/* Action Button: Officers jump to dispatch queue, citizens jump to report (hidden on phone nav bar) */}
-            {isOfficer ? (
+            {/* Action Button: Super Admin, Ward Admin, Field Officer, Citizen */}
+            {isSuperAdmin ? (
+              <Link
+                to="/super-admin"
+                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs"
+              >
+                Super Admin Console
+              </Link>
+            ) : isAdmin ? (
+              <Link
+                to="/admin-portal"
+                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs"
+              >
+                Ward Admin Console
+              </Link>
+            ) : isOfficer ? (
               <Link
                 to="/dashboard"
                 className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs"
@@ -104,11 +172,11 @@ export const Layout: React.FC = () => {
 
             {/* Authenticated User Profile or Sign In */}
             {user ? (
-              <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
+              <div className="flex items-center pl-3 border-l border-slate-200">
                 <Link
                   to="/profile"
-                  className="w-9 h-9 rounded-full border border-slate-200 bg-slate-100 text-slate-700 font-bold text-sm flex items-center justify-center hover:bg-slate-200 transition"
-                  title="View Profile"
+                  className="w-9 h-9 rounded-full border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm flex items-center justify-center transition shadow-xs"
+                  title={`View Profile (${user.name})`}
                 >
                   {user.name
                     ? user.name
@@ -118,15 +186,6 @@ export const Layout: React.FC = () => {
                         .slice(0, 2)
                         .toUpperCase()
                     : 'CC'}
-                </Link>
-
-                <Link to="/profile" className="hidden xl:flex flex-col text-left hover:opacity-80 transition">
-                  <span className="text-sm font-semibold text-slate-900 leading-tight truncate max-w-[140px]">
-                    {user.name}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {isOfficer ? (user.designation || 'Field Officer') : `${user.points ?? 0} pts`}
-                  </span>
                 </Link>
               </div>
             ) : (
@@ -140,14 +199,15 @@ export const Layout: React.FC = () => {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Viewport Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <main className={`flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 ${isAuthPage ? 'py-6 flex flex-col justify-center items-center' : 'py-5'}`}>
         <Outlet />
       </main>
 
       {/* Bottom Navigation for Mobile Devices */}
-      {!isCameraPage && <MobileNav />}
+      {!hideMobileNav && <MobileNav />}
     </div>
   );
 };

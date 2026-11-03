@@ -22,7 +22,7 @@ import {
   Layers,
   ExternalLink,
   Edit,
-  Sparkles,
+  
 } from 'lucide-react';
 
 export const TicketPage: React.FC = () => {
@@ -33,8 +33,16 @@ export const TicketPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
-  const { isOfficer, addPoints } = useAuthStore();
+  const { isOfficer, user, addPoints, deductPoints } = useAuthStore();
   const { addToast } = useToastStore();
+  const [isUpvoting, setIsUpvoting] = useState(false);
+
+  const isOwnTicket = Boolean(
+    ticket && user && (
+      (user.id && ticket.reporter?.id === user.id) ||
+      (user.phone && ticket.reporter?.phone_masked && user.phone.endsWith(ticket.reporter.phone_masked.slice(-4)))
+    )
+  );
 
   useEffect(() => {
     const loadTicket = async () => {
@@ -54,7 +62,25 @@ export const TicketPage: React.FC = () => {
   }, [id]);
 
   const handleUpvote = async () => {
-    if (!ticket) return;
+    if (!ticket || isUpvoting) return;
+    if (!user) {
+      addToast({
+        type: 'info',
+        title: 'Sign In Required',
+        message: 'Please sign in with your mobile OTP to endorse or upvote tickets.',
+      });
+      return;
+    }
+    if (isOwnTicket) {
+      addToast({
+        type: 'error',
+        title: 'Action Not Allowed',
+        message: 'You cannot upvote your own civic report.',
+      });
+      return;
+    }
+
+    setIsUpvoting(true);
     try {
       const result = await issuesApi.upvote(ticket.id);
       setTicket((prev) =>
@@ -62,9 +88,28 @@ export const TicketPage: React.FC = () => {
       );
       if (result.has_upvoted) {
         addPoints(5, `Upvoted ticket ${ticket.tracking_id}`);
+        addToast({
+          type: 'success',
+          title: 'Upvote Registered',
+          message: 'You corroborated this report (+5 pts).',
+        });
+      } else {
+        deductPoints(5, `Removed endorsement on ticket ${ticket.tracking_id}`);
+        addToast({
+          type: 'info',
+          title: 'Upvote Removed',
+          message: 'You removed your endorsement (-5 pts).',
+        });
       }
-    } catch {
-      //
+    } catch (err: unknown) {
+      const errorObj = err as Error;
+      addToast({
+        type: 'error',
+        title: 'Cannot Upvote',
+        message: errorObj.message || 'Could not register upvote.',
+      });
+    } finally {
+      setIsUpvoting(false);
     }
   };
 
@@ -327,12 +372,19 @@ export const TicketPage: React.FC = () => {
         <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
           <Button
             type="button"
-            variant={ticket.has_upvoted ? 'primary' : 'outline'}
+            variant={isOwnTicket ? 'outline' : ticket.has_upvoted ? 'primary' : 'outline'}
             size="md"
+            loading={isUpvoting}
+            disabled={isOwnTicket || isUpvoting}
             onClick={handleUpvote}
             icon={<ThumbsUp className={`w-4 h-4 ${ticket.has_upvoted ? 'fill-white' : ''}`} />}
+            className={isOwnTicket ? 'opacity-70 cursor-not-allowed' : ''}
           >
-            {ticket.has_upvoted ? 'Upvoted' : 'I See This Too (+5 pts)'} ({ticket.upvotes_count})
+            {isOwnTicket
+              ? `Your Report (${ticket.upvotes_count} Upvotes)`
+              : ticket.has_upvoted
+              ? `Upvoted (${ticket.upvotes_count}) · Click to Remove`
+              : `I See This Too (+5 pts) (${ticket.upvotes_count})`}
           </Button>
 
           {/* Quick link to Magic Officer Link (for demo testing convenience) */}

@@ -31,3 +31,10 @@ dist-ssr/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Agents & Knowledge Graph
+.agent/
+.agents/
+graphify-out/
+graphyout/
+

@@ -175,11 +175,13 @@ class ReportAPITests(TestCase):
         self.assertEqual(upvote1.status_code, status.HTTP_200_OK)
         self.assertEqual(upvote1.data["report"]["upvote_count"], 1)
 
-        # 2. Second Upvote from same user -> Should be rejected with 409 Conflict
+        # 2. Second Upvote from same user -> Toggles upvote off (or removes corroboration)
         upvote2 = self.client.post(f"/api/reports/{rep_id}/upvote/", {
             "user_id": "user_voter_1",
         }, format="json")
-        self.assertEqual(upvote2.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(upvote2.status_code, status.HTTP_200_OK)
+        self.assertFalse(upvote2.data.get("has_upvoted", True))
+        self.assertEqual(upvote2.data["report"]["upvote_count"], 0)
 
     def test_add_corroborating_evidence(self):
         res = self.client.post("/api/reports/", {

@@ -10,10 +10,13 @@ import {
   PaginatedResponse,
   ReportFilterParams,
   UserProfile,
+  AdminProvisionPayload,
+  AdminCredentialsSlip,
 } from '../types';
 import {
   adaptBackendReportToIssue,
   adaptWardLeaderboardItem,
+  adaptUserProfile,
   frontendPriorityToBackend,
   frontendStatusToBackend,
 } from './adapters';
@@ -33,6 +36,15 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+function getCurrentStoredUser(): UserProfile | null {
+  try {
+    const raw = localStorage.getItem('civic_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 // Rich Mock Data Store for MVP resilience & offline/demo operation
 let mockIssues: Issue[] = [
@@ -81,7 +93,7 @@ let mockIssues: Issue[] = [
     has_upvoted: true,
     reporter: {
       id: 'usr_c19284',
-      name: 'Priya Sharma',
+      name: 'Ravinder Kaur',
       is_anonymous: false,
       phone_masked: '98***43210',
     },
@@ -291,9 +303,9 @@ const mockLeaderboard: WardLeaderboardItem[] = [
     active_citizens: 312,
   },
   {
-    ward_id: 'ward_55',
-    ward_name: 'Ward 55 - Malleshwaram',
-    zone: 'West Zone',
+    ward_id: 'ward_3',
+    ward_name: 'Ward 3 - Cantt Road & Defense Colony',
+    zone: 'East Zone',
     total_reports: 96,
     resolved_reports: 83,
     resolution_rate_percent: 86.4,
@@ -302,8 +314,8 @@ const mockLeaderboard: WardLeaderboardItem[] = [
     active_citizens: 260,
   },
   {
-    ward_id: 'ward_12',
-    ward_name: 'Ward 12 - Indiranagar',
+    ward_id: 'ward_4',
+    ward_name: 'Ward 4 - Rama Mandi Hub',
     zone: 'East Zone',
     total_reports: 185,
     resolved_reports: 151,
@@ -313,8 +325,8 @@ const mockLeaderboard: WardLeaderboardItem[] = [
     active_citizens: 580,
   },
   {
-    ward_id: 'ward_31',
-    ward_name: 'Ward 31 - HSR Layout',
+    ward_id: 'ward_5',
+    ward_name: 'Ward 5 - Urban Estate Phase II',
     zone: 'South Zone',
     total_reports: 134,
     resolved_reports: 105,
@@ -326,7 +338,7 @@ const mockLeaderboard: WardLeaderboardItem[] = [
 ];
 
 export const issuesApi = {
-  // Get paginated issues with filtering by priority, status, category, date range, sort
+  // Get paginated issues with filtering by priority, status, category, date range, sort from MongoDB
   getPaginated: async (params?: ReportFilterParams): Promise<PaginatedResponse<Issue>> => {
     try {
       const apiParams: Record<string, any> = {};
@@ -359,61 +371,30 @@ export const issuesApi = {
           results: adapted,
         };
       }
-      throw new Error('Unexpected response format from reports API');
-    } catch {
-      // Mock filtering & pagination for offline / resilient dev mode
-      let filtered = [...mockIssues];
-      if (params?.category && params.category !== 'all') {
-        filtered = filtered.filter((i) => i.category === params.category);
-      }
-      if (params?.status && params.status !== 'all') {
-        filtered = filtered.filter((i) => i.status === params.status);
-      }
-      if (params?.priority && params.priority !== 'all') {
-        filtered = filtered.filter((i) => i.priority === params.priority);
-      }
-      if (params?.ward && params.ward !== 'all') {
-        filtered = filtered.filter((i) => i.location.ward === params.ward);
-      }
-      if (params?.date_range && params.date_range !== 'all') {
-        const now = Date.now();
-        const days = params.date_range === 'today' ? 1 : params.date_range === '7d' ? 7 : 30;
-        const cutoff = now - days * 24 * 3600 * 1000;
-        filtered = filtered.filter((i) => new Date(i.created_at).getTime() >= cutoff);
-      }
-
-      // Sort
-      if (params?.sort_by === 'oldest') {
-        filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      } else if (params?.sort_by === 'priority') {
-        const pOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
-        filtered.sort((a, b) => (pOrder[b.priority] || 0) - (pOrder[a.priority] || 0));
-      } else if (params?.sort_by === 'sla') {
-        filtered.sort((a, b) => new Date(a.sla_deadline).getTime() - new Date(b.sla_deadline).getTime());
-      } else {
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      }
-
-      const page = params?.page || 1;
-      const pageSize = params?.page_size || 10;
-      const total = filtered.length;
-      const totalPages = Math.max(1, Math.ceil(total / pageSize));
-      const startIndex = (page - 1) * pageSize;
-      const results = filtered.slice(startIndex, startIndex + pageSize);
-
       return {
-        total,
-        page,
-        page_size: pageSize,
-        total_pages: totalPages,
-        has_next: page < totalPages,
-        has_prev: page > 1,
-        results,
+        total: 0,
+        page: params?.page || 1,
+        page_size: params?.page_size || 10,
+        total_pages: 1,
+        has_next: false,
+        has_prev: false,
+        results: [],
+      };
+    } catch (err) {
+      console.error('MongoDB reports query failed:', err);
+      return {
+        total: 0,
+        page: params?.page || 1,
+        page_size: params?.page_size || 10,
+        total_pages: 1,
+        has_next: false,
+        has_prev: false,
+        results: [],
       };
     }
   },
 
-  // Get all issues
+  // Get all issues directly from MongoDB
   getAll: async (params?: { category?: string; status?: string; ward?: string }): Promise<Issue[]> => {
     try {
       const apiParams: Record<string, any> = { page_size: 100 };
@@ -426,19 +407,10 @@ export const issuesApi = {
       if (Array.isArray(rawList)) {
         return rawList.map(adaptBackendReportToIssue);
       }
-      throw new Error('Unexpected format');
-    } catch {
-      let filtered = [...mockIssues];
-      if (params?.category && params.category !== 'all') {
-        filtered = filtered.filter((i) => i.category === params.category);
-      }
-      if (params?.status && params.status !== 'all') {
-        filtered = filtered.filter((i) => i.status === params.status);
-      }
-      if (params?.ward && params.ward !== 'all') {
-        filtered = filtered.filter((i) => i.location.ward === params.ward);
-      }
-      return filtered;
+      return [];
+    } catch (err) {
+      console.error('MongoDB getAll reports failed:', err);
+      return [];
     }
   },
 
@@ -463,14 +435,14 @@ export const issuesApi = {
       if (Array.isArray(response.data)) {
         return response.data.map(adaptBackendReportToIssue);
       }
-      throw new Error('Unexpected nearby response');
-    } catch {
-      // Mock fallback: filter in-memory mockIssues by Haversine distance
-      return mockIssues;
+      return [];
+    } catch (err) {
+      console.error('MongoDB getNearby failed:', err);
+      return [];
     }
   },
 
-  // Feed ranked by priority, upvotes, and proximity
+  // Feed ranked by priority, upvotes, and proximity from MongoDB
   getFeed: async (lat?: number, lng?: number, radiusMeters = 10000): Promise<Issue[]> => {
     try {
       const params: Record<string, any> = { radius: radiusMeters };
@@ -481,110 +453,68 @@ export const issuesApi = {
       if (Array.isArray(response.data)) {
         return response.data.map(adaptBackendReportToIssue);
       }
-      throw new Error('Unexpected feed response');
-    } catch {
-      return mockIssues;
+      return [];
+    } catch (err) {
+      console.error('MongoDB getFeed failed:', err);
+      return [];
     }
   },
 
-  // Get single issue by ID or Ticket ID
+  // Get single issue by ID or Ticket ID directly from MongoDB
   getById: async (id: string): Promise<Issue> => {
     try {
       const response = await apiClient.get(`/reports/${id}/`);
       return adaptBackendReportToIssue(response.data);
-    } catch {
-      const issue = mockIssues.find((i) => i.id === id || i.tracking_id === id);
-      if (!issue) throw new Error('Issue not found');
-      return issue;
+    } catch (err: any) {
+      const detail = err.response?.data?.detail || err.message;
+      throw new Error(detail || `Issue ${id} not found in database.`);
     }
   },
 
-  // Get issue by cryptographic field dispatch action token
+  // Get issue by cryptographic field dispatch action token from MongoDB
   getByToken: async (token: string): Promise<Issue> => {
     try {
       const response = await apiClient.get(`/public-update/${token}/`);
       const reportDoc = response.data?.report || response.data;
       return adaptBackendReportToIssue(reportDoc);
-    } catch {
-      const issue = mockIssues.find((i) => i.public_token === token || i.id === token);
-      if (!issue) return mockIssues[0];
-      return issue;
+    } catch (err: any) {
+      const detail = err.response?.data?.detail || err.message;
+      throw new Error(detail || 'Dispatch link expired or invalid.');
     }
   },
 
-  // Create issue (uploads photo to backend Cloudinary pipeline)
+  // Create issue in MongoDB (uploads photo to backend Cloudinary / storage pipeline)
   create: async (payload: CreateReportPayload): Promise<Issue> => {
-    try {
-      const formData = new FormData();
-      if (payload.title) formData.append('title', payload.title);
-      formData.append('category', payload.category);
-      formData.append('description', payload.description);
-      formData.append('latitude', payload.latitude.toString());
-      formData.append('longitude', payload.longitude.toString());
-      if (payload.address) formData.append('address', payload.address);
-      if (payload.landmark) formData.append('landmark', payload.landmark);
-      if (payload.ward) formData.append('ward_id', payload.ward);
-      if (payload.photo_blob) formData.append('photo', payload.photo_blob, 'evidence.jpg');
-      if (payload.video_blob) formData.append('video', payload.video_blob, 'pan-evidence.webm');
+    const currentUser = getCurrentStoredUser();
+    const formData = new FormData();
+    if (payload.title) formData.append('title', payload.title);
+    formData.append('category', payload.category);
+    formData.append('description', payload.description);
+    formData.append('latitude', payload.latitude.toString());
+    formData.append('longitude', payload.longitude.toString());
+    if (payload.address) formData.append('address', payload.address);
+    if (payload.landmark) formData.append('landmark', payload.landmark);
+    if (payload.ward) formData.append('ward_id', payload.ward);
+    if (payload.photo_blob) formData.append('photo', payload.photo_blob, 'evidence.jpg');
+    if (payload.video_blob) formData.append('video', payload.video_blob, 'pan-evidence.webm');
 
+    // Attach active authenticated citizen details so report is permanently linked in MongoDB
+    if (currentUser?.id) formData.append('reporter_id', currentUser.id);
+    if (currentUser?.name) formData.append('reporter_name', currentUser.name);
+    if (currentUser?.phone) formData.append('reporter_phone', currentUser.phone);
+
+    try {
       const response = await apiClient.post('/reports/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return adaptBackendReportToIssue(response.data);
-    } catch {
-      // Mock creation fallback if backend is unreachable
-      const newId = `iss_${Date.now()}`;
-      const newTrackingId = `CC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-      const photoUrl =
-        payload.photo_data_url ||
-        'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80';
-
-      const newIssue: Issue = {
-        id: newId,
-        tracking_id: newTrackingId,
-        title: payload.title || `${payload.category.replace('_', ' ').toUpperCase()} reported at ${payload.landmark || payload.ward || 'Location'}`,
-        description: payload.description,
-        category: payload.category,
-        status: 'reported',
-        priority: payload.category === 'traffic_signal' || payload.category === 'water_leakage' ? 'urgent' : 'high',
-        location: {
-          latitude: payload.latitude,
-          longitude: payload.longitude,
-          address: payload.address || 'Civil Lines, Jalandhar, Punjab',
-          landmark: payload.landmark || 'Street Corner',
-          ward: payload.ward || 'Ward 2 - Civil Lines, Jalandhar',
-          accuracy: 5,
-        },
-        evidence: [
-          {
-            id: `ev_${Date.now()}`,
-            media_type: payload.video_data_url ? 'video' : 'photo',
-            url: photoUrl,
-            caption: 'Verified live camera evidence',
-            created_at: new Date().toISOString(),
-            stage: 'initial',
-          },
-        ],
-        photo_url: photoUrl,
-        video_url: payload.video_data_url,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        sla_hours: 36,
-        sla_deadline: new Date(Date.now() + 36 * 3600 * 1000).toISOString(),
-        sla_breached: false,
-        upvotes_count: 1,
-        has_upvoted: true,
-        reporter: {
-          id: 'usr_c19284',
-          name: payload.is_anonymous ? 'Anonymous Citizen' : 'Priya Sharma',
-          is_anonymous: !!payload.is_anonymous,
-          phone_masked: '98***43210',
-        },
-        public_token: `tok-${newId}`,
-      };
-
-      mockIssues.unshift(newIssue);
-      return newIssue;
+    } catch (err: any) {
+      const errDetail =
+        err.response?.data?.detail ||
+        (typeof err.response?.data === 'object' ? JSON.stringify(err.response.data) : null) ||
+        err.message;
+      console.error('Failed to create report in MongoDB:', err);
+      throw new Error(errDetail || 'Could not save report to database. Please check your network and try again.');
     }
   },
 
@@ -592,16 +522,21 @@ export const issuesApi = {
   upvote: async (id: string): Promise<{ upvotes_count: number; has_upvoted: boolean }> => {
     try {
       const response = await apiClient.post(`/reports/${id}/upvote/`);
-      const count = response.data?.upvotes_count ?? response.data?.report?.upvote_count ?? 1;
-      return { upvotes_count: count, has_upvoted: true };
-    } catch {
+      const hasUpvoted = Boolean(response.data?.has_upvoted);
+      const count = response.data?.upvotes_count ?? response.data?.report?.upvote_count ?? 0;
+      return { upvotes_count: count, has_upvoted: hasUpvoted };
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      if (detail) {
+        throw new Error(detail);
+      }
       const issue = mockIssues.find((i) => i.id === id);
       if (issue) {
         issue.has_upvoted = !issue.has_upvoted;
-        issue.upvotes_count += issue.has_upvoted ? 1 : -1;
+        issue.upvotes_count = Math.max(0, issue.upvotes_count + (issue.has_upvoted ? 1 : -1));
         return { upvotes_count: issue.upvotes_count, has_upvoted: issue.has_upvoted };
       }
-      return { upvotes_count: 1, has_upvoted: true };
+      throw err;
     }
   },
 
@@ -723,20 +658,31 @@ export const issuesApi = {
 
 export const authApi = {
   // Send OTP with 60-second cooldown rate limit enforced by backend
-  sendOtp: async (phone: string, role: string = 'citizen'): Promise<{ message: string; retry_after: number }> => {
+  sendOtp: async (
+    phone: string,
+    role: string = 'citizen',
+    mode?: 'signin' | 'signup'
+  ): Promise<{ message: string; retry_after: number; account_exists?: boolean; user_name?: string; test_otp?: string; dev_otp?: string }> => {
     try {
-      const response = await apiClient.post('/users/send-otp/', { phone, role });
+      const response = await apiClient.post('/users/send-otp/', { phone, role, mode });
       return response.data;
     } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.response?.data?.error;
       if (err.response?.status === 429) {
         const retryAfter = err.response.data?.retry_after || 60;
-        throw new Error(err.response.data?.error || `Rate limit active. Please wait ${retryAfter}s before requesting a new OTP.`);
+        throw new Error(errDetail || `Rate limit active. Please wait ${retryAfter}s before requesting a new OTP.`);
       }
-      if (err.response?.data?.error) {
-        throw new Error(err.response.data.error);
+      if (errDetail) {
+        const customErr: any = new Error(errDetail);
+        customErr.status = err.response?.status;
+        customErr.account_exists = err.response?.data?.account_exists;
+        throw customErr;
       }
-      // Demo mock fallback if backend offline
-      return { message: 'OTP dispatched successfully (Demo Code: 123456)', retry_after: 60 };
+      // Demo mock fallback if backend offline (network error)
+      if (!err.response) {
+        return { message: 'OTP dispatched successfully (Demo Code: 123456)', retry_after: 60, account_exists: true, test_otp: '123456', dev_otp: '123456' };
+      }
+      throw err;
     }
   },
 
@@ -744,24 +690,34 @@ export const authApi = {
   verifyOtp: async (payload: {
     phone: string;
     otp: string;
+    password?: string;
     role?: string;
     name?: string;
     email?: string;
     ward?: string;
+    ward_id?: string;
+    ward_name?: string;
     department?: string;
     designation?: string;
     employee_id?: string;
     jurisdiction_zone?: string;
+    mode?: 'signin' | 'signup';
   }): Promise<{ token: string; user: UserProfile }> => {
     try {
       const response = await apiClient.post('/users/verify-otp/', payload);
-      return response.data;
+      return {
+        ...response.data,
+        user: adaptUserProfile(response.data.user),
+      };
     } catch (err: any) {
-      if (err.response?.data?.error) {
-        throw new Error(err.response.data.error);
+      const errDetail = err.response?.data?.detail || err.response?.data?.error;
+      if (errDetail) {
+        const customErr: any = new Error(errDetail);
+        customErr.status = err.response?.status;
+        throw customErr;
       }
-      // Demo mock fallback if backend offline
-      if (payload.otp === '123456' || payload.otp.length === 6) {
+      // Demo mock fallback if backend offline (network error)
+      if (!err.response && (payload.otp === '123456' || payload.otp.length === 6)) {
         const isOfficer = payload.role === 'officer' || payload.role === 'admin';
         const mockUser: UserProfile = {
           id: `usr_${Date.now()}`,
@@ -784,6 +740,197 @@ export const authApi = {
       }
       throw new Error('Invalid verification code. Please check and try again.');
     }
+  },
+
+  // Update Profile Details (Name, Email, Ward, District, State)
+  updateProfile: async (payload: Partial<UserProfile>): Promise<UserProfile> => {
+    try {
+      const response = await apiClient.post('/users/profile/', payload);
+      const adapted = adaptUserProfile(response.data);
+      localStorage.setItem('civic_user', JSON.stringify(adapted));
+      return adapted;
+    } catch (err: any) {
+      // Demo mock fallback if backend is offline or network error
+      const current = getCurrentStoredUser() || ({} as UserProfile);
+      const updated: UserProfile = {
+        ...current,
+        ...payload,
+      };
+      localStorage.setItem('civic_user', JSON.stringify(updated));
+      return updated;
+    }
+  },
+
+  // Change Password / Passcode Protected by Mandatory Mobile OTP
+  changePasswordWithOtp: async (payload: {
+    phone: string;
+    otp: string;
+    new_password: string;
+    user_id?: string;
+  }): Promise<{ message: string; user?: UserProfile }> => {
+    try {
+      const response = await apiClient.post('/users/change-password/', payload);
+      if (response.data.user) {
+        const adapted = adaptUserProfile(response.data.user);
+        localStorage.setItem('civic_user', JSON.stringify(adapted));
+        return { message: response.data.message || 'Password updated successfully.', user: adapted };
+      }
+      return response.data;
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.response?.data?.error;
+      if (errDetail) {
+        throw new Error(errDetail);
+      }
+      // Demo mock fallback if network error
+      if (!err.response && (payload.otp === '123456' || payload.otp.length === 6)) {
+        const current = getCurrentStoredUser();
+        if (current) {
+          current.credential_code = payload.new_password;
+          localStorage.setItem('civic_user', JSON.stringify(current));
+        }
+        return { message: 'Password updated successfully (Local Session Authenticated).' };
+      }
+      throw new Error('Failed to update password. Please check your verification code.');
+    }
+  },
+
+  // Login with Password / Passcode (Citizen & Staff)
+  loginWithPassword: async (payload: {
+    phone: string;
+    password: string;
+  }): Promise<{ token: string; user: UserProfile; message?: string }> => {
+    try {
+      const response = await apiClient.post('/users/login-password/', {
+        identifier: payload.phone,
+        password: payload.password,
+      });
+      const adapted = adaptUserProfile(response.data.user);
+      localStorage.setItem('civic_auth_token', response.data.token);
+      localStorage.setItem('civic_user', JSON.stringify(adapted));
+      return {
+        token: response.data.token,
+        user: adapted,
+        message: response.data.message,
+      };
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.response?.data?.error;
+      if (errDetail) {
+        throw new Error(errDetail);
+      }
+      // Demo mock fallback if network error
+      if (!err.response) {
+        const stored = getCurrentStoredUser();
+        if (stored && (stored.credential_code === payload.password || payload.password.length >= 4)) {
+          const fakeToken = `jwt-token-${Date.now()}`;
+          localStorage.setItem('civic_auth_token', fakeToken);
+          return { token: fakeToken, user: stored, message: 'Welcome back (Local Session Authenticated).' };
+        }
+      }
+      throw new Error('Incorrect credentials or server error. Please try again.');
+    }
+  },
+
+  // Delete user account with mandatory OTP verification
+  deleteAccountWithOtp: async (payload: {
+    phone: string;
+    otp: string;
+    user_id?: string;
+  }): Promise<{ message: string; success: boolean }> => {
+    try {
+      const response = await apiClient.post('/users/delete-account/', {
+        phone: payload.phone,
+        otp: payload.otp,
+        user_id: payload.user_id,
+      });
+      // Clear local session storage upon verified deletion
+      localStorage.removeItem('civic_auth_token');
+      localStorage.removeItem('civic_user');
+      return response.data;
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.response?.data?.error || err.message;
+      throw new Error(errDetail || 'Failed to delete account. Please verify the code.');
+    }
+  },
+
+  // Redeem municipal reward using spendable Civic Coins (Leaves Reputation Points untouched!)
+  redeemReward: async (payload: {
+    item_id: string;
+    item_name: string;
+    coins_cost: number;
+    size?: string;
+  }): Promise<{ message: string; order_id: string; user: UserProfile }> => {
+    try {
+      const response = await apiClient.post('/users/redeem/', payload);
+      const adapted = adaptUserProfile(response.data.user);
+      localStorage.setItem('civic_user', JSON.stringify(adapted));
+      return {
+        message: response.data.message,
+        order_id: response.data.order_id,
+        user: adapted,
+      };
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.response?.data?.error || err.message;
+      throw new Error(errDetail || 'Failed to process redemption.');
+    }
+  },
+};
+
+export const adminApi = {
+  // Provision a Ward Admin (Super Admin only) or Field Officer (Ward Admin)
+  provision: async (payload: AdminProvisionPayload): Promise<{ message: string; user: UserProfile; credentials: AdminCredentialsSlip }> => {
+    try {
+      const response = await apiClient.post('/users/admin/provision/', payload);
+      const data = response.data;
+      return {
+        message: data.message,
+        user: adaptUserProfile(data.admin || data.officer || data.user),
+        credentials: data.credentials,
+      };
+    } catch (err: any) {
+      if (err.response?.data?.detail) {
+        throw new Error(err.response.data.detail);
+      }
+      throw err;
+    }
+  },
+
+  // Get Roster of Ward Admins or Field Officers
+  getRoster: async (role: 'admin' | 'officer', ward_id?: string): Promise<UserProfile[]> => {
+    try {
+      const response = await apiClient.get('/users/admin/roster/', {
+        params: { role, ward_id },
+      });
+      if (Array.isArray(response.data)) {
+        return response.data.map(adaptUserProfile);
+      }
+      return [];
+    } catch (err) {
+      console.warn('Backend roster fetch fallback:', err);
+      return [];
+    }
+  },
+
+  // Quick Login using generated Employee Badge ID / Phone + Passcode
+  quickLogin: async (identifier: string, passcode: string): Promise<{ message: string; token: string; user: UserProfile }> => {
+    try {
+      const response = await apiClient.post('/users/admin/quick-login/', { identifier, passcode });
+      return {
+        message: response.data.message,
+        token: response.data.token,
+        user: adaptUserProfile(response.data.user),
+      };
+    } catch (err: any) {
+      if (err.response?.data?.detail) {
+        throw new Error(err.response.data.detail);
+      }
+      throw err;
+    }
+  },
+
+  // Revoke credentials
+  revoke: async (userId: string): Promise<{ message: string }> => {
+    const response = await apiClient.post('/users/admin/revoke/', { user_id: userId });
+    return response.data;
   },
 };
 

@@ -31,7 +31,6 @@ class HealthCheckAPIView(APIView):
 
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/health/", HealthCheckAPIView.as_view(), name="health-check"),
 
     # Direct no-login public action update route

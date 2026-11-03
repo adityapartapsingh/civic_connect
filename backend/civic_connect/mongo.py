@@ -34,12 +34,24 @@ _indexes_initialized: bool = False
 
 
 def get_mongo_uri() -> str:
-    """Return MongoDB connection URI from environment or default."""
+    """Return MongoDB connection URI from settings, environment, or default."""
+    try:
+        from django.conf import settings
+        if hasattr(settings, "MONGODB_URI") and settings.MONGODB_URI:
+            return str(settings.MONGODB_URI)
+    except Exception:
+        pass
     return os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
 
 
 def get_mongo_db_name() -> str:
-    """Return MongoDB database name from environment or default."""
+    """Return MongoDB database name from settings, environment, or default."""
+    try:
+        from django.conf import settings
+        if hasattr(settings, "MONGODB_DB_NAME") and settings.MONGODB_DB_NAME:
+            return str(settings.MONGODB_DB_NAME)
+    except Exception:
+        pass
     return os.environ.get("MONGODB_DB_NAME", "civic_connect")
 
 
@@ -56,9 +68,9 @@ def get_mongo_client() -> Any:
     try:
         real_client = MongoClient(
             uri,
-            serverSelectionTimeoutMS=1500,
-            connectTimeoutMS=1500,
-            socketTimeoutMS=3000,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=20000,
             maxPoolSize=50,
             minPoolSize=5,
             retryWrites=True,
@@ -68,9 +80,13 @@ def get_mongo_client() -> Any:
         _mongo_client = real_client
         _is_mock_mode = False
         logger.info(f"Connected to live MongoDB at {uri}")
+        try:
+            init_indexes()
+        except Exception as e:
+            logger.warning(f"Could not auto-initialize indexes: {e}")
     except (ConnectionFailure, ServerSelectionTimeoutError, Exception) as exc:
         if HAS_MONGOMOCK:
-            logger.info("Live MongoDB unreachable. Initializing in-memory mongomock engine for development/testing.")
+            logger.warning(f"Live MongoDB unreachable ({exc}). Initializing in-memory mongomock engine for development/testing.")
             _mongo_client = mongomock.MongoClient()
             _is_mock_mode = True
         else:
@@ -115,6 +131,31 @@ def is_mock_mode() -> bool:
     return _is_mock_mode
 
 
+def _migrate_sparse_to_partial(collection, idx_name: str, field: str) -> None:
+    """
+    Migrate a unique sparse index to a unique partial filter index.
+    If the existing index uses sparse=True without partialFilterExpression,
+    drop it first so it can be recreated properly.
+    """
+    try:
+        existing = collection.index_information().get(idx_name, {})
+        if existing.get("sparse") and "partialFilterExpression" not in existing:
+            collection.drop_index(idx_name)
+            logger.info(f"Dropped old sparse index '{idx_name}' for migration to partialFilterExpression.")
+    except Exception:
+        pass
+
+    try:
+        collection.create_index(
+            [(field, ASCENDING)],
+            unique=True,
+            partialFilterExpression={field: {"$type": "string"}},
+            name=idx_name,
+        )
+    except Exception:
+        pass
+
+
 def init_indexes() -> None:
     """
     Ensure all necessary MongoDB indexes (including 2dsphere for geospatial queries)
@@ -140,8 +181,18 @@ def init_indexes() -> None:
 
         # 2. Users Collection Indexes
         users = db["users"]
+        # Clean up any null employee_id or email fields to prevent sparse index collision
+        try:
+            users.update_many({"employee_id": None}, {"$unset": {"employee_id": ""}})
+            users.update_many({"email": None}, {"$unset": {"email": ""}})
+        except Exception:
+            pass
         users.create_index([("phone", ASCENDING)], unique=True, sparse=True, name="phone_unique")
-        users.create_index([("email", ASCENDING)], unique=True, sparse=True, name="email_unique")
+        # Migrate employee_id & email indexes from sparse to partialFilterExpression
+        # This prevents null collision when inserting citizen docs without employee_id/email
+        _migrate_sparse_to_partial(users, "employee_id_unique", "employee_id")
+        _migrate_sparse_to_partial(users, "email_unique", "email")
+        users.create_index([("user_id", ASCENDING)], unique=True, sparse=True, name="user_id_unique")
         users.create_index([("role", ASCENDING)], name="role_idx")
 
         # 3. Upvotes Collection Indexes (Prevent duplicate upvotes)

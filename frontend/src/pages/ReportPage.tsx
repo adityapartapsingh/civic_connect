@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CameraCapture } from '../components/report/CameraCapture';
 import { CategoryPicker } from '../components/report/CategoryPicker';
@@ -17,7 +17,7 @@ import {
   Camera,
   CheckCircle2,
   MapPin,
-  Sparkles,
+  Award,
   ArrowRight,
   ArrowLeft,
   Clock,
@@ -27,13 +27,15 @@ import {
   Wand2,
   Loader2,
   X,
+  Radar,
+  Search,
 } from 'lucide-react';
 
 export const ReportPage: React.FC = () => {
   const navigate = useNavigate();
   const { coords, address, landmark, accuracy, isMockSuspected, getLocationData, refreshLocation } = useGeolocation();
   const { issues: nearbyIssues, handleUpvote } = useNearbyReports(coords?.latitude, coords?.longitude, 400);
-  const { addPoints } = useAuthStore();
+  const { user, addPoints } = useAuthStore();
   const { addToast } = useToastStore();
 
   // Multi-step flow state
@@ -49,6 +51,11 @@ export const ReportPage: React.FC = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdIssue, setCreatedIssue] = useState<Issue | null>(null);
+
+  // Duplicate check scanning animation state
+  const isActionLockedRef = useRef(false);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateScanStatus, setDuplicateScanStatus] = useState<'scanning' | 'clean' | 'found'>('scanning');
 
   // AI Analysis states
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -83,9 +90,11 @@ export const ReportPage: React.FC = () => {
     }
   }, []);
 
-  // Step 2 to Step 3: Validate and proceed to duplicate check
-  const handleProceedToDuplicateCheck = (e: React.FormEvent) => {
+  // Step 2 to Step 3: Validate and proceed to duplicate check with visual scanning animation
+  const handleProceedToDuplicateCheck = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isActionLockedRef.current || isCheckingDuplicates || isSubmitting) return;
+
     if (!title.trim() || title.trim().length < 5) {
       addToast({
         type: 'error',
@@ -111,34 +120,108 @@ export const ReportPage: React.FC = () => {
       return;
     }
 
-    // If there are nearby issues, show duplicate check step; otherwise directly submit
-    if (nearbyIssues.length > 0) {
-      setStep(3);
-    } else {
-      handleSubmitFinalReport();
+    // Lock actions to prevent multiple submissions
+    isActionLockedRef.current = true;
+    setIsCheckingDuplicates(true);
+    setDuplicateScanStatus('scanning');
+
+    try {
+      const loc = getLocationData();
+      const lat = coords?.latitude ?? loc.latitude;
+      const lng = coords?.longitude ?? loc.longitude;
+
+      // Minimum 1.4s scan animation for clear visual feedback
+      const [freshNearby] = await Promise.all([
+        issuesApi.getNearby(lat, lng, 400).catch(() => nearbyIssues),
+        new Promise((resolve) => setTimeout(resolve, 1400)),
+      ]);
+
+      const foundList = (freshNearby && freshNearby.length > 0) ? freshNearby : nearbyIssues;
+
+      if (foundList && foundList.length > 0) {
+        setDuplicateScanStatus('found');
+        setTimeout(() => {
+          setIsCheckingDuplicates(false);
+          isActionLockedRef.current = false;
+          setStep(3);
+        }, 500);
+      } else {
+        setDuplicateScanStatus('clean');
+        setTimeout(async () => {
+          setIsCheckingDuplicates(false);
+          await handleSubmitFinalReport();
+        }, 800);
+      }
+    } catch {
+      setIsCheckingDuplicates(false);
+      isActionLockedRef.current = false;
+      if (nearbyIssues.length > 0) {
+        setStep(3);
+      } else {
+        handleSubmitFinalReport();
+      }
     }
   };
 
   // Step 3: User confirms duplicate -> upvote and redirect
   const handleConfirmDuplicate = async (issueId: string) => {
-    try {
-      await handleUpvote(issueId);
+    if (isActionLockedRef.current || isSubmitting) return;
+
+    const targetIssue = nearbyIssues.find((i) => i.id === issueId);
+    const isOwnReport = Boolean(
+      targetIssue && user && (
+        (user.id && targetIssue.reporter?.id === user.id) ||
+        (user.phone && targetIssue.reporter?.phone_masked && user.phone.endsWith(targetIssue.reporter.phone_masked.slice(-4)))
+      )
+    );
+
+    if (isOwnReport) {
       addToast({
-        type: 'success',
-        title: 'Upvote Registered',
-        message: 'You supported an existing report instead of creating a duplicate! (+5 pts)',
+        type: 'info',
+        title: 'Your Existing Report',
+        message: 'This report was already submitted by you.',
       });
       navigate(`/tickets/${issueId}`);
-    } catch {
-      //
+      return;
+    }
+
+    isActionLockedRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      const result = await handleUpvote(issueId);
+      if (result.has_upvoted) {
+        addPoints(5, 'Supported existing report instead of creating a duplicate (+5 pts)');
+        addToast({
+          type: 'success',
+          title: 'Upvote Registered',
+          message: 'You supported an existing report instead of creating a duplicate! (+5 pts)',
+        });
+      }
+      navigate(`/tickets/${issueId}`);
+    } catch (err: unknown) {
+      const errorObj = err as Error;
+      addToast({
+        type: 'error',
+        title: 'Cannot Upvote',
+        message: errorObj.message || 'Could not register endorsement.',
+      });
+      isActionLockedRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
   // Final submission
   const handleSubmitFinalReport = async () => {
-    if (!capturedMedia || !category) return;
+    if (!capturedMedia || !category) {
+      isActionLockedRef.current = false;
+      return;
+    }
+    if (isSubmitting) return;
 
+    isActionLockedRef.current = true;
     setIsSubmitting(true);
+
     try {
       const loc = getLocationData();
       const lat = coords?.latitude ?? loc.latitude;
@@ -183,6 +266,7 @@ export const ReportPage: React.FC = () => {
       });
     } finally {
       setIsSubmitting(false);
+      isActionLockedRef.current = false;
     }
   };
 
@@ -424,10 +508,16 @@ export const ReportPage: React.FC = () => {
               type="submit"
               variant="primary"
               size="lg"
+              loading={isCheckingDuplicates || isSubmitting}
+              disabled={isCheckingDuplicates || isSubmitting}
               icon={<ArrowRight className="w-4 h-4" />}
               className="flex-1"
             >
-              Continue to Duplicate Check
+              {isCheckingDuplicates
+                ? 'Scanning for Duplicates...'
+                : isSubmitting
+                ? 'Submitting Report...'
+                : 'Continue to Duplicate Check'}
             </Button>
           </div>
         </form>
@@ -441,17 +531,81 @@ export const ReportPage: React.FC = () => {
             onConfirmDuplicate={handleConfirmDuplicate}
             onProceedAnyway={handleSubmitFinalReport}
             isUpvoting={isSubmitting}
+            isSubmitting={isSubmitting}
           />
 
           <Button
             type="button"
             variant="ghost"
             size="sm"
+            disabled={isSubmitting}
             onClick={() => setStep(2)}
             icon={<ArrowLeft className="w-3.5 h-3.5" />}
           >
             Back to Edit Details
           </Button>
+        </div>
+      )}
+
+      {/* Duplicate Check Scanning Modal Animation */}
+      {isCheckingDuplicates && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 ">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            {duplicateScanStatus === 'clean' ? (
+              <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto border-2 border-emerald-300 shadow-sm animate-in zoom-in-75 duration-300">
+                <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
+              </div>
+            ) : duplicateScanStatus === 'found' ? (
+              <div className="w-20 h-20 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto border-2 border-amber-300 shadow-sm animate-in zoom-in-75 duration-300">
+                <AlertTriangle className="w-10 h-10 stroke-[2.5]" />
+              </div>
+            ) : (
+              <div className="relative w-24 h-24 mx-auto flex items-center justify-center my-1">
+                {/* Sonar / Radar Waves */}
+                <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
+                <div className="absolute inset-2 rounded-full bg-blue-500/30 animate-pulse" />
+                <div className="relative w-16 h-16 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg border border-slate-700">
+                  <Radar className="w-8 h-8 text-blue-400 animate-spin [animation-duration:3s]" />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h3 className="font-bold text-base text-slate-900">
+                {duplicateScanStatus === 'clean'
+                  ? 'No Duplicate Reports Found'
+                  : duplicateScanStatus === 'found'
+                  ? 'Similar Reports Detected Nearby!'
+                  : 'Checking for Duplicate Reports...'}
+              </h3>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                {duplicateScanStatus === 'clean'
+                  ? 'Your civic report is unique in this ward. Proceeding to submit ticket...'
+                  : duplicateScanStatus === 'found'
+                  ? 'Existing open grievances found within 400m. Opening comparison...'
+                  : 'Scanning 400m radius around your GPS location to prevent duplicate municipal tickets.'}
+              </p>
+            </div>
+
+            {/* GPS & Status pill */}
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-[11px] text-slate-600 space-y-1">
+              <div className="flex items-center justify-between font-mono">
+                <span className="text-slate-500">Scan Radius:</span>
+                <span className="font-bold text-slate-800">400m Ward Perimeter</span>
+              </div>
+              <div className="flex items-center justify-between font-mono">
+                <span className="text-slate-500">GPS Correlation:</span>
+                <span className="text-emerald-700 font-bold">
+                  {coords ? `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}` : 'Active Fix'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin text-slate-700" />
+              <span>Verifying report uniqueness...</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -463,14 +617,30 @@ export const ReportPage: React.FC = () => {
           </div>
 
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-100 text-slate-800 border border-slate-300 text-xs font-mono font-medium mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>+20 Civic Points Earned</span>
-            </div>
-            <h2 className="text-xl font-bold text-slate-900">Issue Successfully Logged</h2>
-            <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-md mx-auto">
-              Your grievance has been routed to Municipal Field Operations and assigned a real-time SLA countdown clock.
-            </p>
+            {(createdIssue as any).is_duplicate ? (
+              <>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-blue-50 text-blue-900 border border-blue-200 text-xs font-mono font-medium mb-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+                  <span>Corroboration Recorded: +10 Points & +10 Coins</span>
+                </div>
+                <h2 className="text-xl font-bold text-slate-900">Merged with Active Ticket Timeline</h2>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-md mx-auto">
+                  {(createdIssue as any).message ||
+                    `An active hazard report already exists at this location (${createdIssue.tracking_id}). Your photo and report were attached to the ongoing ticket timeline.`}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-100 text-slate-800 border border-slate-300 text-xs font-mono font-medium mb-2">
+                  <Award className="w-3.5 h-3.5 text-amber-600" />
+                  <span>+20 Civic Points Earned</span>
+                </div>
+                <h2 className="text-xl font-bold text-slate-900">Issue Successfully Logged</h2>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-md mx-auto">
+                  Your grievance has been routed to Municipal Field Operations and assigned a real-time SLA countdown clock.
+                </p>
+              </>
+            )}
           </div>
 
           {/* Ticket Tracking Badge Box */}

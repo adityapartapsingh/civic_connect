@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useNearbyReports } from '../hooks/useNearbyReports';
 import { Issue, ReportFilterParams } from '../types';
@@ -12,7 +12,7 @@ import { Pagination } from '../components/common/Pagination';
 import { issuesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   MapPin,
   ThumbsUp,
@@ -27,12 +27,24 @@ import {
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const { coords, address, accuracy, isLoading: geoLoading, refreshLocation } = useGeolocation();
   const [radiusMeters, setRadiusMeters] = useState<number>(500);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showMap, setShowMap] = useState<boolean>(false);
   const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'feed' | 'my_reports'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'my_reports'>(() => {
+    return searchParams.get('tab') === 'my_reports' ? 'my_reports' : 'feed';
+  });
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'my_reports') {
+      setActiveTab('my_reports');
+    } else if (tabParam === 'feed') {
+      setActiveTab('feed');
+    }
+  }, [searchParams]);
 
   // User-Controlled Priority & Date Filters
   const [filters, setFilters] = useState<ReportFilterParams>({
@@ -57,8 +69,9 @@ export const HomePage: React.FC = () => {
     radiusMeters
   );
 
-  const { user, addPoints } = useAuthStore();
+  const { user, addPoints, deductPoints } = useAuthStore();
   const { addToast } = useToastStore();
+  const [upvotingIds, setUpvotingIds] = useState<Record<string, boolean>>({});
 
   const handleFilterChange = (updated: Partial<ReportFilterParams>) => {
     setFilters((prev) => ({ ...prev, ...updated, page: updated.page !== undefined ? updated.page : 1 }));
@@ -122,11 +135,54 @@ export const HomePage: React.FC = () => {
       });
       return;
     }
+
+    if (upvotingIds[issueId]) return;
+
+    const targetIssue = issues.find((i) => i.id === issueId);
+    const isOwnReport = Boolean(
+      targetIssue && (
+        (user?.id && targetIssue.reporter?.id === user.id) ||
+        (user?.phone && targetIssue.reporter?.phone_masked && user.phone.endsWith(targetIssue.reporter.phone_masked.slice(-4)))
+      )
+    );
+
+    if (isOwnReport) {
+      addToast({
+        type: 'error',
+        title: 'Action Not Allowed',
+        message: 'You cannot upvote your own civic report.',
+      });
+      return;
+    }
+
+    setUpvotingIds((prev) => ({ ...prev, [issueId]: true }));
+
     try {
-      await handleUpvote(issueId);
-      addPoints(5, 'Upvoted local civic issue (+5 pts)');
-    } catch {
-      // Handled
+      const result = await handleUpvote(issueId);
+      if (result.has_upvoted) {
+        addPoints(5, 'Upvoted local civic issue (+5 pts)');
+        addToast({
+          type: 'success',
+          title: 'Upvote Registered',
+          message: 'You endorsed this issue (+5 pts).',
+        });
+      } else {
+        deductPoints(5, 'Removed upvote on civic issue');
+        addToast({
+          type: 'info',
+          title: 'Upvote Removed',
+          message: 'You removed your endorsement (-5 pts).',
+        });
+      }
+    } catch (err: unknown) {
+      const errorObj = err as Error;
+      addToast({
+        type: 'error',
+        title: 'Cannot Upvote',
+        message: errorObj.message || 'Could not register upvote.',
+      });
+    } finally {
+      setUpvotingIds((prev) => ({ ...prev, [issueId]: false }));
     }
   };
 
@@ -558,22 +614,52 @@ export const HomePage: React.FC = () => {
 
                   {/* Card Footer */}
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-sm">
-                    <button
-                      type="button"
-                      onClick={(e) => onUpvoteClick(e, issue.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition border ${
-                        issue.has_upvoted
-                          ? 'bg-slate-100 text-slate-900 border-slate-300'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <ThumbsUp className={`w-4 h-4 ${issue.has_upvoted ? 'fill-slate-900 text-slate-900' : ''}`} />
-                      <span>{issue.upvotes_count} Upvotes</span>
-                    </button>
+                    {(() => {
+                      const isOwn = Boolean(
+                        user && (
+                          (user.id && issue.reporter?.id === user.id) ||
+                          (user.phone && issue.reporter?.phone_masked && user.phone.endsWith(issue.reporter.phone_masked.slice(-4)))
+                        )
+                      );
+                      const isBusy = Boolean(upvotingIds[issue.id]);
+
+                      return (
+                        <button
+                          type="button"
+                          disabled={isOwn || isBusy}
+                          onClick={(e) => onUpvoteClick(e, issue.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium text-xs transition border ${
+                            isOwn
+                              ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-80'
+                              : issue.has_upvoted
+                              ? 'bg-slate-900 text-white border-slate-900 shadow-xs hover:bg-slate-800'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                          }`}
+                          title={
+                            isOwn
+                              ? 'You cannot upvote your own report'
+                              : issue.has_upvoted
+                              ? 'Click to remove upvote (-5 pts)'
+                              : 'Click to upvote (+5 pts)'
+                          }
+                        >
+                          <ThumbsUp className={`w-3.5 h-3.5 ${issue.has_upvoted ? 'fill-white text-white' : ''}`} />
+                          <span>
+                            {isOwn
+                              ? `Your Report (${issue.upvotes_count})`
+                              : isBusy
+                              ? 'Updating...'
+                              : issue.has_upvoted
+                              ? `Upvoted (${issue.upvotes_count})`
+                              : `${issue.upvotes_count} Upvotes`}
+                          </span>
+                        </button>
+                      );
+                    })()}
 
                     <Link
                       to={`/tickets/${issue.id}`}
-                      className="font-semibold text-slate-900 hover:text-brand-600 flex items-center gap-1"
+                      className="font-semibold text-slate-900 hover:text-brand-600 flex items-center gap-1 text-xs"
                     >
                       Inspect Case <ArrowRight className="w-4 h-4" />
                     </Link>

@@ -22,7 +22,7 @@ INITIAL_SAMPLE_WARDS: List[Dict[str, Any]] = [
         "ward_number": "Ward-102",
         "name": "Civil Lines Administrative Ward",
         "zone": "North Jalandhar",
-        "counselor_name": "Priya Sharma",
+        "counselor_name": "Smt. Sunita Talwar",
         "contact_phone": "+91-9876543211",
         "location": {"type": "Point", "coordinates": [75.5762, 31.3260]},
     },

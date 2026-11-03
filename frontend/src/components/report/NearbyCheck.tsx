@@ -11,6 +11,7 @@ interface NearbyCheckProps {
   onConfirmDuplicate: (issueId: string) => void;
   onProceedAnyway: () => void;
   isUpvoting?: boolean;
+  isSubmitting?: boolean;
 }
 
 export const NearbyCheck: React.FC<NearbyCheckProps> = ({
@@ -18,11 +19,13 @@ export const NearbyCheck: React.FC<NearbyCheckProps> = ({
   onConfirmDuplicate,
   onProceedAnyway,
   isUpvoting = false,
+  isSubmitting = false,
 }) => {
-  const { addPoints } = useAuthStore();
+  const { user } = useAuthStore();
+  const isBusy = isUpvoting || isSubmitting;
 
   const handleUpvoteDuplicate = (issueId: string) => {
-    addPoints(5, 'Upvoted existing civic report (+5 pts)');
+    if (isBusy) return;
     onConfirmDuplicate(issueId);
   };
 
@@ -77,17 +80,29 @@ export const NearbyCheck: React.FC<NearbyCheckProps> = ({
               </div>
             </div>
 
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              loading={isUpvoting}
-              onClick={() => handleUpvoteDuplicate(item.id)}
-              icon={<ThumbsUp className="w-3.5 h-3.5" />}
-              className="shrink-0 bg-amber-600 hover:bg-amber-700 shadow-amber-500/20"
-            >
-              I See This Too (+5 pts)
-            </Button>
+            {Boolean(
+              user && (
+                (user.id && item.reporter?.id === user.id) ||
+                (user.phone && item.reporter?.phone_masked && user.phone.endsWith(item.reporter.phone_masked.slice(-4)))
+              )
+            ) ? (
+              <span className="shrink-0 text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                Your Report
+              </span>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                loading={isUpvoting}
+                disabled={isBusy}
+                onClick={() => handleUpvoteDuplicate(item.id)}
+                icon={<ThumbsUp className="w-3.5 h-3.5" />}
+                className="shrink-0 bg-amber-600 hover:bg-amber-700 shadow-amber-500/20"
+              >
+                I See This Too (+5 pts)
+              </Button>
+            )}
           </div>
         ))}
       </div>
@@ -98,11 +113,13 @@ export const NearbyCheck: React.FC<NearbyCheckProps> = ({
           type="button"
           variant="secondary"
           size="sm"
+          loading={isSubmitting}
+          disabled={isBusy}
           onClick={onProceedAnyway}
           icon={<ArrowRight className="w-3.5 h-3.5" />}
           className="bg-white hover:bg-amber-100 text-amber-950 border border-amber-300"
         >
-          No, Submit New Issue
+          {isSubmitting ? 'Submitting Report...' : 'No, Submit New Issue'}
         </Button>
       </div>
     </div>
