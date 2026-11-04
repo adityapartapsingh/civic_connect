@@ -1,7 +1,7 @@
 # Graph Report - civic connect  (2026-11-04)
 
 ## Corpus Check
-- 141 files · ~95,223 words
+- 141 files · ~95,325 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 27 file(s) not represented in the graph (top: .xml 10, (none) 7, .example 3)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3dc7956b`
+- Built from commit: `1d09a7dc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -274,7 +274,7 @@ Nodes (7): MUNICIPAL_WARDS, adminApi, authApi, COMMON_WEAK_PASSWORDS, PasswordSt
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `UserManager` connect `UserManager` to `ReportManager`, `authentication.py`, `reports/models.py`, `GamificationManager`, `.upsert_user`, `UserManager`?**
+- **Why does `get_collection()` connect `tokens.py` to `UserManager`, `rest_framework`, `typing`, `reports/models.py`, `ReportAPITests`, `datetime`, `get_db`, `typing`, `GamificationManager`, `notifications/views.py`, `.upsert_user`, `JWTBearerAuthentication`, `reports/views.py`, `pipeline.py`, `datetime`, `serialize_docs`, `UserManager`?**
   _High betweenness centrality (0.043) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `UserManager` (e.g. with `merge_duplicate_into_timeline()` and `GamificationManager`) actually correct?**
   _`UserManager` has 19 INFERRED edges - model-reasoned connections that need verification._
@@ -282,7 +282,7 @@ _Questions this graph is uniquely positioned to answer:_
   _17 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `cloudinary_service.py` be split into smaller, more focused modules?**
   _Cohesion score 0.1368421052631579 - nodes in this community are weakly interconnected._
-- **Why does `get_collection()` connect `tokens.py` to `UserManager`, `rest_framework`, `typing`, `reports/models.py`, `ReportAPITests`, `datetime`, `get_db`, `typing`, `GamificationManager`, `notifications/views.py`, `.upsert_user`, `JWTBearerAuthentication`, `reports/views.py`, `pipeline.py`, `datetime`, `serialize_docs`, `UserManager`?**
+- **Why does `UserManager` connect `UserManager` to `ReportManager`, `authentication.py`, `reports/models.py`, `GamificationManager`, `.upsert_user`, `UserManager`?**
   _High betweenness centrality (0.043) - this node is a cross-community bridge._
 - **Are the 17 inferred relationships involving `ReportManager` (e.g. with `run_report_verification_pipeline()` and `ActionTokenTests`) actually correct?**
   _`ReportManager` has 17 INFERRED edges - model-reasoned connections that need verification._

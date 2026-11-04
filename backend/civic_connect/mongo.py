@@ -65,11 +65,14 @@ def get_mongo_client() -> Any:
         return _mongo_client
 
     uri = get_mongo_uri()
+    is_localhost = "localhost" in uri or "127.0.0.1" in uri
+    conn_timeout = 2000 if is_localhost else 10000
+
     try:
         real_client = MongoClient(
             uri,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000,
+            serverSelectionTimeoutMS=conn_timeout,
+            connectTimeoutMS=conn_timeout,
             socketTimeoutMS=20000,
             maxPoolSize=50,
             minPoolSize=5,
@@ -79,12 +82,19 @@ def get_mongo_client() -> Any:
         real_client.admin.command("ping")
         _mongo_client = real_client
         _is_mock_mode = False
-        logger.info(f"Connected to live MongoDB at {uri}")
+        logger.info(f"Connected to live MongoDB at {uri.split('@')[-1] if '@' in uri else uri}")
         try:
             init_indexes()
         except Exception as e:
             logger.warning(f"Could not auto-initialize indexes: {e}")
     except (ConnectionFailure, ServerSelectionTimeoutError, Exception) as exc:
+        is_render = "RENDER" in os.environ or bool(os.getenv("RENDER_SERVICE_ID"))
+        if is_render and is_localhost:
+            logger.error(
+                "🚨 [Render Deployment] MONGODB_URI environment variable is not set in Render dashboard! "
+                "Defaulting to localhost:27017 failed because Render web services do not run local MongoDB. "
+                "Please add MONGODB_URI (e.g. mongodb+srv://...) to your Render Environment Variables."
+            )
         if HAS_MONGOMOCK:
             logger.warning(f"Live MongoDB unreachable ({exc}). Initializing in-memory mongomock engine for development/testing.")
             _mongo_client = mongomock.MongoClient()

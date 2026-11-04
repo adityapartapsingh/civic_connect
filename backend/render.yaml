@@ -17,3 +17,15 @@ services:
         value: "True"
       - key: MONGODB_DB_NAME
         value: "civic_connect"
+      - key: MONGODB_URI
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: ACTION_TOKEN_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
