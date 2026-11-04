@@ -106,8 +106,42 @@ app.get('/status', (req, res) => {
     connected: isConnected,
     phone: connectedUser,
     has_qr: Boolean(qrCodeData),
+    qr_image: qrCodeDataUrl,
     qr_url: isConnected ? null : `http://localhost:${PORT}/qr`,
   });
+});
+
+// 1b. Raw QR Code Image Data for Admin Portal Modal
+app.get('/qr-data', (req, res) => {
+  res.json({
+    connected: isConnected,
+    phone: connectedUser,
+    qr_image: qrCodeDataUrl,
+    has_qr: Boolean(qrCodeDataUrl),
+  });
+});
+
+// 1c. Super Admin Session Reset / Re-link
+app.post('/reset', async (req, res) => {
+  try {
+    if (sock) {
+      try {
+        await sock.logout();
+      } catch (e) {}
+    }
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+    isConnected = false;
+    connectedUser = null;
+    qrCodeData = null;
+    qrCodeDataUrl = null;
+    console.log('🔄 Session reset by Super Admin. Restarting WhatsApp socket...');
+    setTimeout(startWhatsApp, 1500);
+    return res.json({ success: true, message: 'WhatsApp session reset. Generating fresh QR code...' });
+  } catch (err) {
+    console.error('Reset failed:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // 2. Interactive Browser QR Page for Easy Scanning

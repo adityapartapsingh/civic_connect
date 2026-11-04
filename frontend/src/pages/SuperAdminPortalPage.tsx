@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { adminApi, issuesApi, volunteerApi } from '../services/api';
+import { adminApi, issuesApi, volunteerApi, whatsappAdminApi, WhatsAppGatewayStatus } from '../services/api';
 import { UserProfile, AdminCredentialsSlip, Issue, VolunteerApplication } from '../types';
 import {
   Shield,
@@ -23,6 +23,10 @@ import {
   Users,
   XCircle,
   Clock,
+  MessageSquare,
+  QrCode,
+  Smartphone,
+  Send,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -479,6 +483,114 @@ export const SuperAdminPortalPage: React.FC = () => {
     );
   }
 
+  // WhatsApp Gateway Management States
+  const [waStatus, setWaStatus] = useState<WhatsAppGatewayStatus | null>(null);
+  const [isWaLoading, setIsWaLoading] = useState<boolean>(false);
+  const [isWaModalOpen, setIsWaModalOpen] = useState<boolean>(false);
+  const [testWaPhone, setTestWaPhone] = useState<string>('');
+  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
+  const [isResettingWa, setIsResettingWa] = useState<boolean>(false);
+
+  const loadWaStatus = async () => {
+    setIsWaLoading(true);
+    try {
+      const res = await whatsappAdminApi.getStatus();
+      setWaStatus(res);
+      return res;
+    } catch {
+      setWaStatus({
+        gateway_online: false,
+        connected: false,
+        phone: null,
+        status: 'error',
+        has_qr: false,
+        qr_image: null,
+        qr_url: 'http://localhost:5005/qr',
+      });
+      return null;
+    } finally {
+      setIsWaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      loadWaStatus();
+    }
+  }, [isSuperAdmin]);
+
+  // Polling for QR code scan while modal is open
+  useEffect(() => {
+    let timer: any = null;
+    if (isWaModalOpen && !waStatus?.connected) {
+      timer = setInterval(async () => {
+        const res = await loadWaStatus();
+        if (res?.connected) {
+          addToast({
+            type: 'success',
+            title: 'WhatsApp Connected!',
+            message: `Successfully paired with WhatsApp (${res.phone}). Free OTP dispatch is active.`,
+          });
+          setIsWaModalOpen(false);
+        }
+      }, 3000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isWaModalOpen, waStatus?.connected]);
+
+  const handleResetWaSession = async () => {
+    if (!window.confirm('Are you sure you want to unlink the current WhatsApp device? You will need to re-scan the QR code to send OTPs.')) {
+      return;
+    }
+    setIsResettingWa(true);
+    try {
+      const res = await whatsappAdminApi.resetSession();
+      addToast({
+        type: 'info',
+        title: 'Session Reset',
+        message: res.message || 'WhatsApp session unlinked. Generating fresh pairing QR code...',
+      });
+      await loadWaStatus();
+      setIsWaModalOpen(true);
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Reset Failed',
+        message: err.message || 'Could not reset WhatsApp session.',
+      });
+    } finally {
+      setIsResettingWa(false);
+    }
+  };
+
+  const handleSendTestWaOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testWaPhone.trim()) {
+      addToast({ type: 'error', title: 'Phone Required', message: 'Enter a 10-digit mobile number for test OTP.' });
+      return;
+    }
+    setIsSendingTest(true);
+    try {
+      const res = await whatsappAdminApi.sendTest(testWaPhone.trim(), '849201');
+      addToast({
+        type: 'success',
+        title: 'Test OTP Dispatched',
+        message: res.message,
+      });
+      setTestWaPhone('');
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Delivery Failed',
+        message: err.message || 'Could not send test WhatsApp OTP. Ensure gateway is paired.',
+      });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   // Super Admin Authenticated Console
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -560,6 +672,142 @@ export const SuperAdminPortalPage: React.FC = () => {
           <span className="text-xs font-semibold text-slate-500">City Resolution SLA</span>
           <div className="text-2xl font-black text-emerald-700 mt-1">91.8%</div>
           <span className="text-[11px] text-emerald-800 font-medium">19.4h Average Fix Speed</span>
+        </div>
+      </div>
+
+      {/* WhatsApp Gateway & Free OTP Dispatch Console */}
+      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-emerald-950/80 rounded text-emerald-400 border border-emerald-800">
+              <MessageSquare className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-sm sm:text-base">
+                  WhatsApp Gateway &amp; Zero-Cost OTP Dispatch
+                </h2>
+                {waStatus?.connected ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    ● PAIRED &amp; ACTIVE
+                  </span>
+                ) : waStatus?.gateway_online ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    ● PAIRING REQUIRED
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/40">
+                    ● GATEWAY OFFLINE
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                Self-hosted Baileys WebSocket gateway delivering instant citizen OTPs over WhatsApp for ₹0.00.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadWaStatus}
+              disabled={isWaLoading}
+              className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+              title="Refresh Gateway Connection Status"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isWaLoading ? 'animate-spin text-emerald-400' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            {/* Status Card 1: Connection Health */}
+            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+              <span className="text-slate-500 font-semibold block">Gateway Daemon</span>
+              <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${waStatus?.gateway_online ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                <span>{waStatus?.gateway_online ? 'Service Online (Port 5005)' : 'Service Offline'}</span>
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                Local WebSocket Daemon
+              </span>
+            </div>
+
+            {/* Status Card 2: Paired Device Number */}
+            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+              <span className="text-slate-500 font-semibold block">Active WhatsApp Device</span>
+              <div className="text-sm font-bold text-slate-900 font-mono">
+                {waStatus?.connected ? (
+                  <span className="text-emerald-700">+{waStatus.phone?.split('@')[0]}</span>
+                ) : (
+                  <span className="text-slate-500 italic">No Device Linked</span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                {waStatus?.connected ? 'Ready to deliver OTPs' : 'Scan QR to activate device'}
+              </span>
+            </div>
+
+            {/* Status Card 3: Billing Rate */}
+            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+              <span className="text-slate-500 font-semibold block">OTP Delivery Cost</span>
+              <div className="text-sm font-bold text-emerald-700 font-mono">
+                ₹0.00 / message
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                Zero Meta/Twilio API fees
+              </span>
+            </div>
+          </div>
+
+          {/* Action Row: Link QR, Test OTP & Unlink */}
+          <div className="pt-2 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  loadWaStatus();
+                  setIsWaModalOpen(true);
+                }}
+                className="px-3.5 py-2 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>{waStatus?.connected ? 'View WhatsApp Pairing' : 'Pair WhatsApp (Scan QR)'}</span>
+              </button>
+
+              {waStatus?.connected && (
+                <button
+                  type="button"
+                  disabled={isResettingWa}
+                  onClick={handleResetWaSession}
+                  className="px-3 py-2 rounded bg-white hover:bg-red-50 text-red-700 font-semibold text-xs border border-red-300 transition flex items-center gap-1 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isResettingWa ? 'animate-spin' : ''}`} />
+                  <span>Unlink / Switch Device</span>
+                </button>
+              )}
+            </div>
+
+            {/* Quick Test OTP Dispatch Form */}
+            <form onSubmit={handleSendTestWaOtp} className="flex items-center gap-2">
+              <input
+                type="tel"
+                value={testWaPhone}
+                onChange={(e) => setTestWaPhone(e.target.value)}
+                placeholder="Test Mobile (e.g. 9876543210)"
+                className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-900 font-mono w-48 focus:outline-none focus:border-slate-900"
+              />
+              <button
+                type="submit"
+                disabled={isSendingTest || !waStatus?.connected}
+                className="px-3 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center gap-1 shadow-xs disabled:opacity-50 shrink-0"
+              >
+                <Send className="w-3 h-3 text-emerald-400" />
+                <span>{isSendingTest ? 'Sending...' : 'Send Test OTP'}</span>
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -1011,6 +1259,102 @@ export const SuperAdminPortalPage: React.FC = () => {
                   : reviewModal.action === 'approve'
                   ? 'Confirm & Authorize Volunteer'
                   : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Pairing QR Code Modal */}
+      {isWaModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg border-2 border-slate-900 max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-slate-900 text-base">
+                  Link WhatsApp for Free OTP Dispatch
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWaModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {waStatus?.connected ? (
+              <div className="text-center py-4 space-y-3">
+                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-700">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">WhatsApp Gateway is Active</h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Paired phone: <strong className="text-slate-800 font-mono">+{waStatus.phone?.split('@')[0]}</strong>
+                  </p>
+                </div>
+                <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-200">
+                  Citizen OTPs are automatically delivered over WhatsApp at ₹0.00 cost.
+                </p>
+              </div>
+            ) : waStatus?.qr_image ? (
+              <div className="text-center space-y-4">
+                <p className="text-xs text-slate-600">
+                  Scan this QR code with WhatsApp on your phone to link your number:
+                </p>
+
+                <div className="inline-block p-2 bg-slate-50 rounded-lg border-2 border-slate-900 shadow-sm">
+                  <img
+                    src={waStatus.qr_image}
+                    alt="WhatsApp QR Code"
+                    className="w-56 h-56 mx-auto block"
+                  />
+                </div>
+
+                <div className="text-left bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-700 space-y-1">
+                  <span className="font-bold block text-slate-900 mb-1">How to scan:</span>
+                  <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-slate-600">
+                    <li>Open <strong>WhatsApp</strong> on your mobile phone</li>
+                    <li>Go to <strong>Settings</strong> or <strong>Menu (⋮)</strong> &gt; <strong>Linked Devices</strong></li>
+                    <li>Tap <strong>Link a Device</strong> and point camera here</li>
+                  </ol>
+                </div>
+
+                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-mono">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                  <span>Waiting for scan... auto-refreshing</span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 space-y-2">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400" />
+                <p className="text-xs text-slate-500">
+                  {waStatus?.gateway_online
+                    ? 'Generating new WhatsApp pairing QR code...'
+                    : 'WhatsApp Gateway service is offline. Please start it on port 5005.'}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={loadWaStatus}
+                className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-300 rounded hover:bg-slate-50 flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Refresh</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsWaModalOpen(false)}
+                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition"
+              >
+                Close
               </button>
             </div>
           </div>

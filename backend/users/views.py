@@ -1303,3 +1303,159 @@ class VolunteerApplicationReviewAPIView(APIView):
                 {"detail": f"Volunteer review error: {str(exc)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class WhatsAppAdminStatusAPIView(APIView):
+    """
+    GET /api/users/admin/whatsapp/status/
+    Super Admin endpoint to check WhatsApp Gateway connectivity and fetch live pairing QR code.
+    """
+
+    def get(self, request, *args, **kwargs):
+        import requests
+        from civic_connect.authentication import JWTBearerAuthentication
+
+        caller = None
+        try:
+            auth = JWTBearerAuthentication()
+            user_auth = auth.authenticate(request)
+            caller = user_auth[0] if user_auth else None
+        except Exception:
+            caller = None
+
+        if not caller or getattr(caller, "role", "") not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+            return Response(
+                {"detail": "Super Admin or Admin privileges required."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            res = requests.get("http://127.0.0.1:5005/status", timeout=2.5)
+            if res.status_code == 200:
+                data = res.json()
+                return Response(
+                    {
+                        "gateway_online": True,
+                        "connected": data.get("connected", False),
+                        "phone": data.get("phone"),
+                        "status": data.get("status", "unknown"),
+                        "has_qr": data.get("has_qr", False),
+                        "qr_image": data.get("qr_image"),
+                        "qr_url": "http://localhost:5005/qr",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+        except requests.exceptions.RequestException:
+            pass
+
+        return Response(
+            {
+                "gateway_online": False,
+                "connected": False,
+                "phone": None,
+                "status": "gateway_offline",
+                "has_qr": False,
+                "qr_image": None,
+                "message": "WhatsApp Gateway service is offline. Start it via 'cd whatsapp_gateway && npm start'.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class WhatsAppAdminResetAPIView(APIView):
+    """
+    POST /api/users/admin/whatsapp/reset/
+    Super Admin endpoint to reset WhatsApp pairing session and generate a new QR code.
+    """
+
+    def post(self, request, *args, **kwargs):
+        import requests
+        from civic_connect.authentication import JWTBearerAuthentication
+
+        caller = None
+        try:
+            auth = JWTBearerAuthentication()
+            user_auth = auth.authenticate(request)
+            caller = user_auth[0] if user_auth else None
+        except Exception:
+            caller = None
+
+        if not caller or getattr(caller, "role", "") not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+            return Response(
+                {"detail": "Super Admin privileges required."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            res = requests.post("http://127.0.0.1:5005/reset", timeout=4.0)
+            if res.status_code == 200:
+                return Response(res.json(), status=status.HTTP_200_OK)
+        except requests.exceptions.RequestException as exc:
+            return Response(
+                {"detail": f"Failed to reset gateway: {str(exc)}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response(
+            {"detail": "Could not reset WhatsApp session."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class WhatsAppAdminTestAPIView(APIView):
+    """
+    POST /api/users/admin/whatsapp/test/
+    Super Admin endpoint to dispatch a live test OTP message via WhatsApp.
+    """
+
+    def post(self, request, *args, **kwargs):
+        from users.whatsapp import send_whatsapp_otp
+        from users.validators import validate_indian_phone
+        from civic_connect.authentication import JWTBearerAuthentication
+        from rest_framework import serializers
+
+        caller = None
+        try:
+            auth = JWTBearerAuthentication()
+            user_auth = auth.authenticate(request)
+            caller = user_auth[0] if user_auth else None
+        except Exception:
+            caller = None
+
+        if not caller or getattr(caller, "role", "") not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+            return Response(
+                {"detail": "Super Admin privileges required."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        raw_phone = request.data.get("phone", "")
+        try:
+            phone = validate_indian_phone(raw_phone)
+        except serializers.ValidationError as err:
+            return Response(
+                {"detail": str(err.detail[0]) if err.detail else "Invalid phone number."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        test_otp = str(request.data.get("otp", "849201")).strip()
+        recipient_name = str(request.data.get("name", caller.name or "Municipal Admin")).strip()
+
+        success = send_whatsapp_otp(phone=phone, otp=test_otp, name=recipient_name)
+
+        if success:
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Test verification code {test_otp} dispatched to WhatsApp (+91 {phone}).",
+                    "phone": phone,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                "success": False,
+                "detail": "Failed to deliver WhatsApp message. Please verify gateway is running and paired at /admin/whatsapp/status/.",
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )

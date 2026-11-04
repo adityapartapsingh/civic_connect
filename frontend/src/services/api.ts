@@ -975,3 +975,32 @@ export const volunteerApi = {
     return response.data;
   },
 };
+
+
+export interface WhatsAppGatewayStatus {
+  gateway_online: boolean;
+  connected: boolean;
+  phone: string | null;
+  status: string;
+  has_qr: boolean;
+  qr_image: string | null;
+  qr_url: string;
+  message?: string;
+}
+
+export const whatsappAdminApi = {
+  getStatus: async (): Promise<WhatsAppGatewayStatus> => {
+    const response = await apiClient.get('/users/admin/whatsapp/status/');
+    return response.data;
+  },
+
+  resetSession: async (): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post('/users/admin/whatsapp/reset/');
+    return response.data;
+  },
+
+  sendTest: async (phone: string, otp?: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post('/users/admin/whatsapp/test/', { phone, otp });
+    return response.data;
+  },
+};
