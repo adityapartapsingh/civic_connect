@@ -1,7 +1,7 @@
 # Graph Report - civic connect  (2026-11-04)
 
 ## Corpus Check
-- 136 files · ~91,164 words
+- 136 files · ~91,125 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 26 file(s) not represented in the graph (top: .xml 10, (none) 7, .example 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7e99ba5c`
+- Built from commit: `6214b029`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -262,7 +262,7 @@ Nodes (4): check_password_strength(), is_valid_indian_phone(), normalize_phone_n
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `get_collection()` connect `notifications/views.py` to `users/views.py`, `ReportManager`, `tokens.py`, `ticket_id.py`, `reports/models.py`, `mongo.py`, `typing`, `serialize_docs`, `otp.py`, `django_apps`, `JWTBearerAuthentication`, `ReportAPITests`, `GamificationManager`, `.upsert_user`, `reports/views.py`, `verify_location_integrity`, `.post`, `parse_object_id`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
+  _High betweenness centrality (0.053) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `UserManager` (e.g. with `merge_duplicate_into_timeline()` and `GamificationManager`) actually correct?**
   _`UserManager` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `@capacitor/android`, `@capacitor/app`, `@capacitor/camera` to the rest of the system?**

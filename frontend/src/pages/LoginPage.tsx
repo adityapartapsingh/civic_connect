@@ -391,16 +391,6 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-
-
-          {/* Passwordless OTP Notice */}
-          {step === 'form' && (
-            <div className="mb-4 p-2.5 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-2 text-xs text-slate-700 font-medium">
-              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>Secure passwordless authentication via 6-digit SMS verification code.</span>
-            </div>
-          )}
-
           {/* Info Alert Message */}
           {infoMsg && (
             <div className="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed font-medium">
