@@ -33,6 +33,23 @@ let qrCodeDataUrl = null;
 let isConnected = false;
 let connectedUser = null;
 
+// In-memory message store and retry counter cache for Signal E2E retry re-encryption
+const messageStore = new Map();
+const msgRetryCounterMap = new Map();
+
+const msgRetryCounterCache = {
+  get: (key) => msgRetryCounterMap.get(key),
+  set: (key, value) => {
+    msgRetryCounterMap.set(key, value);
+    if (msgRetryCounterMap.size > 2000) {
+      const oldestKey = msgRetryCounterMap.keys().next().value;
+      msgRetryCounterMap.delete(oldestKey);
+    }
+  },
+  del: (key) => msgRetryCounterMap.delete(key),
+  flushAll: () => msgRetryCounterMap.clear(),
+};
+
 async function startWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion();
@@ -43,9 +60,36 @@ async function startWhatsApp() {
     printQRInTerminal: false,
     auth: state,
     browser: ['Civic Connect', 'Chrome', '1.0.0'],
+    syncFullHistory: false,
+    markOnlineOnConnect: true,
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 25000,
+    msgRetryCounterCache,
+    getMessage: async (key) => {
+      if (key?.id && messageStore.has(key.id)) {
+        console.log(`[Baileys E2E] Handled message retry for key: ${key.id}`);
+        return messageStore.get(key.id);
+      }
+      return {
+        conversation: 'Civic Connect Municipal Verification Code',
+      };
+    },
   });
 
   sock.ev.on('creds.update', saveCreds);
+
+  // Cache any incoming/outgoing messages to handle WhatsApp E2E decryption retries
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    for (const msg of messages) {
+      if (msg.key?.id && msg.message) {
+        messageStore.set(msg.key.id, msg.message);
+        if (messageStore.size > 2000) {
+          const oldest = messageStore.keys().next().value;
+          messageStore.delete(oldest);
+        }
+      }
+    }
+  });
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -68,19 +112,25 @@ async function startWhatsApp() {
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+      const shouldReconnect = !isLoggedOut;
 
       isConnected = false;
       connectedUser = null;
       console.log(`⚠️ WhatsApp connection closed (Status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
 
-      if (statusCode === DisconnectReason.loggedOut) {
+      if (isLoggedOut) {
         console.log('🚪 Logged out from WhatsApp. Resetting session...');
+        messageStore.clear();
+        msgRetryCounterMap.clear();
         fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         fs.mkdirSync(AUTH_DIR, { recursive: true });
       }
 
-      setTimeout(startWhatsApp, 3000);
+      if (shouldReconnect) {
+        const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 3000;
+        setTimeout(startWhatsApp, delay);
+      }
     } else if (connection === 'open') {
       isConnected = true;
       qrCodeData = null;
@@ -128,7 +178,12 @@ app.post('/reset', async (req, res) => {
       try {
         await sock.logout();
       } catch (e) {}
+      try {
+        sock.end();
+      } catch (e) {}
     }
+    messageStore.clear();
+    msgRetryCounterMap.clear();
     fs.rmSync(AUTH_DIR, { recursive: true, force: true });
     fs.mkdirSync(AUTH_DIR, { recursive: true });
     isConnected = false;
@@ -284,6 +339,15 @@ Your one-time login verification code is:
 _Municipal Corporation Citizen Services_`;
 
     const result = await sock.sendMessage(jid, { text: messageText });
+
+    // Store message in cache so Baileys can re-encrypt and fulfill Signal retry requests
+    if (result?.key?.id && result?.message) {
+      messageStore.set(result.key.id, result.message);
+      if (messageStore.size > 2000) {
+        const oldest = messageStore.keys().next().value;
+        messageStore.delete(oldest);
+      }
+    }
 
     console.log(`[WhatsApp Gateway] Successfully delivered OTP ${otp} to +${cleanPhone}`);
 

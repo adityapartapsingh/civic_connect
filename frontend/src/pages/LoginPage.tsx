@@ -13,7 +13,6 @@ import {
   Clock,
   Building2,
   CheckCircle2,
-  ShieldCheck,
   
   KeyRound,
   RefreshCw,

@@ -546,9 +546,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/LoginPage.tsx": {
-    "mtime": 1793783260.8400557,
-    "seen": 1793783328.9479065,
-    "ast_hash": "9d81d4e3fdd1f3cc6899f5e8bc47e0b1",
+    "mtime": 1793790341.6338587,
+    "seen": 1793790501.17079,
+    "ast_hash": "5bbae337dd3057bfd898a3ee70e2dead",
     "semantic_hash": ""
   },
   "frontend/src/pages/MapPage.tsx": {
@@ -1020,21 +1020,15 @@
     "semantic_hash": ""
   },
   "whatsapp_gateway/server.js": {
-    "mtime": 1793784419.7511864,
-    "seen": 1793784777.7927706,
-    "ast_hash": "529476d7076a4f8452aae02960f6dd64",
+    "mtime": 1793790436.8699763,
+    "seen": 1793790501.1708221,
+    "ast_hash": "909402119989e961242df4cb16753e2c",
     "semantic_hash": ""
   },
   "whatsapp_gateway/README.md": {
     "mtime": 1793784201.5373352,
     "seen": 1793784262.2658148,
     "ast_hash": "fbb34c7e210653173f46b3106d000be5",
-    "semantic_hash": ""
-  },
-  "frontend/vite.config.ts.timestamp-1793789831269-34d12fd27ce1a.mjs": {
-    "mtime": 1793789831.270638,
-    "seen": 1793789896.2520528,
-    "ast_hash": "6a99c1dff337e119722a5bf190146b11",
     "semantic_hash": ""
   }
 }
