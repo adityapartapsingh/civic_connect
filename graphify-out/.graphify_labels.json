@@ -1,5 +1,4 @@
 {
-  "6": "fraud/tests.py",
   "11": "compilerOptions",
   "12": "package.json",
   "14": "dependencies",
@@ -7,7 +6,6 @@
   "16": "manifest.json",
   "17": "compilerOptions",
   "18": "vite.config.ts",
-  "19": "scripts",
   "21": "civic_connect/__init__.py",
   "22": "fraud/__init__.py",
   "23": "gamification/__init__.py",
