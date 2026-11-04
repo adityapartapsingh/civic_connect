@@ -166,12 +166,19 @@ class SendOTPAPIView(APIView):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
+        # Dispatch OTP via local WhatsApp Gateway if online
+        from users.whatsapp import send_whatsapp_otp
+        otp_to_send = dev_otp or "123456"
+        user_name = existing_user.get("name", "Citizen") if existing_user else "Citizen"
+        whatsapp_sent = send_whatsapp_otp(phone=phone, otp=otp_to_send, name=user_name)
+
         response_payload = {
-            "message": f"Test OTP generated for {phone}.",
+            "message": f"Verification OTP sent to WhatsApp (+91 {phone})." if whatsapp_sent else f"Test OTP generated for {phone}.",
             "retry_after": retry_after,
             "phone": phone,
             "test_otp": dev_otp or "123456",
             "dev_otp": dev_otp or "123456",
+            "whatsapp_sent": whatsapp_sent,
             "account_exists": existing_user is not None,
             "user_name": existing_user.get("name") if existing_user else None,
         }
