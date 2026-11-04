@@ -17,6 +17,7 @@ const ConfirmResolutionPage = lazy(() => import('./pages/ConfirmResolutionPage')
 const RewardsPage = lazy(() => import('./pages/RewardsPage').then((m) => ({ default: m.RewardsPage })));
 const AdminPortalPage = lazy(() => import('./pages/AdminPortalPage').then((m) => ({ default: m.AdminPortalPage })));
 const SuperAdminPortalPage = lazy(() => import('./pages/SuperAdminPortalPage').then((m) => ({ default: m.SuperAdminPortalPage })));
+const VolunteersPage = lazy(() => import('./pages/VolunteersPage').then((m) => ({ default: m.VolunteersPage })));
 
 const RouteLoadingFallback: React.FC = () => (
   <div className="py-24 flex flex-col items-center justify-center text-center">
@@ -58,6 +59,14 @@ export const App: React.FC = () => {
               element={
                 <Suspense fallback={<RouteLoadingFallback />}>
                   <RewardsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/volunteers"
+              element={
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <VolunteersPage />
                 </Suspense>
               }
             />

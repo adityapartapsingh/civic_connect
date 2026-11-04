@@ -901,3 +901,398 @@ class AdminRevokeAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+
+
+class VolunteerApplicationAPIView(APIView):
+    """
+    POST /api/users/volunteers/register/
+    Citizen registers as a civic youth volunteer (NSS, NCC, NYKS, or Community Volunteer).
+    Requires administrative verification and approval by Ward Admin.
+
+    GET /api/users/volunteers/status/
+    Citizen inspects real-time verification and approval status of their volunteer application.
+    """
+
+    def post(self, request, *args, **kwargs):
+        import uuid
+        import datetime
+        from users.validators import validate_indian_phone
+        from users.serializers import VolunteerApplicationSerializer
+        from rest_framework import serializers
+
+        serializer = VolunteerApplicationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        phone = data.get("phone")
+        ward_id = data.get("ward_id")
+
+        col = get_collection("volunteer_applications")
+        existing = col.find_one({
+            "phone": phone,
+            "status": {"$in": ["PENDING", "APPROVED"]},
+        })
+
+        if existing:
+            if existing.get("status") == "APPROVED":
+                return Response(
+                    {
+                        "detail": f"An approved volunteer profile already exists for mobile {phone} (Scheme: {existing.get('scheme')}).",
+                        "status": "APPROVED",
+                        "application_id": existing.get("application_id"),
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            return Response(
+                {
+                    "detail": f"A volunteer application ({existing.get('application_id')}) is already pending verification by the Municipal Ward Admin.",
+                    "status": "PENDING",
+                    "application_id": existing.get("application_id"),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        application_id = f"VOL-APP-2026-{uuid.uuid4().hex[:6].upper()}"
+
+        user_doc = UserManager.find_by_phone(phone)
+        user_id = user_doc.get("user_id") if user_doc else (data.get("user_id") or f"usr_{uuid.uuid4().hex[:8]}")
+
+        # If user does not exist in DB yet, create preliminary citizen profile
+        if not user_doc:
+            user_doc = UserManager.upsert_user({
+                "user_id": user_id,
+                "name": data.get("name"),
+                "phone": phone,
+                "email": data.get("email"),
+                "ward_id": ward_id,
+                "ward_name": data.get("ward_name"),
+                "role": UserRole.CITIZEN,
+                "volunteer_status": "PENDING",
+                "volunteer_scheme": data.get("scheme", "COMMUNITY"),
+            })
+        else:
+            UserManager.update_user(user_doc.get("user_id") or user_doc.get("_id"), {
+                "volunteer_status": "PENDING",
+                "volunteer_scheme": data.get("scheme", "COMMUNITY"),
+            })
+
+        app_doc = {
+            "application_id": application_id,
+            "user_id": user_id,
+            "name": data.get("name"),
+            "phone": phone,
+            "email": data.get("email"),
+            "ward_id": ward_id,
+            "ward_name": data.get("ward_name") or f"Ward {ward_id}",
+            "scheme": (data.get("scheme") or "COMMUNITY").upper(),
+            "institution": data.get("institution", ""),
+            "cadet_or_enrollment_id": data.get("cadet_or_enrollment_id", ""),
+            "interests": data.get("interests", []),
+            "statement": data.get("statement", ""),
+            "status": "PENDING",
+            "applied_at": now,
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "review_notes": None,
+        }
+
+        col.insert_one(app_doc)
+
+        return Response(
+            {
+                "message": "Volunteer registration submitted successfully. Your credentials and scheme details have been forwarded to the Municipal Ward Administrator for official verification.",
+                "application_id": application_id,
+                "status": "PENDING",
+                "application": VolunteerApplicationSerializer(app_doc).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    def get(self, request, *args, **kwargs):
+        from users.serializers import VolunteerApplicationSerializer
+        from users.models import normalize_phone
+
+        phone = normalize_phone(request.query_params.get("phone"))
+        application_id = request.query_params.get("application_id")
+        user_id = request.query_params.get("user_id")
+
+        if not phone and not application_id and not user_id:
+            return Response(
+                {"detail": "Mobile phone, application_id, or user_id required to check verification status."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        col = get_collection("volunteer_applications")
+        query_clauses = []
+        if application_id:
+            query_clauses.append({"application_id": application_id})
+        if phone:
+            query_clauses.append({"phone": phone})
+        if user_id:
+            query_clauses.append({"user_id": user_id})
+
+        app = col.find_one({"$or": query_clauses})
+        if not app:
+            return Response(
+                {"detail": "No volunteer application found for the provided details."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            {
+                "application": VolunteerApplicationSerializer(app).data,
+                "status": app.get("status"),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class VolunteerApplicationsAdminAPIView(APIView):
+    """
+    GET /api/users/admin/volunteers/
+    Administrative roster of volunteer applicants awaiting or completed verification.
+    - Ward Admin sees applicants from their jurisdiction ward.
+    - Super Admin can oversee all wards.
+    """
+
+    def get(self, request, *args, **kwargs):
+        try:
+            from civic_connect.authentication import JWTBearerAuthentication
+            from users.serializers import VolunteerApplicationSerializer
+
+            caller = None
+            try:
+                auth = JWTBearerAuthentication()
+                user_auth = auth.authenticate(request)
+                caller = user_auth[0] if user_auth else None
+            except Exception:
+                caller = None
+
+            if not caller or getattr(caller, "role", "") not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+                return Response(
+                    {"detail": "Administrative privileges required to access volunteer verification queue."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            col = get_collection("volunteer_applications")
+            query: Dict[str, Any] = {}
+
+            # Scope by Ward for Ward Admins
+            caller_role = getattr(caller, "role", "")
+            if caller_role == UserRole.ADMIN:
+                admin_ward = getattr(caller, "ward_id", None)
+                if admin_ward:
+                    query["ward_id"] = admin_ward
+            else:
+                # Super Admin can filter by ward_id if provided
+                req_ward = request.query_params.get("ward_id")
+                if req_ward:
+                    query["ward_id"] = req_ward
+
+            # Filter by status
+            status_param = request.query_params.get("status", "all").upper()
+            if status_param != "ALL":
+                query["status"] = status_param
+
+            # Filter by scheme
+            scheme_param = request.query_params.get("scheme")
+            if scheme_param and scheme_param.upper() != "ALL":
+                query["scheme"] = scheme_param.upper()
+
+            cursor = col.find(query).sort("applied_at", -1).limit(200)
+            apps = list(cursor)
+
+            # Compute pending counter
+            pending_query = {**query, "status": "PENDING"} if "status" not in query else {"status": "PENDING"}
+            if caller_role == UserRole.ADMIN and getattr(caller, "ward_id", None):
+                pending_query["ward_id"] = caller.ward_id
+            pending_count = col.count_documents(pending_query)
+
+            return Response(
+                {
+                    "count": len(apps),
+                    "pending_count": pending_count,
+                    "applications": VolunteerApplicationSerializer(apps, many=True).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            return Response(
+                {"detail": f"Failed to retrieve volunteer queue: {str(exc)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class VolunteerApplicationReviewAPIView(APIView):
+    """
+    POST /api/users/admin/volunteers/<str:application_id>/review/
+    Ward Admin or Super Admin approves or rejects a volunteer registration application.
+    Upon approval:
+    - User is promoted to UserRole.VOLUNTEER.
+    - Volunteer scheme (NSS/NCC/NYKS/COMMUNITY) is authorized.
+    - Award +100 volunteer welcome points & +100 coins.
+    - Gamification ledger records official civic enlistment.
+    """
+
+    def post(self, request, application_id, *args, **kwargs):
+        import datetime
+        from civic_connect.authentication import JWTBearerAuthentication
+        from users.serializers import VolunteerApplicationSerializer, UserProfileSerializer
+        from gamification.models import GamificationManager
+
+        try:
+            caller = None
+            try:
+                auth = JWTBearerAuthentication()
+                user_auth = auth.authenticate(request)
+                caller = user_auth[0] if user_auth else None
+            except Exception:
+                caller = None
+
+            if not caller or getattr(caller, "role", "") not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+                return Response(
+                    {"detail": "Administrative privileges required to review and approve volunteer applications."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            action = request.data.get("action", "").strip().lower()
+            if action not in ("approve", "reject"):
+                return Response(
+                    {"detail": "Action must be either 'approve' or 'reject'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            review_notes = str(request.data.get("review_notes", "")).strip()
+
+            col = get_collection("volunteer_applications")
+            app = col.find_one({"application_id": application_id})
+            if not app:
+                return Response(
+                    {"detail": f"Volunteer application '{application_id}' not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Role check: Ward Admin can only verify applications in their assigned ward
+            if caller.role == UserRole.ADMIN and caller.ward_id:
+                if app.get("ward_id") and app.get("ward_id") != caller.ward_id:
+                    return Response(
+                        {"detail": f"Unauthorized. This application belongs to {app.get('ward_id')}, outside your assigned ward ({caller.ward_id})."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            now = datetime.datetime.now(datetime.timezone.utc)
+            admin_id = getattr(caller, "user_id", None) or getattr(caller, "name", "Ward Admin")
+
+            if action == "approve":
+                # Step 1: Update application record
+                col.update_one(
+                    {"application_id": application_id},
+                    {
+                        "$set": {
+                            "status": "APPROVED",
+                            "reviewed_by": admin_id,
+                            "reviewed_at": now,
+                            "review_notes": review_notes or "Verified and approved by Municipal Ward Administrator.",
+                        }
+                    },
+                )
+
+                # Step 2: Promote user in users collection
+                user_id = app.get("user_id")
+                phone = app.get("phone")
+                target_user = (UserManager.find_by_id(user_id) if user_id else None) or (UserManager.find_by_phone(phone) if phone else None)
+
+                update_fields = {
+                    "role": UserRole.VOLUNTEER,
+                    "volunteer_scheme": app.get("scheme", VolunteerScheme.COMMUNITY),
+                    "volunteer_status": "APPROVED",
+                    "volunteer_institution": app.get("institution", ""),
+                    "volunteer_application_id": application_id,
+                    "ward_id": app.get("ward_id"),
+                    "ward_name": app.get("ward_name"),
+                }
+
+                if target_user:
+                    uid = target_user.get("user_id") or target_user.get("_id")
+                    updated_user = UserManager.update_user(uid, update_fields)
+                else:
+                    new_user_data = {
+                        **update_fields,
+                        "user_id": user_id or f"vol_{application_id[-6:].lower()}",
+                        "name": app.get("name"),
+                        "phone": phone,
+                        "email": app.get("email"),
+                        "points": 100,
+                        "coins": 150,
+                    }
+                    updated_user = UserManager.upsert_user(new_user_data)
+
+                # Step 3: Award Initiation Welcome Points (+100 pts, +100 coins)
+                final_uid = updated_user.get("user_id") or str(updated_user.get("_id"))
+                UserManager.add_points_and_coins(
+                    final_uid,
+                    points=100,
+                    coins=100,
+                    reason="Volunteer Induction Bonus (+100 pts & +100 coins)",
+                )
+
+                # Step 4: Record in gamification ledger
+                try:
+                    GamificationManager.record_points(
+                        user_id=final_uid,
+                        action="VOLUNTEER_INDUCTION",
+                        base_points=100,
+                        notes=f"Authorized under {app.get('scheme')} scheme by {admin_id}",
+                    )
+                except Exception:
+                    pass
+
+                refreshed_app = col.find_one({"application_id": application_id})
+                return Response(
+                    {
+                        "message": f"Volunteer application {application_id} approved. {app.get('name')} is now an active Municipal Civic Volunteer ({app.get('scheme')}).",
+                        "status": "APPROVED",
+                        "application": VolunteerApplicationSerializer(refreshed_app).data,
+                        "user": UserProfileSerializer(updated_user).data if updated_user else None,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            else:  # reject
+                col.update_one(
+                    {"application_id": application_id},
+                    {
+                        "$set": {
+                            "status": "REJECTED",
+                            "reviewed_by": admin_id,
+                            "reviewed_at": now,
+                            "review_notes": review_notes or "Application does not meet current ward criteria.",
+                        }
+                    },
+                )
+
+                # Update user record if exists
+                user_id = app.get("user_id")
+                phone = app.get("phone")
+                target_user = (UserManager.find_by_id(user_id) if user_id else None) or (UserManager.find_by_phone(phone) if phone else None)
+                if target_user:
+                    uid = target_user.get("user_id") or target_user.get("_id")
+                    UserManager.update_user(uid, {"volunteer_status": "REJECTED"})
+
+                refreshed_app = col.find_one({"application_id": application_id})
+                return Response(
+                    {
+                        "message": f"Volunteer application {application_id} rejected.",
+                        "status": "REJECTED",
+                        "application": VolunteerApplicationSerializer(refreshed_app).data,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+        except Exception as exc:
+            return Response(
+                {"detail": f"Volunteer review error: {str(exc)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )

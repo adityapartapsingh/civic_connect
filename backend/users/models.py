@@ -49,7 +49,9 @@ class VolunteerScheme:
     NCC = "NCC"    # National Cadet Corps
     NYKS = "NYKS"  # Nehru Yuva Kendra Sangathan
 
-    CHOICES = [NONE, NSS, NCC, NYKS]
+    COMMUNITY = "COMMUNITY"  # Community / Resident Volunteer
+
+    CHOICES = [NONE, NSS, NCC, NYKS, COMMUNITY]
 
 
 class BadgeTier:

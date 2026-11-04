@@ -110,6 +110,10 @@ export interface UserProfile {
   credential_code?: string; // temporary / generated passcode
   created_by?: string; // user id of creator (super admin created admin; admin created officer)
   officers_count?: number; // count of officers in ward (for admins)
+  volunteer_scheme?: 'NONE' | 'NSS' | 'NCC' | 'NYKS' | 'COMMUNITY' | string;
+  volunteer_status?: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  volunteer_institution?: string;
+  volunteer_application_id?: string;
   points: number;
   coins?: number; // Spendable Civic Coins for municipal merchandise & reward redemption
   level: number;
@@ -214,3 +218,39 @@ export interface ReportFilterParams {
   ward?: string;
 }
 
+
+
+export interface VolunteerApplication {
+  id?: string;
+  application_id: string;
+  user_id?: string;
+  name: string;
+  phone: string;
+  email?: string;
+  ward_id: string;
+  ward_name?: string;
+  scheme: 'NSS' | 'NCC' | 'NYKS' | 'COMMUNITY' | string;
+  institution?: string;
+  cadet_or_enrollment_id?: string;
+  interests: string[];
+  statement?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  applied_at: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_notes?: string;
+}
+
+export interface VolunteerRegisterPayload {
+  name: string;
+  phone: string;
+  email?: string;
+  ward_id: string;
+  ward_name?: string;
+  scheme: string;
+  institution?: string;
+  cadet_or_enrollment_id?: string;
+  interests?: string[];
+  statement?: string;
+  user_id?: string;
+}

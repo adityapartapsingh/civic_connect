@@ -12,6 +12,8 @@ import {
   UserProfile,
   AdminProvisionPayload,
   AdminCredentialsSlip,
+  VolunteerApplication,
+  VolunteerRegisterPayload,
 } from '../types';
 import {
   adaptBackendReportToIssue,
@@ -934,3 +936,42 @@ export const adminApi = {
   },
 };
 
+
+
+export const volunteerApi = {
+  // Citizen applies / registers as a civic youth volunteer
+  apply: async (payload: VolunteerRegisterPayload): Promise<{ message: string; application_id: string; status: string; application: VolunteerApplication }> => {
+    const response = await apiClient.post('/users/volunteers/register/', payload);
+    return response.data;
+  },
+
+  // Citizen checks their verification status
+  getStatus: async (params: { phone?: string; application_id?: string; user_id?: string }): Promise<{ application: VolunteerApplication; status: string }> => {
+    const response = await apiClient.get('/users/volunteers/status/', { params });
+    return response.data;
+  },
+
+  // Public directory of approved active volunteers
+  listActive: async (scheme?: string): Promise<UserProfile[]> => {
+    const response = await apiClient.get('/users/volunteers/', { params: { scheme } });
+    if (Array.isArray(response.data)) {
+      return response.data.map(adaptUserProfile);
+    }
+    return [];
+  },
+
+  // Admin: List incoming volunteer applications queue
+  listAdminQueue: async (params?: { ward_id?: string; status?: string; scheme?: string }): Promise<{ count: number; pending_count: number; applications: VolunteerApplication[] }> => {
+    const response = await apiClient.get('/users/admin/volunteers/', { params });
+    return response.data;
+  },
+
+  // Admin: Review and approve or reject a volunteer application
+  review: async (applicationId: string, action: 'approve' | 'reject', reviewNotes?: string): Promise<{ message: string; status: string; application: VolunteerApplication; user?: UserProfile }> => {
+    const response = await apiClient.post(`/users/admin/volunteers/${applicationId}/review/`, {
+      action,
+      review_notes: reviewNotes,
+    });
+    return response.data;
+  },
+};

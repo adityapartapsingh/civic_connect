@@ -91,6 +91,19 @@ export const Layout: React.FC = () => {
               Rewards &amp; Rankings
             </NavLink>
 
+            <NavLink
+              to="/volunteers"
+              className={({ isActive }) =>
+                `h-16 flex items-center px-1 text-sm font-semibold transition-colors border-b-2 ${
+                  isActive
+                    ? 'border-slate-900 text-slate-900'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`
+              }
+            >
+              Volunteers
+            </NavLink>
+
             {isSuperAdmin && (
               <NavLink
                 to="/super-admin"

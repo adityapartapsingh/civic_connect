@@ -15,6 +15,9 @@ class UserProfileSerializer(serializers.Serializer):
         choices=VolunteerScheme.CHOICES,
         default=VolunteerScheme.NONE,
     )
+    volunteer_status = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    volunteer_institution = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    volunteer_application_id = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
     ward_id = serializers.CharField(required=False, allow_null=True)
     ward_name = serializers.CharField(required=False, allow_null=True)
     ward = serializers.CharField(required=False, allow_null=True)
@@ -130,3 +133,29 @@ class UserSyncSerializer(serializers.Serializer):
             return value
         from users.validators import validate_password_strength
         return validate_password_strength(value)
+
+
+class VolunteerApplicationSerializer(serializers.Serializer):
+    """Serializer for Volunteer Applications awaiting municipal admin verification."""
+    id = serializers.CharField(read_only=True)
+    application_id = serializers.CharField(read_only=True)
+    user_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    name = serializers.CharField(required=True)
+    phone = serializers.CharField(required=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    ward_id = serializers.CharField(required=True)
+    ward_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    scheme = serializers.CharField(default="COMMUNITY")
+    institution = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    cadet_or_enrollment_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    interests = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+    statement = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    status = serializers.ChoiceField(choices=["PENDING", "APPROVED", "REJECTED"], default="PENDING")
+    applied_at = serializers.DateTimeField(read_only=True)
+    reviewed_by = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    reviewed_at = serializers.DateTimeField(required=False, allow_null=True)
+    review_notes = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    def validate_phone(self, value):
+        from users.validators import validate_indian_phone
+        return validate_indian_phone(value)

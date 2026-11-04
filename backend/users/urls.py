@@ -13,12 +13,17 @@ from users.views import (
     DeleteAccountAPIView,
     RedeemRewardAPIView,
     VolunteersListAPIView,
+    VolunteerApplicationAPIView,
+    VolunteerApplicationsAdminAPIView,
+    VolunteerApplicationReviewAPIView,
 )
 
 urlpatterns = [
     path("profile/", UserProfileAPIView.as_view(), name="user-profile"),
     path("sync/", UserSyncAPIView.as_view(), name="user-sync"),
     path("volunteers/", VolunteersListAPIView.as_view(), name="volunteers-list"),
+    path("volunteers/register/", VolunteerApplicationAPIView.as_view(), name="volunteer-register"),
+    path("volunteers/status/", VolunteerApplicationAPIView.as_view(), name="volunteer-status"),
     path("send-otp/", SendOTPAPIView.as_view(), name="user-send-otp"),
     path("verify-otp/", VerifyOTPAPIView.as_view(), name="user-verify-otp"),
     path("login-password/", PasswordLoginAPIView.as_view(), name="user-login-password"),
@@ -29,4 +34,6 @@ urlpatterns = [
     path("admin/roster/", AdminRosterAPIView.as_view(), name="admin-roster"),
     path("admin/quick-login/", AdminQuickLoginAPIView.as_view(), name="admin-quick-login"),
     path("admin/revoke/", AdminRevokeAPIView.as_view(), name="admin-revoke"),
+    path("admin/volunteers/", VolunteerApplicationsAdminAPIView.as_view(), name="admin-volunteers-list"),
+    path("admin/volunteers/<str:application_id>/review/", VolunteerApplicationReviewAPIView.as_view(), name="admin-volunteer-review"),
 ]
