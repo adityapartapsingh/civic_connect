@@ -25,7 +25,7 @@ import {
   EyeOff,
   AlertCircle,
 } from 'lucide-react';
-import { validateIndianPhone, validatePasswordStrength } from '../utils/validators';
+import { validateIndianPhone } from '../utils/validators';
 
 const MUNICIPAL_WARDS = [
   { id: 'Ward-101', name: 'Ward 1 - Model Town Urban Zone' },
@@ -64,10 +64,7 @@ export const LoginPage: React.FC = () => {
   const [otp, setOtp] = useState('');
   const [testOtp, setTestOtp] = useState<string>('');
 
-  // Sign In Method: 'otp' vs 'password' (Only for Sign In; Sign Up strictly requires OTP)
-  const [signinMethod, setSigninMethod] = useState<'otp' | 'password'>('otp');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+
 
   // Municipal Staff Form Fields (Ward Admin & Field Officer)
   const [staffId, setStaffId] = useState('');
@@ -81,7 +78,6 @@ export const LoginPage: React.FC = () => {
 
   // Validation derivations
   const phoneValidation = validateIndianPhone(phone);
-  const passwordValidation = validatePasswordStrength(password);
 
   // Sync mode from search params if changed
   useEffect(() => {
@@ -105,59 +101,14 @@ export const LoginPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [cooldownSeconds]);
 
-  const handlePasswordLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setInfoMsg(null);
 
-    const phoneValidation = validateIndianPhone(phone);
-    if (!phoneValidation.isValid) {
-      setErrorMsg(phoneValidation.error || 'Please enter a valid 10-digit Indian mobile number.');
-      return;
-    }
-
-    if (!password.trim()) {
-      setErrorMsg('Please enter your account password.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await authApi.loginWithPassword({
-        phone: phoneValidation.normalized,
-        password: password.trim(),
-      });
-
-      login(res.token, res.user);
-
-      addToast({
-        type: 'success',
-        title: 'Signed In Successfully',
-        message: `Welcome back, ${res.user.name || 'Citizen'}.`,
-      });
-
-      const redirectUrl = searchParams.get('redirect') || '/';
-      navigate(redirectUrl);
-    } catch (err: any) {
-      if (err.message?.includes('No account found') || err.message?.includes('not found') || err.status === 404) {
-        setErrorMsg(`No account found with mobile number ${phoneValidation.normalized}. Please sign up with OTP first.`);
-      } else {
-        setErrorMsg(err.message || 'Incorrect password or phone number. You can also sign in with OTP.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleCitizenSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setInfoMsg(null);
 
-    // If citizen chose to Sign In with Password
-    if (authMode === 'signin' && signinMethod === 'password') {
-      return handlePasswordLogin(e);
-    }
+
 
     const phoneValidation = validateIndianPhone(phone);
     if (!phoneValidation.isValid) {
@@ -171,13 +122,7 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    if (authMode === 'signup' && password.trim()) {
-      const pwdValidation = validatePasswordStrength(password);
-      if (!pwdValidation.isValid) {
-        setErrorMsg(pwdValidation.error || 'Password must be at least 6 characters and include letters and numbers.');
-        return;
-      }
-    }
+
 
     if (cooldownSeconds > 0) {
       setErrorMsg(`Rate limit active. Please wait ${cooldownSeconds}s before requesting a new OTP.`);
@@ -247,7 +192,6 @@ export const LoginPage: React.FC = () => {
         phone: cleanPhone,
         otp: otp.trim(),
         role: 'citizen',
-        password: password.trim() || undefined,
         name: name.trim() || undefined,
         email: email.trim() || undefined,
         ward_id: wardId,
@@ -432,7 +376,6 @@ export const LoginPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setAuthMode('signup');
-                    setSigninMethod('otp');
                     setErrorMsg(null);
                     setInfoMsg(null);
                   }}
@@ -448,48 +391,13 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Sign In Mode: Option to Login with OTP vs Login with Password */}
-          {step === 'form' && authMode === 'signin' && (
-            <div className="bg-slate-100 p-1 border border-slate-200 rounded-lg grid grid-cols-2 gap-1 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setSigninMethod('otp');
-                  setErrorMsg(null);
-                }}
-                className={`py-1.5 px-3 rounded-md text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                  signinMethod === 'otp'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Phone className="w-3.5 h-3.5 text-blue-600" />
-                <span>Login with OTP</span>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setSigninMethod('password');
-                  setErrorMsg(null);
-                }}
-                className={`py-1.5 px-3 rounded-md text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                  signinMethod === 'password'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <KeyRound className="w-3.5 h-3.5 text-purple-600" />
-                <span>Login with Password</span>
-              </button>
-            </div>
-          )}
 
-          {/* Sign Up Mode: Mandatory OTP Notice */}
-          {step === 'form' && authMode === 'signup' && (
-            <div className="mb-4 p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-xs text-blue-900 font-medium">
+          {/* Passwordless OTP Notice */}
+          {step === 'form' && (
+            <div className="mb-4 p-2.5 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-2 text-xs text-slate-700 font-medium">
               <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>Mobile OTP verification is mandatory for new citizen sign-up.</span>
+              <span>Secure passwordless authentication via 6-digit SMS verification code.</span>
             </div>
           )}
 
@@ -580,60 +488,7 @@ export const LoginPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        Create Password / Passcode <span className="text-slate-400 font-normal">(Optional)</span>
-                      </label>
-                      <span className="text-[10px] text-slate-500">Sign in anytime with password</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Choose a password (e.g. adiraj123)"
-                        className="w-full pl-9 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-                      />
-                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
 
-                    {/* Real-time Password Strength Feedback */}
-                    {password.length > 0 && (
-                      <div className="mt-2 space-y-1.5 p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-slate-600 font-medium">Password Strength:</span>
-                          <span className={`font-bold ${passwordValidation.score >= 3 ? 'text-emerald-700' : passwordValidation.score === 2 ? 'text-amber-700' : 'text-red-700'}`}>
-                            {passwordValidation.label}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-1 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                          <div className={`h-full transition-all ${passwordValidation.score >= 1 ? (passwordValidation.score >= 3 ? 'bg-emerald-500' : passwordValidation.score === 2 ? 'bg-amber-500' : 'bg-red-500') : 'bg-transparent'}`} />
-                          <div className={`h-full transition-all ${passwordValidation.score >= 2 ? (passwordValidation.score >= 3 ? 'bg-emerald-500' : 'bg-amber-500') : 'bg-transparent'}`} />
-                          <div className={`h-full transition-all ${passwordValidation.score >= 3 ? 'bg-emerald-500' : 'bg-transparent'}`} />
-                          <div className={`h-full transition-all ${passwordValidation.score >= 4 ? 'bg-emerald-600' : 'bg-transparent'}`} />
-                        </div>
-                        <div className="flex items-center gap-3 text-[10px] text-slate-500 pt-0.5">
-                          <span className={passwordValidation.checks.length ? 'text-emerald-600 font-bold' : ''}>
-                            ✓ 6+ chars
-                          </span>
-                          <span className={passwordValidation.checks.hasLetter ? 'text-emerald-600 font-bold' : ''}>
-                            ✓ Letters
-                          </span>
-                          <span className={passwordValidation.checks.hasNumber ? 'text-emerald-600 font-bold' : ''}>
-                            ✓ Numbers
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </>
               )}
 
@@ -674,61 +529,21 @@ export const LoginPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Password Input (Shown only when Logging in with Password) */}
-              {authMode === 'signin' && signinMethod === 'password' && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Password / Passcode <span className="text-red-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSigninMethod('otp');
-                        setErrorMsg(null);
-                      }}
-                      className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline"
-                    >
-                      Login with OTP instead
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your account password"
-                      className="w-full pl-9 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-                    />
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              )}
+
 
               <Button
                 type="submit"
                 variant="primary"
                 size="lg"
-                disabled={isLoading || (authMode === 'signup' && cooldownSeconds > 0) || (authMode === 'signin' && signinMethod === 'otp' && cooldownSeconds > 0)}
+                disabled={isLoading || cooldownSeconds > 0}
                 className="w-full justify-center bg-slate-900 hover:bg-slate-800 text-white font-bold rounded mt-2"
               >
                 {isLoading ? (
                   'Verifying...'
-                ) : (authMode === 'signup' && cooldownSeconds > 0) || (authMode === 'signin' && signinMethod === 'otp' && cooldownSeconds > 0) ? (
+                ) : cooldownSeconds > 0 ? (
                   `Wait ${cooldownSeconds}s`
                 ) : authMode === 'signup' ? (
                   'Sign Up & Verify Mobile OTP'
-                ) : signinMethod === 'password' ? (
-                  'Sign In with Password'
                 ) : (
                   'Continue with Mobile OTP'
                 )}

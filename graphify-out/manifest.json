@@ -546,9 +546,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/LoginPage.tsx": {
-    "mtime": 1793739224.6497636,
-    "seen": 1793779805.031715,
-    "ast_hash": "6e30e417485cb1b1ba2e183b1b260578",
+    "mtime": 1793782901.0076823,
+    "seen": 1793782991.1716866,
+    "ast_hash": "a33dccc307c4dd3b29f9439f21202c12",
     "semantic_hash": ""
   },
   "frontend/src/pages/MapPage.tsx": {
@@ -558,9 +558,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ProfilePage.tsx": {
-    "mtime": 1793779329.8015194,
-    "seen": 1793779805.0317278,
-    "ast_hash": "ce95ea2e039b8ac564237504fea1a3f5",
+    "mtime": 1793782832.9220135,
+    "seen": 1793782991.1716962,
+    "ast_hash": "65ef705c7c8fb026e5c1e4e02bbc533a",
     "semantic_hash": ""
   },
   "frontend/src/pages/PublicUpdatePage.tsx": {
@@ -792,8 +792,8 @@
     "semantic_hash": ""
   },
   "frontend/android/app/capacitor.build.gradle": {
-    "mtime": 1793781417.243694,
-    "seen": 1793781510.6367848,
+    "mtime": 1793782959.0287366,
+    "seen": 1793782991.1713963,
     "ast_hash": "fc32d4b3799bc351ba080d8140b48de3",
     "semantic_hash": ""
   },
@@ -822,8 +822,8 @@
     "semantic_hash": ""
   },
   "frontend/android/capacitor.settings.gradle": {
-    "mtime": 1793781417.2421951,
-    "seen": 1793781510.63689,
+    "mtime": 1793782959.0277205,
+    "seen": 1793782991.1714292,
     "ast_hash": "8eaa8b107d99d602729797385f434f57",
     "semantic_hash": ""
   },

@@ -4,7 +4,6 @@ import { useToastStore } from '../store/toastStore';
 import { authApi } from '../services/api';
 import { INDIAN_STATES, STATE_DISTRICTS_MAP, getWardsForDistrict } from '../utils/constants';
 import { Modal } from '../components/common/Modal';
-import { validatePasswordStrength } from '../utils/validators';
 import {
   Award,
   Zap,
@@ -91,7 +90,6 @@ export const ProfilePage: React.FC = () => {
   // MODAL STATES
   // -------------------------------------------------------------
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // -------------------------------------------------------------
@@ -156,143 +154,7 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  // -------------------------------------------------------------
-  // CHANGE PASSWORD (WITH MANDATORY OTP) FORM STATE
-  // -------------------------------------------------------------
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [testOtpNotice, setTestOtpNotice] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  // Cooldown countdown timer
-  useEffect(() => {
-    let timer: any = null;
-    if (cooldown > 0) {
-      timer = setInterval(() => {
-        setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [cooldown]);
-
-  // Handle opening change password modal
-  const handleOpenPasswordModal = () => {
-    setOtpSent(false);
-    setOtpCode('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setShowPassword(false);
-    setTestOtpNotice(null);
-    setPasswordError(null);
-    setIsPasswordModalOpen(true);
-  };
-
-  // Handle Requesting OTP for Password Change
-  const handleSendOtp = async () => {
-    if (!user?.phone) {
-      addToast({
-        type: 'error',
-        title: 'Phone Number Missing',
-        message: 'No registered mobile number found on account to send verification code.',
-      });
-      return;
-    }
-
-    setIsSendingOtp(true);
-    setPasswordError(null);
-
-    try {
-      const response = await authApi.sendOtp(user.phone, user.role || 'citizen');
-      setOtpSent(true);
-      setCooldown(response.retry_after || 60);
-
-      const demoCode = response.dev_otp || response.test_otp;
-      if (demoCode) {
-        setTestOtpNotice(`Demo Verification Code: ${demoCode}`);
-      }
-
-      addToast({
-        type: 'info',
-        title: 'Verification Code Dispatched',
-        message: `6-digit security code sent to +91 ${user.phone}.`,
-      });
-    } catch (err: any) {
-      setPasswordError(err.message || 'Failed to dispatch verification OTP. Please try again.');
-      addToast({
-        type: 'error',
-        title: 'OTP Dispatch Failed',
-        message: err.message || 'Could not send verification code.',
-      });
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  // Handle Submitting New Password with OTP
-  const handleSubmitPasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError(null);
-
-    if (!otpCode || otpCode.trim().length !== 6) {
-      setPasswordError('Please enter a valid 6-digit verification code.');
-      return;
-    }
-
-    const pwdVal = validatePasswordStrength(newPassword);
-    if (!pwdVal.isValid) {
-      setPasswordError(pwdVal.error || 'Password must be at least 6 characters and contain letters and numbers.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New password and confirmation password do not match.');
-      return;
-    }
-
-    if (!user?.phone) return;
-
-    setIsChangingPassword(true);
-
-    try {
-      const result = await authApi.changePasswordWithOtp({
-        phone: user.phone,
-        user_id: user.id,
-        otp: otpCode.trim(),
-        new_password: newPassword,
-      });
-
-      if (result.user) {
-        setUser(result.user);
-      } else {
-        setUser({ ...user, credential_code: newPassword });
-      }
-
-      addToast({
-        type: 'success',
-        title: 'Password Updated Successfully',
-        message: 'Your account credentials have been secured and updated.',
-      });
-
-      setIsPasswordModalOpen(false);
-    } catch (err: any) {
-      setPasswordError(err.message || 'Verification failed. Please check the code.');
-      addToast({
-        type: 'error',
-        title: 'Password Update Failed',
-        message: err.message || 'Invalid or expired verification code.',
-      });
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
 
   // Handle Submitting Edit Profile
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -621,14 +483,16 @@ export const ProfilePage: React.FC = () => {
           </span>
         </Link>
 
-        <button
-          type="button"
-          onClick={handleOpenPasswordModal}
+        <Link
+          to="/volunteers"
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 font-bold text-xs rounded-lg border border-slate-300 shadow-xs transition"
         >
-          <KeyRound className="w-4 h-4 text-purple-600" />
-          <span>Change Password</span>
-        </button>
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>Volunteer Hub</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
+            {user.role === 'volunteer' ? 'Active' : 'Join'}
+          </span>
+        </Link>
       </div>
 
       {/* ========================================================= */}
@@ -1000,227 +864,6 @@ export const ProfilePage: React.FC = () => {
             </button>
           </div>
         </form>
-      </Modal>
-
-      {/* ========================================================= */}
-      {/* MODAL 2: CHANGE PASSWORD WITH MANDATORY OTP */}
-      {/* ========================================================= */}
-      <Modal
-        isOpen={isPasswordModalOpen}
-        onClose={() => setIsPasswordModalOpen(false)}
-        title="Change Password / Passcode"
-        description="Mandatory mobile OTP verification is required to update account credentials."
-        maxWidth="md"
-      >
-        <div className="py-2 space-y-4">
-          {/* Registered Phone Info Banner */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-slate-600" />
-              <div>
-                <span className="text-slate-500">Registered Number: </span>
-                <strong className="text-slate-900 font-mono">+91 {user.phone || ''}</strong>
-              </div>
-            </div>
-            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-              Active
-            </span>
-          </div>
-
-          {passwordError && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-              <span>{passwordError}</span>
-            </div>
-          )}
-
-          {testOtpNotice && (
-            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-md flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-amber-600" />
-                <span>{testOtpNotice}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOtpCode('123456')}
-                className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950"
-              >
-                Auto-fill
-              </button>
-            </div>
-          )}
-
-          {!otpSent ? (
-            /* STEP 1: Request OTP */
-            <div className="space-y-4 pt-1">
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Click below to send a secure 6-digit one-time password (OTP) via SMS to verify your identity before creating a new password.
-              </p>
-              <button
-                type="button"
-                disabled={isSendingOtp}
-                onClick={handleSendOtp}
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-md transition shadow-xs disabled:opacity-50"
-              >
-                {isSendingOtp ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Dispatching OTP...</span>
-                  </>
-                ) : (
-                  <>
-                    <KeyRound className="w-4 h-4 text-amber-400" />
-                    <span>Send Verification OTP via SMS</span>
-                  </>
-                )}
-              </button>
-            </div>
-          ) : (
-            /* STEP 2: Enter OTP & New Password */
-            <form onSubmit={handleSubmitPasswordChange} className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    6-Digit Verification Code *
-                  </label>
-                  {cooldown > 0 ? (
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      Resend in {cooldown}s
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSendOtp}
-                      disabled={isSendingOtp}
-                      className="text-[11px] font-semibold text-slate-800 hover:text-slate-950 underline flex items-center gap-1"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Resend Code</span>
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  maxLength={6}
-                  required
-                  autoFocus
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  className="w-full text-center tracking-widest text-lg font-mono font-bold px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none bg-slate-50"
-                  placeholder="• • • • • •"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  New Password / Passcode *
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none pr-10"
-                    placeholder="Enter at least 6 characters (letters + numbers)"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                {/* Real-time Password Strength Meter */}
-                {newPassword.length > 0 && (
-                  <div className="mt-2 space-y-1.5 p-2 bg-slate-50 rounded border border-slate-200">
-                    {(() => {
-                      const pwdVal = validatePasswordStrength(newPassword);
-                      return (
-                        <>
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-slate-600 font-medium">Strength:</span>
-                            <span className={`font-bold ${pwdVal.score >= 3 ? 'text-emerald-700' : pwdVal.score === 2 ? 'text-amber-700' : 'text-red-700'}`}>
-                              {pwdVal.label}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-4 gap-1 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all ${pwdVal.score >= 1 ? (pwdVal.score >= 3 ? 'bg-emerald-500' : pwdVal.score === 2 ? 'bg-amber-500' : 'bg-red-500') : 'bg-transparent'}`} />
-                            <div className={`h-full transition-all ${pwdVal.score >= 2 ? (pwdVal.score >= 3 ? 'bg-emerald-500' : 'bg-amber-500') : 'bg-transparent'}`} />
-                            <div className={`h-full transition-all ${pwdVal.score >= 3 ? 'bg-emerald-500' : 'bg-transparent'}`} />
-                            <div className={`h-full transition-all ${pwdVal.score >= 4 ? 'bg-emerald-600' : 'bg-transparent'}`} />
-                          </div>
-                          <div className="flex items-center gap-3 text-[10px] text-slate-500 pt-0.5">
-                            <span className={pwdVal.checks.length ? 'text-emerald-600 font-bold' : ''}>
-                              ✓ 6+ chars
-                            </span>
-                            <span className={pwdVal.checks.hasLetter ? 'text-emerald-600 font-bold' : ''}>
-                              ✓ Letters
-                            </span>
-                            <span className={pwdVal.checks.hasNumber ? 'text-emerald-600 font-bold' : ''}>
-                              ✓ Numbers
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Confirm New Password *
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  minLength={4}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full text-sm px-3 py-2 border rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none ${
-                    confirmPassword && newPassword !== confirmPassword
-                      ? 'border-red-400 bg-red-50/30'
-                      : 'border-slate-300'
-                  }`}
-                  placeholder="Re-enter new password"
-                />
-                {confirmPassword && newPassword !== confirmPassword && (
-                  <p className="text-[11px] text-red-600 mt-1">Passwords do not match.</p>
-                )}
-                {confirmPassword && newPassword === confirmPassword && (
-                  <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Passwords match.</span>
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
-                <button
-                  type="button"
-                  disabled={isChangingPassword}
-                  onClick={() => setIsPasswordModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md border border-slate-300 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isChangingPassword || otpCode.length !== 6 || newPassword.length < 6 || newPassword !== confirmPassword}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition shadow-xs disabled:opacity-50"
-                >
-                  {isChangingPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{isChangingPassword ? 'Verifying...' : 'Verify OTP & Update Password'}</span>
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
       </Modal>
 
       {/* ========================================================= */}
