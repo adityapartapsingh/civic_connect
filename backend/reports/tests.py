@@ -255,3 +255,21 @@ class ReportAPITests(TestCase):
             }, format="multipart")
             self.assertEqual(api_res.status_code, status.HTTP_201_CREATED)
             self.assertEqual(api_res.data["photo_url"], mock_cloudinary_response["secure_url"])
+
+    def test_analyze_image_api_endpoint(self):
+        # 1. Test with base64 dataUrl
+        payload = {
+            "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=",
+            "mime_type": "image/jpeg",
+        }
+        res = self.client.post("/api/reports/analyze-image/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data["success"])
+        self.assertIn("category", res.data)
+        self.assertIn("title", res.data)
+        self.assertIn("description", res.data)
+        self.assertIn("confidence", res.data)
+
+        # 2. Test with empty payload -> 400
+        bad_res = self.client.post("/api/reports/analyze-image/", {}, format="json")
+        self.assertEqual(bad_res.status_code, status.HTTP_400_BAD_REQUEST)

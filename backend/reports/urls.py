@@ -7,6 +7,7 @@ from reports.views import (
     FeedReportsAPIView,
     MapReportsAPIView,
     NearbyReportsAPIView,
+    ReportAnalyzeImageAPIView,
     ReportConfirmAPIView,
     ReportDetailAPIView,
     ReportDisputeAPIView,
@@ -23,6 +24,9 @@ urlpatterns = [
     path("nearby/", NearbyReportsAPIView.as_view(), name="report-nearby"),
     path("feed/", FeedReportsAPIView.as_view(), name="report-feed"),
     path("map/", MapReportsAPIView.as_view(), name="report-map"),
+
+    # Server-side AI Image Analysis (no Gemini keys exposed to frontend)
+    path("analyze-image/", ReportAnalyzeImageAPIView.as_view(), name="report-analyze-image"),
 
     # Single item by ticket ID
     path("ticket/<str:ticket_id>/", ReportTicketAPIView.as_view(), name="report-by-ticket"),

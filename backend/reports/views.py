@@ -28,7 +28,13 @@ from utils.cloudinary_service import upload_media
 from civic_connect.mongo import get_collection, serialize_docs
 from fraud.phash import compute_image_phash
 from fraud.services import analyze_report_fraud
+import base64
+import logging
+from rest_framework.permissions import AllowAny
+from reports.ai_vision import analyze_issue_image_data
 from reports.models import ReportManager, ReportStatus
+
+logger = logging.getLogger(__name__)
 from reports.serializers import (
     ReportConfirmSerializer,
     ReportCreateSerializer,
@@ -535,3 +541,59 @@ class ReportUpvoteAPIView(APIView):
             "upvotes_count": updated.get("upvote_count", 0) if updated else 0,
             "report": report_data,
         }, status=status.HTTP_200_OK)
+
+
+
+class ReportAnalyzeImageAPIView(APIView):
+    """
+    POST /api/reports/analyze-image/
+    Server-side AI Image Analysis for Civic Issue Reporting.
+    Analyzes captured photo with Gemini Vision on the backend (zero API keys on client).
+    Accepts:
+      - JSON: {"image": "data:image/jpeg;base64,...", "mime_type": "image/jpeg"}
+      - Or Multipart Form: photo or image file
+    Returns:
+      {
+        "success": True,
+        "title": str,
+        "category": str,
+        "description": str,
+        "confidence": float,
+        "provider": str
+      }
+    """
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request, *args, **kwargs):
+        # 1. Check multipart file upload
+        photo_file = request.FILES.get("photo") or request.FILES.get("image")
+        if photo_file:
+            try:
+                mime_type = photo_file.content_type or "image/jpeg"
+                file_bytes = photo_file.read()
+                image_b64 = base64.b64encode(file_bytes).decode("utf-8")
+                result = analyze_issue_image_data(image_b64, mime_type=mime_type)
+                return Response({"success": True, **result}, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"[ReportAnalyzeImage] Failed processing photo file: {e}")
+                return Response(
+                    {"success": False, "error": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # 2. Check JSON / base64 payload
+        image_data = (
+            request.data.get("image")
+            or request.data.get("data_url")
+            or request.data.get("photo")
+        )
+        if not image_data or not isinstance(image_data, str):
+            return Response(
+                {"success": False, "error": "No image data or file provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        mime_type = request.data.get("mime_type", "image/jpeg")
+        result = analyze_issue_image_data(image_data, mime_type=mime_type)
+        return Response({"success": True, **result}, status=status.HTTP_200_OK)

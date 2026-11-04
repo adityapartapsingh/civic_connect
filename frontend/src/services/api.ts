@@ -665,6 +665,29 @@ export const issuesApi = {
       return mockLeaderboard;
     }
   },
+
+  // Server-side AI Image Analysis (no Gemini key exposed on client)
+  analyzeImage: async (
+    dataUrl: string
+  ): Promise<{ title: string; category: IssueCategory; description: string; confidence: number } | null> => {
+    try {
+      const response = await apiClient.post('/reports/analyze-image/', {
+        image: dataUrl,
+      });
+      if (response.data && response.data.success) {
+        return {
+          title: response.data.title || '',
+          category: (response.data.category as IssueCategory) || 'other',
+          description: response.data.description || '',
+          confidence: typeof response.data.confidence === 'number' ? response.data.confidence : 0.8,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.warn('[AI Analysis] Backend image analysis request failed:', err);
+      return null;
+    }
+  },
 };
 
 export const authApi = {

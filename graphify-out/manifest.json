@@ -24,9 +24,9 @@
     "semantic_hash": ""
   },
   "backend/civic_connect/settings.py": {
-    "mtime": 1793739224.5078068,
-    "seen": 1793779805.031058,
-    "ast_hash": "bf4220d903b5f35b6dfd46dd0ebebb76",
+    "mtime": 1793790865.9335797,
+    "seen": 1793791163.6015294,
+    "ast_hash": "18c8ee2c387e4fb48b72020044782a57",
     "semantic_hash": ""
   },
   "backend/civic_connect/urls.py": {
@@ -228,21 +228,21 @@
     "semantic_hash": ""
   },
   "backend/reports/tests.py": {
-    "mtime": 1793739224.514431,
-    "seen": 1793779805.0313127,
-    "ast_hash": "37deea36ea44cf83ecf45395605adb59",
+    "mtime": 1793790911.590796,
+    "seen": 1793791163.6015801,
+    "ast_hash": "220675897df87888fa78b5b28b906e23",
     "semantic_hash": ""
   },
   "backend/reports/urls.py": {
-    "mtime": 1792180751.6586337,
-    "seen": 1792277942.766067,
-    "ast_hash": "5230f64b2ad1b25607241ff174f742f3",
-    "semantic_hash": "5230f64b2ad1b25607241ff174f742f3"
+    "mtime": 1793790851.8446708,
+    "seen": 1793791163.601581,
+    "ast_hash": "84a157aa1f1f25325b2850edf842b9fc",
+    "semantic_hash": ""
   },
   "backend/reports/views.py": {
-    "mtime": 1793739224.6381292,
-    "seen": 1793779805.0313246,
-    "ast_hash": "b1606f1d24e5df09dedabac709b9e492",
+    "mtime": 1793790834.251803,
+    "seen": 1793791163.601582,
+    "ast_hash": "3b69181348dcda4abf0b54b839c4357e",
     "semantic_hash": ""
   },
   "backend/users/__init__.py": {
@@ -582,9 +582,9 @@
     "semantic_hash": ""
   },
   "frontend/src/services/api.ts": {
-    "mtime": 1793789817.32536,
-    "seen": 1793789896.2520375,
-    "ast_hash": "ed660b12d24fa9c5b30d4f0f9bbf66cd",
+    "mtime": 1793790962.0090911,
+    "seen": 1793791163.601811,
+    "ast_hash": "06bec2370b5e7198c91eb92b7d551253",
     "semantic_hash": ""
   },
   "frontend/src/store/authStore.ts": {
@@ -696,9 +696,9 @@
     "semantic_hash": ""
   },
   "frontend/src/services/aiAnalysis.ts": {
-    "mtime": 1792280041.996081,
-    "seen": 1792280273.949259,
-    "ast_hash": "2a42d476581e0ee90b4175f9a12fa633",
+    "mtime": 1793790978.0904224,
+    "seen": 1793791163.6018078,
+    "ast_hash": "e2781bc3fe3738d649fef6268dc13bff",
     "semantic_hash": ""
   },
   "backend/civic_connect/authentication.py": {
@@ -1029,6 +1029,12 @@
     "mtime": 1793784201.5373352,
     "seen": 1793784262.2658148,
     "ast_hash": "fbb34c7e210653173f46b3106d000be5",
+    "semantic_hash": ""
+  },
+  "backend/reports/ai_vision.py": {
+    "mtime": 1793790787.362198,
+    "seen": 1793791163.601575,
+    "ast_hash": "aa681b165f1b0b06ff8ee0f63491a99f",
     "semantic_hash": ""
   }
 }
