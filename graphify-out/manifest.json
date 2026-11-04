@@ -582,9 +582,9 @@
     "semantic_hash": ""
   },
   "frontend/src/services/api.ts": {
-    "mtime": 1793784574.3542848,
-    "seen": 1793784777.7927084,
-    "ast_hash": "e294d43ca212d8347643bed83e9e2a73",
+    "mtime": 1793789817.32536,
+    "seen": 1793789896.2520375,
+    "ast_hash": "ed660b12d24fa9c5b30d4f0f9bbf66cd",
     "semantic_hash": ""
   },
   "frontend/src/store/authStore.ts": {
@@ -792,8 +792,8 @@
     "semantic_hash": ""
   },
   "frontend/android/app/capacitor.build.gradle": {
-    "mtime": 1793784755.3133187,
-    "seen": 1793784777.7924695,
+    "mtime": 1793789860.431732,
+    "seen": 1793789896.251969,
     "ast_hash": "fc32d4b3799bc351ba080d8140b48de3",
     "semantic_hash": ""
   },
@@ -822,8 +822,8 @@
     "semantic_hash": ""
   },
   "frontend/android/capacitor.settings.gradle": {
-    "mtime": 1793784755.3123088,
-    "seen": 1793784777.7924933,
+    "mtime": 1793789860.4312296,
+    "seen": 1793789896.2519772,
     "ast_hash": "8eaa8b107d99d602729797385f434f57",
     "semantic_hash": ""
   },
@@ -1029,6 +1029,12 @@
     "mtime": 1793784201.5373352,
     "seen": 1793784262.2658148,
     "ast_hash": "fbb34c7e210653173f46b3106d000be5",
+    "semantic_hash": ""
+  },
+  "frontend/vite.config.ts.timestamp-1793789831269-34d12fd27ce1a.mjs": {
+    "mtime": 1793789831.270638,
+    "seen": 1793789896.2520528,
+    "ast_hash": "6a99c1dff337e119722a5bf190146b11",
     "semantic_hash": ""
   }
 }

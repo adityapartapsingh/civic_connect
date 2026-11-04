@@ -23,12 +23,21 @@ import {
   frontendStatusToBackend,
 } from './adapters';
 
+const resolveApiBaseUrl = (): string => {
+  const envUrl = (import.meta.env.VITE_API_URL || '').trim();
+  if (!envUrl) return '/api';
+  // Strip trailing slash if present
+  const clean = envUrl.replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
+};
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: resolveApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  // 30s timeout to gracefully accommodate Render cold starts
+  timeout: 30000,
 });
 
 apiClient.interceptors.request.use((config) => {
