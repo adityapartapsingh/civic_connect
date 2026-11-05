@@ -21,9 +21,7 @@ staticfiles/
 node_modules/
 dist/
 dist-ssr/
-auth_session/
-whatsapp_gateway/auth_session/
-
+whatsapp_gateway/
 # Environment files
 .env
 .env.local

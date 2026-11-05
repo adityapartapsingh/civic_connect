@@ -1329,37 +1329,9 @@ class WhatsAppAdminStatusAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        try:
-            res = requests.get("http://127.0.0.1:5005/status", timeout=2.5)
-            if res.status_code == 200:
-                data = res.json()
-                return Response(
-                    {
-                        "gateway_online": True,
-                        "connected": data.get("connected", False),
-                        "phone": data.get("phone"),
-                        "status": data.get("status", "unknown"),
-                        "has_qr": data.get("has_qr", False),
-                        "qr_image": data.get("qr_image"),
-                        "qr_url": "http://localhost:5005/qr",
-                    },
-                    status=status.HTTP_200_OK,
-                )
-        except requests.exceptions.RequestException:
-            pass
-
-        return Response(
-            {
-                "gateway_online": False,
-                "connected": False,
-                "phone": None,
-                "status": "gateway_offline",
-                "has_qr": False,
-                "qr_image": None,
-                "message": "WhatsApp Gateway service is offline. Start it via 'cd whatsapp_gateway && npm start'.",
-            },
-            status=status.HTTP_200_OK,
-        )
+        from users.whatsapp import get_whatsapp_gateway_status
+        status_data = get_whatsapp_gateway_status()
+        return Response(status_data, status=status.HTTP_200_OK)
 
 
 class WhatsAppAdminResetAPIView(APIView):
@@ -1386,20 +1358,11 @@ class WhatsAppAdminResetAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        try:
-            res = requests.post("http://127.0.0.1:5005/reset", timeout=4.0)
-            if res.status_code == 200:
-                return Response(res.json(), status=status.HTTP_200_OK)
-        except requests.exceptions.RequestException as exc:
-            return Response(
-                {"detail": f"Failed to reset gateway: {str(exc)}"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        return Response(
-            {"detail": "Could not reset WhatsApp session."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        from users.whatsapp import reset_whatsapp_gateway_session
+        ok, res_data = reset_whatsapp_gateway_session()
+        if ok:
+            return Response(res_data, status=status.HTTP_200_OK)
+        return Response(res_data, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class WhatsAppAdminTestAPIView(APIView):

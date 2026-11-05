@@ -77,7 +77,7 @@ def analyze_issue_image_data(image_data: str, mime_type: str = "image/jpeg") -> 
     api_key = get_gemini_api_key()
 
     if api_key and not api_key.startswith("your_") and len(api_key) > 10:
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         payload = {
             "contents": [
                 {

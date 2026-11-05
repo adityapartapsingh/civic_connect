@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "backend/users/views.py": {
-    "mtime": 1793784489.653519,
-    "seen": 1793784777.7923977,
-    "ast_hash": "9e7360fe535b248307ad6c8849449247",
+    "mtime": 1793868078.1613545,
+    "seen": 1793868363.4158056,
+    "ast_hash": "3565900d429aa1dad6e2bc27d880b1ac",
     "semantic_hash": ""
   },
   "backend/utils/__init__.py": {
@@ -654,9 +654,9 @@
     "semantic_hash": ""
   },
   "backend/render.yaml": {
-    "mtime": 1793791432.618665,
-    "seen": 1793791445.5921566,
-    "ast_hash": "b0454c8df1966b207fda65a02c4a2f11",
+    "mtime": 1793868146.4837592,
+    "seen": 1793868363.416222,
+    "ast_hash": "3bb590b253d6a8958c45cfecb2abb5c0",
     "semantic_hash": ""
   },
   "backend/requirements.txt": {
@@ -732,9 +732,9 @@
     "semantic_hash": ""
   },
   "backend/fraud/llm_verifier.py": {
-    "mtime": 1793739224.6336727,
-    "seen": 1793779805.0311015,
-    "ast_hash": "92f60567789d8b2cd4dfc639c519e8f9",
+    "mtime": 1793868334.313632,
+    "seen": 1793868363.4155955,
+    "ast_hash": "e024ec970c783ae60d855f2c8f20d32e",
     "semantic_hash": ""
   },
   "backend/fraud/pipeline.py": {
@@ -1008,33 +1008,15 @@
     "semantic_hash": ""
   },
   "backend/users/whatsapp.py": {
-    "mtime": 1793784116.1907935,
-    "seen": 1793784262.265573,
-    "ast_hash": "755bd992c03941332a246d4eb7a4fb26",
-    "semantic_hash": ""
-  },
-  "whatsapp_gateway/package.json": {
-    "mtime": 1793783995.3138387,
-    "seen": 1793784262.2657948,
-    "ast_hash": "c88308a62005926a7fba40d81c6d6bbc",
-    "semantic_hash": ""
-  },
-  "whatsapp_gateway/server.js": {
-    "mtime": 1793790436.8699763,
-    "seen": 1793790501.1708221,
-    "ast_hash": "909402119989e961242df4cb16753e2c",
-    "semantic_hash": ""
-  },
-  "whatsapp_gateway/README.md": {
-    "mtime": 1793784201.5373352,
-    "seen": 1793784262.2658148,
-    "ast_hash": "fbb34c7e210653173f46b3106d000be5",
+    "mtime": 1793868046.427279,
+    "seen": 1793868363.4158099,
+    "ast_hash": "760e9a8d1386fe184f5c1ac93429a03d",
     "semantic_hash": ""
   },
   "backend/reports/ai_vision.py": {
-    "mtime": 1793790787.362198,
-    "seen": 1793791163.601575,
-    "ast_hash": "aa681b165f1b0b06ff8ee0f63491a99f",
+    "mtime": 1793868329.7264886,
+    "seen": 1793868363.415734,
+    "ast_hash": "9e0301e3a036dc30c54cda74b675f2e9",
     "semantic_hash": ""
   }
 }

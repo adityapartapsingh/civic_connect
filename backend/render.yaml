@@ -29,3 +29,5 @@ services:
         generateValue: true
       - key: GEMINI_API_KEY
         sync: false
+      - key: WHATSAPP_GATEWAY_URL
+        sync: false
