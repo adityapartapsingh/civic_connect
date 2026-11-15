@@ -688,7 +688,7 @@ export const RewardsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRankingType('officer')}
-                className={`py-2.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                className={`py-2 px-2 sm:py-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer squash-stretch min-h-[40px] ${
                   rankingType === 'officer'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
@@ -701,7 +701,7 @@ export const RewardsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRankingType('ward')}
-                className={`py-2.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                className={`py-2 px-2 sm:py-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer squash-stretch min-h-[40px] ${
                   rankingType === 'ward'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
@@ -714,7 +714,7 @@ export const RewardsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRankingType('citizen')}
-                className={`py-2.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                className={`py-2 px-2 sm:py-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer squash-stretch min-h-[40px] ${
                   rankingType === 'citizen'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'

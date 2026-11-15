@@ -232,7 +232,7 @@ export const DashboardPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setFilterTab('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border squash-stretch min-h-[36px] flex items-center ${
             filterTab === 'all'
               ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
               : 'bg-white text-slate-700 border-slate-200'
@@ -243,7 +243,7 @@ export const DashboardPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setFilterTab('in_progress')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border squash-stretch min-h-[36px] flex items-center ${
             filterTab === 'in_progress'
               ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
               : 'bg-white text-blue-700 border-blue-200'
@@ -254,7 +254,7 @@ export const DashboardPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setFilterTab('resolved')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border squash-stretch min-h-[36px] flex items-center ${
             filterTab === 'resolved'
               ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
               : 'bg-white text-emerald-700 border-emerald-200'
@@ -265,7 +265,7 @@ export const DashboardPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setFilterTab('breached')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border squash-stretch min-h-[36px] flex items-center ${
             filterTab === 'breached'
               ? 'bg-red-600 text-white border-red-600 shadow-xs'
               : 'bg-white text-red-700 border-red-200'
@@ -371,7 +371,7 @@ export const DashboardPage: React.FC = () => {
             return (
               <div
                 key={ticket.id}
-                className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 transition space-y-4 shadow-xs"
+                className="bg-white border border-slate-200/90 rounded-xl p-4 sm:p-5 anticipation-lift elevation-1 space-y-4"
               >
                 {/* Order Top Bar: Tracking ID + Category + SLA Radar */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -486,23 +486,23 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    {/* Google Maps Turn-by-Turn Navigation Button */}
+                    {/* Google Maps Turn-by-Turn Navigation Button (Fitts's Law + Squash/Stretch) */}
                     <a
                       href={mapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-2 rounded-md bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 transition flex items-center justify-center gap-2 shadow-xs"
+                      className="px-4 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 transition flex items-center justify-center gap-2 shadow-xs squash-stretch min-h-[40px]"
                     >
                       <Navigation className="w-4 h-4 text-slate-600" />
-                      <span>Navigate to Site (Google Maps)</span>
+                      <span>Navigate to Site</span>
                       <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                     </a>
 
-                    {/* Resolution & Status Update Button */}
+                    {/* Resolution & Status Update Button (Primary CTA) */}
                     <button
                       type="button"
                       onClick={() => handleOpenUpdater(ticket)}
-                      className="px-4 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-xs"
+                      className="px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-xs squash-stretch min-h-[40px]"
                     >
                       <Camera className="w-4 h-4" />
                       <span>Update &amp; Resolution Proof</span>
@@ -515,10 +515,10 @@ export const DashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Status Updater Modal (Clean Unified Modal) */}
+      {/* Status Updater Modal (Clean Unified Modal with Arc Entrance) */}
       {isUpdaterOpen && selectedTicket && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-slate-900 my-8">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-slate-900 my-8 animate-arc-in">
             <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wrench className="w-5 h-5 text-slate-700" />

@@ -659,10 +659,10 @@ export const HomePage: React.FC = () => {
             setSelectedCategory('all');
             setVisibleCount(getScreenBatch());
           }}
-          className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer ${
+          className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer squash-stretch min-h-[36px] flex items-center ${
             selectedCategory === 'all'
               ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
           }`}
         >
           All Categories
@@ -676,10 +676,10 @@ export const HomePage: React.FC = () => {
               setSelectedCategory(cat.id);
               setVisibleCount(getScreenBatch());
             }}
-            className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer squash-stretch min-h-[36px] flex items-center ${
               selectedCategory === cat.id
                 ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
             }`}
           >
             {cat.label}
@@ -855,7 +855,7 @@ export const HomePage: React.FC = () => {
                 <div
                   key={issue.id}
                   style={{ contentVisibility: 'auto', containIntrinsicSize: '240px' }}
-                  className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-4 sm:p-5 flex flex-col justify-between shadow-xs"
+                  className="bg-white rounded-xl border border-slate-200/90 anticipation-lift elevation-1 p-4 sm:p-5 flex flex-col justify-between"
                 >
                   <div>
                     {/* Top Case Meta */}
@@ -899,7 +899,7 @@ export const HomePage: React.FC = () => {
                       )}
 
                       <div className="min-w-0 flex-1">
-                        <Link to={`/tickets/${issue.id}`} className="hover:text-slate-900 transition-colors">
+                        <Link to={`/tickets/${issue.id}`} className="hover:text-blue-700 transition-colors">
                           <h3 className="font-bold text-sm sm:text-base text-slate-900 line-clamp-1">
                             {issue.title}
                           </h3>
@@ -925,7 +925,7 @@ export const HomePage: React.FC = () => {
 
                     {/* Citizen Resolution Confirmation Callout if marked resolved */}
                     {isResolvedAwaitingFeedback && (
-                      <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs">
+                      <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs animate-arc-in">
                         <div className="flex items-center gap-1.5 font-bold text-emerald-900 mb-1">
                           <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
                           <span>Field Squad Completed Repair</span>
@@ -937,14 +937,14 @@ export const HomePage: React.FC = () => {
                           <button
                             type="button"
                             onClick={(e) => handleConfirmResolution(e, issue.id)}
-                            className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs squash-stretch active:scale-95"
                           >
                             <Check className="w-3.5 h-3.5" />
                             <span>Confirm Fixed (+30 pts)</span>
                           </button>
                           <Link
                             to={`/tickets/${issue.id}/confirm`}
-                            className="px-3 py-1.5 rounded-md border border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-semibold text-xs transition"
+                            className="px-3 py-1.5 rounded-md border border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-semibold text-xs transition squash-stretch"
                           >
                             Inspect / Dispute
                           </Link>
@@ -953,7 +953,7 @@ export const HomePage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Card Bottom Bar */}
+                  {/* Card Bottom Bar (Fitts's Law touch targets & Squash/Stretch) */}
                   <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     {(() => {
                       const isOwn = Boolean(
@@ -969,12 +969,12 @@ export const HomePage: React.FC = () => {
                           type="button"
                           disabled={isOwn || isBusy}
                           onClick={(e) => onUpvoteClick(e, issue.id)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs transition border cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg font-semibold text-xs transition border cursor-pointer squash-stretch min-h-[38px] ${
                             isOwn
                               ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-80'
                               : issue.has_upvoted
                               ? 'bg-slate-900 text-white border-slate-900 shadow-xs hover:bg-slate-800'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                           }`}
                           title={
                             isOwn
@@ -984,7 +984,7 @@ export const HomePage: React.FC = () => {
                               : 'Click to upvote (+5 pts)'
                           }
                         >
-                          <ThumbsUp className={`w-3.5 h-3.5 ${issue.has_upvoted ? 'fill-white text-white' : ''}`} />
+                          <ThumbsUp className={`w-4 h-4 transition-transform duration-200 ${issue.has_upvoted ? 'fill-white text-white animate-pop' : 'text-slate-600'}`} />
                           <span>
                             {isOwn
                               ? `Your Report (${issue.upvotes_count})`
@@ -1000,7 +1000,7 @@ export const HomePage: React.FC = () => {
 
                     <Link
                       to={`/tickets/${issue.id}`}
-                      className="font-bold text-slate-900 hover:text-slate-700 flex items-center gap-1 text-xs"
+                      className="font-bold text-slate-900 hover:text-blue-600 flex items-center gap-1 text-xs py-2 px-2 rounded-md hover:bg-slate-50 squash-stretch transition-colors min-h-[38px]"
                     >
                       <span>Inspect Details</span>
                       <ArrowRight className="w-3.5 h-3.5" />

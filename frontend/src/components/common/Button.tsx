@@ -18,14 +18,14 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  // Swiss Functional: Strict 6px corners, no bounce, high contrast
+  // Tactile Squash & Stretch, Fitts's Law touch target, high contrast focus
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-[6px] transition-colors duration-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-1 focus:ring-slate-900 focus:ring-offset-1 select-none';
+    'inline-flex items-center justify-center font-medium rounded-[6px] squash-stretch duration-150 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-1 select-none cursor-pointer';
 
   const sizeStyles = {
-    sm: 'h-8 px-2.5 py-1 text-xs gap-1.5',
-    md: 'h-10 px-3.5 py-2.5 text-sm gap-2', // Strict 40px height, 10px 14px padding
-    lg: 'h-12 px-5 py-3 text-base gap-2.5 font-semibold',
+    sm: 'min-h-[36px] sm:min-h-[32px] px-3 py-1.5 text-xs gap-1.5',
+    md: 'min-h-[44px] sm:min-h-[40px] px-4 py-2 text-sm gap-2', // Fitts's Law 44px on mobile
+    lg: 'min-h-[48px] px-5 py-3 text-base gap-2.5 font-semibold',
   };
 
   const variantStyles = {

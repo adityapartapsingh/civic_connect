@@ -782,7 +782,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('admins')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 squash-stretch min-h-[38px] cursor-pointer ${
               activeTab === 'admins'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -800,7 +800,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('officers')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 squash-stretch min-h-[38px] cursor-pointer ${
               activeTab === 'officers'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -818,7 +818,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('citizens')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 squash-stretch min-h-[38px] cursor-pointer ${
               activeTab === 'citizens'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -836,7 +836,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('blocked')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 squash-stretch min-h-[38px] cursor-pointer ${
               activeTab === 'blocked'
                 ? 'bg-red-700 text-white shadow-xs'
                 : 'text-red-700 hover:text-red-900 hover:bg-red-50'
@@ -854,7 +854,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('create')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 squash-stretch min-h-[38px] cursor-pointer ${
               activeTab === 'create'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -867,7 +867,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('whatsapp')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 squash-stretch min-h-[38px] cursor-pointer ${
               activeTab === 'whatsapp'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'

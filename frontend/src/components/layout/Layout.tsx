@@ -158,21 +158,21 @@ export const Layout: React.FC = () => {
             {isSuperAdmin ? (
               <Link
                 to="/super-admin"
-                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs"
+                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs squash-stretch anticipation-lift"
               >
                 Super Admin Console
               </Link>
             ) : isAdmin ? (
               <Link
                 to="/admin-portal"
-                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs"
+                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs squash-stretch anticipation-lift"
               >
                 Ward Admin Console
               </Link>
             ) : !isOfficer ? (
               <Link
                 to="/report"
-                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs"
+                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs squash-stretch anticipation-lift"
               >
                 Report Issue
               </Link>
@@ -183,7 +183,7 @@ export const Layout: React.FC = () => {
               <div className="flex items-center pl-3 border-l border-slate-200">
                 <Link
                   to="/profile"
-                  className="w-9 h-9 rounded-full border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm flex items-center justify-center transition shadow-xs"
+                  className="w-9 h-9 rounded-full border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm flex items-center justify-center transition shadow-xs squash-stretch"
                   title={`View Profile (${user.name})`}
                 >
                   {user.name
@@ -199,7 +199,7 @@ export const Layout: React.FC = () => {
             ) : (
               <Link
                 to="/login"
-                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3.5 py-2 border border-slate-300 rounded-md hover:bg-slate-50 transition"
+                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3.5 py-2 border border-slate-300 rounded-md hover:bg-slate-50 transition squash-stretch"
               >
                 Sign In
               </Link>

@@ -75,7 +75,7 @@ export const MapPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedStatus('all')}
-            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md transition whitespace-nowrap text-[11px] sm:text-xs ${
+            className={`px-3 py-1.5 sm:px-3 sm:py-1.5 rounded-md transition whitespace-nowrap text-[11px] sm:text-xs squash-stretch min-h-[32px] flex items-center ${
               selectedStatus === 'all'
                 ? 'bg-white text-slate-900 font-bold shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -86,7 +86,7 @@ export const MapPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedStatus('active')}
-            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md transition whitespace-nowrap text-[11px] sm:text-xs ${
+            className={`px-3 py-1.5 sm:px-3 sm:py-1.5 rounded-md transition whitespace-nowrap text-[11px] sm:text-xs squash-stretch min-h-[32px] flex items-center ${
               selectedStatus === 'active'
                 ? 'bg-amber-600 text-white font-bold shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -97,7 +97,7 @@ export const MapPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedStatus('resolved')}
-            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md transition flex items-center gap-1 whitespace-nowrap text-[11px] sm:text-xs ${
+            className={`px-3 py-1.5 sm:px-3 sm:py-1.5 rounded-md transition flex items-center gap-1 whitespace-nowrap text-[11px] sm:text-xs squash-stretch min-h-[32px] ${
               selectedStatus === 'resolved'
                 ? 'bg-emerald-600 text-white font-bold shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -114,7 +114,7 @@ export const MapPage: React.FC = () => {
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap pb-1 w-full">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-semibold transition cursor-pointer border whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer border whitespace-nowrap shrink-0 squash-stretch min-h-[34px] flex items-center ${
                 selectedCategory === 'all'
                   ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -126,7 +126,7 @@ export const MapPage: React.FC = () => {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-semibold transition border cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition border cursor-pointer whitespace-nowrap shrink-0 squash-stretch min-h-[34px] flex items-center ${
                   selectedCategory === cat.id
                     ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'

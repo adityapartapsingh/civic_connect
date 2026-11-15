@@ -23,17 +23,17 @@ export const Toast: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+    <div className="fixed top-3 inset-x-3 sm:inset-x-auto sm:right-4 z-50 flex flex-col gap-2 max-w-sm sm:w-full pointer-events-none">
       {toasts.map((toast) => {
         const isPoints = toast.type === 'points';
 
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded border transition-none ${
+            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-lg border animate-arc-in elevation-3 ${
               isPoints
-                ? 'bg-slate-900 text-white border-slate-950 shadow-md'
-                : 'bg-white text-slate-900 border-slate-300 shadow-sm'
+                ? 'bg-slate-900 text-white border-slate-950 shadow-lg'
+                : 'bg-white text-slate-900 border-slate-200 shadow-md'
             }`}
           >
             <div className="mt-0.5 shrink-0">{renderIcon(toast)}</div>

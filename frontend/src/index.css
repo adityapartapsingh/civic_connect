@@ -106,3 +106,112 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ==========================================================================
+   UX & ANIMATION SYSTEM (12 Principles & Cognitive Human Factors)
+   ========================================================================== */
+
+/* Doherty Threshold & Touch Performance: Eliminate mobile 300ms tap delay */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Principle 1: Squash and Stretch */
+.squash-stretch {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
+  will-change: transform;
+}
+.squash-stretch:active {
+  transform: scale(0.96) scaleY(0.93);
+}
+
+/* Principle 2: Anticipation (Windup & Hover Elevation) */
+.anticipation-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease;
+  will-change: transform, box-shadow;
+}
+@media (hover: hover) and (pointer: fine) {
+  .anticipation-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  }
+}
+.anticipation-lift:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+/* Principle 3 & 4: Staging the Focus & Pose-to-Pose */
+.focus-ring {
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #0F172A;
+}
+
+/* Principle 6 & 9: Slow In and Slow Out + Snappy Timing */
+:root {
+  --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Principle 7: Moving in Arcs (Natural Curved Easing) */
+@keyframes arcEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-arc-in {
+  animation: arcEntrance 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Principle 8 & 10: Secondary Action & Exaggerated Micro-Feedback */
+@keyframes heartPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.35) rotate(-6deg); }
+  75% { transform: scale(0.9) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.animate-pop {
+  animation: heartPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Principle 11: Solid Drawing in 3D (Elevation & Depth Hierarchy) */
+.elevation-1 {
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.elevation-2 {
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.elevation-3 {
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+/* Fitts's Law: Comfortable Touch Target Minimums */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Principle 12: Overall Appeal & Smooth Layout Shifts */
+.smooth-surface {
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
