@@ -4,14 +4,13 @@ import { useToastStore } from '../store/toastStore';
 import {
   adminApi,
   issuesApi,
-  volunteerApi,
   whatsappAdminApi,
   superAdminUsersApi,
   wardsApi,
   SuperAdminUserStats,
   WhatsAppGatewayStatus,
 } from '../services/api';
-import { UserProfile, AdminCredentialsSlip, Issue, VolunteerApplication } from '../types';
+import { UserProfile, AdminCredentialsSlip, Issue } from '../types';
 import {
   Shield,
   ShieldCheck,
@@ -89,8 +88,8 @@ export const SuperAdminPortalPage: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Active View Tab: 'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'volunteers' | 'whatsapp'
-  const [activeTab, setActiveTab] = useState<'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'volunteers' | 'whatsapp'>('admins');
+  // Active View Tab: 'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'whatsapp'
+  const [activeTab, setActiveTab] = useState<'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'whatsapp'>('admins');
 
   // Master Users State
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -140,13 +139,6 @@ export const SuperAdminPortalPage: React.FC = () => {
   } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // Volunteer Oversight States
-  const [volunteerApps, setVolunteerApps] = useState<VolunteerApplication[]>([]);
-  const [volunteersLoading, setVolunteersLoading] = useState<boolean>(false);
-  const [volunteerWardFilter, setVolunteerWardFilter] = useState<string>('ALL');
-  const [volunteerStatusFilter, setVolunteerStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
-  const [reviewingAppId, setReviewingAppId] = useState<string | null>(null);
-
   // WhatsApp Gateway Management States
   const [waStatus, setWaStatus] = useState<WhatsAppGatewayStatus | null>(null);
   const [isWaLoading, setIsWaLoading] = useState<boolean>(false);
@@ -183,49 +175,6 @@ export const SuperAdminPortalPage: React.FC = () => {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     loadUsersData();
-  };
-
-  // Volunteer applications loader
-  const loadVolunteerApplications = async () => {
-    setVolunteersLoading(true);
-    try {
-      const res = await volunteerApi.listAdminQueue({
-        ward_id: volunteerWardFilter === 'ALL' ? undefined : volunteerWardFilter,
-        status: volunteerStatusFilter === 'ALL' ? undefined : volunteerStatusFilter,
-      });
-      setVolunteerApps(res.applications || []);
-    } catch {
-      setVolunteerApps([]);
-    } finally {
-      setVolunteersLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isSuperAdmin && activeTab === 'volunteers') {
-      loadVolunteerApplications();
-    }
-  }, [isSuperAdmin, activeTab, volunteerWardFilter, volunteerStatusFilter]);
-
-  const handleReviewVolunteer = async (applicationId: string, action: 'approve' | 'reject', notes: string) => {
-    setReviewingAppId(applicationId);
-    try {
-      const res = await volunteerApi.review(applicationId, action, notes);
-      addToast({
-        type: action === 'approve' ? 'success' : 'info',
-        title: action === 'approve' ? 'Volunteer Approved & Enlisted' : 'Application Declined',
-        message: res.message,
-      });
-      loadVolunteerApplications();
-    } catch (err: any) {
-      addToast({
-        type: 'error',
-        title: 'Review Action Failed',
-        message: err.message || 'Could not update volunteer application status.',
-      });
-    } finally {
-      setReviewingAppId(null);
-    }
   };
 
   // WhatsApp Status Loader
@@ -1649,142 +1598,7 @@ export const SuperAdminPortalPage: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================== */}
-      {/* 6. YOUTH VOLUNTEERS QUEUE                                      */}
-      {/* ============================================================== */}
-      {activeTab === 'volunteers' && (
-        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-sm sm:text-base text-slate-900">
-                  City-Wide Youth Volunteer Corps Verification &amp; Oversight
-                </h3>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-bold border border-blue-200">
-                  {volunteerApps.filter((a) => a.status === 'PENDING').length} Pending
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Super Admin cross-ward queue: Authorize youth volunteers (NSS, NCC, NYKS, Community) with +100 initiation points and 1.25x multipliers.
-              </p>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={volunteerWardFilter}
-                onChange={(e) => setVolunteerWardFilter(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 font-medium focus:outline-none focus:border-slate-900"
-              >
-                <option value="ALL">All Municipal Wards</option>
-                {MUNICIPAL_WARDS.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.id} - {w.name.split('-')[1]?.trim() || w.name}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex rounded border border-slate-300 overflow-hidden text-xs">
-                {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setVolunteerStatusFilter(st)}
-                    className={`px-2.5 py-1.5 font-semibold transition ${
-                      volunteerStatusFilter === st
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {st === 'ALL' ? 'All' : st === 'PENDING' ? 'Pending' : st === 'APPROVED' ? 'Approved' : 'Rejected'}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={loadVolunteerApplications}
-                className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
-                title="Refresh Volunteers"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {volunteersLoading ? (
-            <div className="p-8 text-center text-xs text-slate-500">
-              <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2" />
-              Loading volunteer records across municipal jurisdictions...
-            </div>
-          ) : volunteerApps.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-500">
-              No volunteer applications found matching the selected ward and status criteria.
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-200">
-              {volunteerApps.map((app) => (
-                <div key={app.id || app.application_id} className="p-4 hover:bg-slate-50/70 transition flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
-                  <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-slate-900 text-sm">{app.name}</span>
-                      <span className="font-mono text-[11px] text-slate-500">+91 {app.phone}</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 font-mono">
-                        {app.scheme}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                        app.status === 'APPROVED'
-                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
-                          : app.status === 'REJECTED'
-                          ? 'bg-red-50 text-red-800 border border-red-300'
-                          : 'bg-amber-50 text-amber-900 border border-amber-300'
-                      }`}>
-                        {app.status}
-                      </span>
-                    </div>
-
-                    <div className="text-slate-600 text-[11px]">
-                      <span>Ward: <strong>{app.ward_name || app.ward_id}</strong></span>
-                      {app.institution && <span> · College/Org: <strong>{app.institution}</strong></span>}
-                      {app.cadet_or_enrollment_id && <span> · ID/Roll: <strong className="font-mono">{app.cadet_or_enrollment_id}</strong></span>}
-                    </div>
-
-                    {app.statement && (
-                      <p className="text-slate-500 italic max-w-2xl bg-slate-50 p-2 rounded border border-slate-200 text-[11px]">
-                        "{app.statement}"
-                      </p>
-                    )}
-                  </div>
-
-                  {app.status === 'PENDING' && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        disabled={reviewingAppId === app.application_id}
-                        onClick={() => handleReviewVolunteer(app.application_id, 'approve', 'Approved by Super Admin')}
-                        className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold text-xs transition flex items-center gap-1 shadow-xs disabled:opacity-50"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Enlist (+100 pts)</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={reviewingAppId === app.application_id}
-                        onClick={() => handleReviewVolunteer(app.application_id, 'reject', 'Declined by Super Admin')}
-                        className="px-3 py-1.5 bg-white hover:bg-red-50 text-red-700 rounded font-semibold text-xs border border-red-300 transition flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>Decline</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ============================================================== */}
       {/* 7. WHATSAPP GATEWAY & FREE OTP DISPATCH CONSOLE                 */}
