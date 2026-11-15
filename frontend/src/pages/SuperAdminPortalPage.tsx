@@ -416,14 +416,15 @@ export const SuperAdminPortalPage: React.FC = () => {
     const targetUser = deleteUserModal;
     setIsActionSubmitting(true);
     try {
-      const res = await superAdminUsersApi.deleteUser(targetUser.id || targetUser.user_id || '');
+      const userId = targetUser.id || targetUser.user_id || targetUser.employee_id || '';
+      const res = await superAdminUsersApi.deleteUser(userId);
       addToast({
         type: 'info',
         title: 'User Removed',
         message: res.message,
       });
       setDeleteUserModal(null);
-      loadUsersData();
+      await loadUsersData();
     } catch (err: any) {
       addToast({
         type: 'error',
@@ -865,7 +866,6 @@ export const SuperAdminPortalPage: React.FC = () => {
                   <th className="px-4 py-3">Ward Jurisdiction</th>
                   <th className="px-4 py-3">Designated Administrator</th>
                   <th className="px-4 py-3">Employee ID</th>
-                  <th className="px-4 py-3">Security Code</th>
                   <th className="px-4 py-3 text-center">Field Squads</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -897,13 +897,6 @@ export const SuperAdminPortalPage: React.FC = () => {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3.5">
-                      <span className="font-mono text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-800 font-semibold inline-flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-amber-600" />
-                        <span>Security Key Active</span>
-                      </span>
-                    </td>
-
                     <td className="px-4 py-3.5 text-center">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         {admin.officers_count || 0} Officers
@@ -912,14 +905,6 @@ export const SuperAdminPortalPage: React.FC = () => {
 
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Link
-                          to="/admin"
-                          className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-semibold text-[11px] transition inline-flex items-center gap-1"
-                        >
-                          <span>Open Ward Console</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </Link>
-
                         <button
                           type="button"
                           onClick={() => setEditUserModal(admin)}

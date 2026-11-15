@@ -73,7 +73,10 @@ class UserManager:
     @classmethod
     def find_by_id(cls, user_id: str) -> Optional[Dict[str, Any]]:
         oid = parse_object_id(user_id)
-        query = {"$or": [{"_id": oid}, {"user_id": user_id}]} if oid else {"user_id": user_id}
+        clauses = [{"user_id": user_id}, {"employee_id": user_id}, {"phone": user_id}]
+        if oid:
+            clauses.insert(0, {"_id": oid})
+        query = {"$or": clauses}
         doc = cls.get_collection().find_one(query)
         return serialize_doc(doc)
 
@@ -511,89 +514,30 @@ class UserManager:
                 },
             ]
 
-            for admin in initial_admins:
-                if not col.find_one({"employee_id": admin["employee_id"]}):
-                    cls.upsert_user(admin)
+            # 2. Municipal Corporation Ward Admins & Officers Seeding (One-time bootstrap only)
+            meta_col = col.database["system_metadata"]
+            if col.count_documents({"role": {"$in": [UserRole.ADMIN, UserRole.OFFICER]}}) > 0:
+                meta_col.update_one(
+                    {"_id": "seed_hierarchy_initialized"},
+                    {"$set": {"seeded_at": datetime.datetime.now(datetime.timezone.utc)}},
+                    upsert=True
+                )
 
-            # 3. Initial Field Officers in Ward-102 (Civil Lines)
-            initial_officers = [
-                {
-                    "user_id": "off_w102_road",
-                    "name": "Er. Harpreet Singh",
-                    "phone": "9814099881",
-                    "email": "h.singh@mcj.punjab.gov.in",
-                    "role": UserRole.OFFICER,
-                    "ward_id": "Ward-102",
-                    "ward_name": "Ward 2 - Civil Lines Administrative Ward",
-                    "department": "Municipal Roads & Infrastructure Division",
-                    "designation": "Junior Engineer (JE)",
-                    "employee_id": "PB-MCJ-W102-ENG-084",
-                    "credential_code": "OFF-W102-7492",
-                    "jurisdiction_zone": "Central Zone (Ward 2)",
-                    "assigned_tasks": ["pothole", "road_damage", "sidewalk"],
-                    "created_by": "admin_ward_102",
-                    "reports_resolved_count": 142,
-                    "points": 4260,
-                },
-                {
-                    "user_id": "off_w102_san",
-                    "name": "Gurpreet Sandhu",
-                    "phone": "9814099882",
-                    "email": "g.sandhu@mcj.punjab.gov.in",
-                    "role": UserRole.OFFICER,
-                    "ward_id": "Ward-102",
-                    "ward_name": "Ward 2 - Civil Lines Administrative Ward",
-                    "department": "Solid Waste & Sanitation Department",
-                    "designation": "Sanitary Inspector (SI)",
-                    "employee_id": "PB-MCJ-W102-SAN-019",
-                    "credential_code": "OFF-W102-3810",
-                    "jurisdiction_zone": "Central Zone (Ward 2)",
-                    "assigned_tasks": ["garbage"],
-                    "created_by": "admin_ward_102",
-                    "reports_resolved_count": 118,
-                    "points": 3540,
-                },
-                {
-                    "user_id": "off_w102_elec",
-                    "name": "Balwinder Kumar",
-                    "phone": "9814099883",
-                    "email": "b.kumar@mcj.punjab.gov.in",
-                    "role": UserRole.OFFICER,
-                    "ward_id": "Ward-102",
-                    "ward_name": "Ward 2 - Civil Lines Administrative Ward",
-                    "department": "Electrical & Street Lighting Cell",
-                    "designation": "Lineman / Field Inspector",
-                    "employee_id": "PB-MCJ-W102-ELE-052",
-                    "credential_code": "OFF-W102-9124",
-                    "jurisdiction_zone": "Central Zone (Ward 2)",
-                    "assigned_tasks": ["streetlight", "traffic_signal"],
-                    "created_by": "admin_ward_102",
-                    "reports_resolved_count": 84,
-                    "points": 2520,
-                },
-                {
-                    "user_id": "off_w102_water",
-                    "name": "Er. Rajesh K. Sharma",
-                    "phone": "9814099884",
-                    "email": "r.sharma@mcj.punjab.gov.in",
-                    "role": UserRole.OFFICER,
-                    "ward_id": "Ward-102",
-                    "ward_name": "Ward 2 - Civil Lines Administrative Ward",
-                    "department": "Water Supply & Sewerage Unit",
-                    "designation": "Assistant Engineer (AE)",
-                    "employee_id": "PB-MCJ-W102-WAT-033",
-                    "credential_code": "OFF-W102-6045",
-                    "jurisdiction_zone": "Central Zone (Ward 2)",
-                    "assigned_tasks": ["water_leakage", "drainage"],
-                    "created_by": "admin_ward_102",
-                    "reports_resolved_count": 96,
-                    "points": 2880,
-                },
-            ]
+            is_seeded = meta_col.find_one({"_id": "seed_hierarchy_initialized"})
+            if not is_seeded:
+                for admin in initial_admins:
+                    if not col.find_one({"employee_id": admin["employee_id"]}):
+                        cls.upsert_user(admin)
 
-            for officer in initial_officers:
-                if not col.find_one({"employee_id": officer["employee_id"]}):
-                    cls.upsert_user(officer)
+                for officer in initial_officers:
+                    if not col.find_one({"employee_id": officer["employee_id"]}):
+                        cls.upsert_user(officer)
+
+                meta_col.update_one(
+                    {"_id": "seed_hierarchy_initialized"},
+                    {"$set": {"seeded_at": datetime.datetime.now(datetime.timezone.utc)}},
+                    upsert=True
+                )
 
         except Exception:
             pass
@@ -901,7 +845,10 @@ class UserManager:
     def delete_user_by_admin(cls, user_id: str) -> bool:
         """Permanently delete a user account."""
         oid = parse_object_id(user_id)
-        query = {"$or": [{"_id": oid}, {"user_id": user_id}, {"employee_id": user_id}]} if oid else {"$or": [{"user_id": user_id}, {"employee_id": user_id}]}
+        clauses = [{"user_id": user_id}, {"employee_id": user_id}, {"phone": user_id}]
+        if oid:
+            clauses.insert(0, {"_id": oid})
+        query = {"$or": clauses}
         res = cls.get_collection().delete_one(query)
         return res.deleted_count > 0
 

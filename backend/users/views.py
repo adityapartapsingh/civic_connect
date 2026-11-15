@@ -1325,7 +1325,10 @@ class SuperAdminUserDetailAPIView(APIView):
 
             name = user.get("name", "User")
             role = user.get("role", "citizen")
-            success = UserManager.delete_user_by_admin(user_id)
+            actual_id = user.get("id") or user.get("user_id") or user_id
+            success = UserManager.delete_user_by_admin(actual_id)
+            if not success and actual_id != user_id:
+                success = UserManager.delete_user_by_admin(user_id)
             if success:
                 return Response({
                     "message": f"{role.title()} account '{name}' ({user_id}) has been removed permanently.",
