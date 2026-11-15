@@ -143,6 +143,15 @@ class SendOTPAPIView(APIView):
 
         # If user explicitly selected Sign In, but no account exists, prompt to Sign Up
         if mode == "signin" and existing_user is None:
+            if role in ("officer", "admin", "super_admin", "staff"):
+                return Response(
+                    {
+                        "detail": f"No municipal staff or ward admin account registered with mobile number {phone}. Please contact your Municipal Corporation Administrator to provision your staff profile.",
+                        "account_exists": False,
+                        "phone": phone,
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
             return Response(
                 {
                     "detail": f"No account found with mobile number {phone}. Please sign up to create your account.",
@@ -151,6 +160,20 @@ class SendOTPAPIView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # If requesting OTP under municipal staff portal, verify the user actually holds a staff/admin role
+        if role in ("officer", "admin", "super_admin", "staff") and existing_user:
+            user_role = existing_user.get("role", "citizen").lower()
+            if user_role not in ("officer", "admin", "super_admin", "staff"):
+                return Response(
+                    {
+                        "detail": f"Mobile number {phone} is registered as a Citizen account, not as Municipal Staff or Ward Admin. Please sign in using the Citizen Portal.",
+                        "account_exists": True,
+                        "phone": phone,
+                        "is_citizen": True,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR"))
         success, err, retry_after, dev_otp = OTPManager.request_otp(
@@ -170,6 +193,9 @@ class SendOTPAPIView(APIView):
         from users.whatsapp import send_whatsapp_otp
         otp_to_send = dev_otp or "123456"
         user_name = existing_user.get("name", "Citizen") if existing_user else "Citizen"
+        if existing_user and existing_user.get("role") in ("officer", "admin", "super_admin"):
+            role_desc = existing_user.get("designation") or ("Ward Administrator" if existing_user.get("role") == "admin" else "Municipal Officer")
+            user_name = f"{existing_user.get('name')} ({role_desc})"
         whatsapp_sent = send_whatsapp_otp(phone=phone, otp=otp_to_send, name=user_name)
 
         response_payload = {
@@ -232,10 +258,24 @@ class VerifyOTPAPIView(APIView):
             )
 
         if mode == "signin" and existing_user is None:
+            if role in ("officer", "admin", "super_admin", "staff"):
+                return Response(
+                    {"detail": f"No municipal staff or ward admin account found with mobile number {phone}. Please contact your Municipal Corporation Administrator."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
             return Response(
                 {"detail": f"No account found with mobile number {phone}. Please sign up first."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # If authenticating under staff portal, verify account possesses staff or admin role
+        if role in ("officer", "admin", "super_admin", "staff") and existing_user:
+            user_role = existing_user.get("role", "citizen").lower()
+            if user_role not in ("officer", "admin", "super_admin", "staff"):
+                return Response(
+                    {"detail": f"Mobile number {phone} is registered as a Citizen account, not as Municipal Staff or Ward Admin. Please sign in using the Citizen Portal."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         password_input = str(request.data.get("password") or request.data.get("credential_code") or "").strip()
         if password_input:

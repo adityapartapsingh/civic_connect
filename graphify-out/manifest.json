@@ -276,9 +276,9 @@
     "semantic_hash": ""
   },
   "backend/users/tests.py": {
-    "mtime": 1793739224.6401293,
-    "seen": 1793779805.031365,
-    "ast_hash": "88e42748ca3c4bb139b627e5e984a111",
+    "mtime": 1794765171.1981575,
+    "seen": 1794765395.0369937,
+    "ast_hash": "a29b591ae7e93b61fc2390dcc36a8fdf",
     "semantic_hash": ""
   },
   "backend/users/urls.py": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "backend/users/views.py": {
-    "mtime": 1793868078.1613545,
-    "seen": 1793868363.4158056,
-    "ast_hash": "3565900d429aa1dad6e2bc27d880b1ac",
+    "mtime": 1794765082.621427,
+    "seen": 1794765395.036998,
+    "ast_hash": "9cd3002c053fbec2832cfda4ba29845e",
     "semantic_hash": ""
   },
   "backend/utils/__init__.py": {
@@ -546,9 +546,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/LoginPage.tsx": {
-    "mtime": 1793790341.6338587,
-    "seen": 1793790501.17079,
-    "ast_hash": "5bbae337dd3057bfd898a3ee70e2dead",
+    "mtime": 1794765293.4505124,
+    "seen": 1794765395.037065,
+    "ast_hash": "e19ac94464f707782d1696e839a4973c",
     "semantic_hash": ""
   },
   "frontend/src/pages/MapPage.tsx": {

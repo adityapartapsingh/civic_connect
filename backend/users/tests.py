@@ -512,4 +512,97 @@ class UserTests(TestCase):
         self.assertEqual(updated_ticket["upvote_count"], 1)
         self.assertTrue(any(ev.get("submitted_by") == "Citizen 2" for ev in updated_ticket.get("evidence", [])))
 
+    def test_municipal_staff_and_ward_admin_otp_login(self):
+        """
+        Verify that Ward Admins and Field Officers can request OTP and verify to sign in,
+        while maintaining their roles and preventing unauthorized citizen hijacking.
+        """
+        from users.models import UserManager
+
+        # Provision Ward Admin
+        admin_doc = UserManager.upsert_user({
+            "name": "Sh. Ramesh Kumar",
+            "phone": "9876543210",
+            "role": UserRole.ADMIN,
+            "employee_id": "PB-MCJ-ADM-W101",
+            "ward_id": "Ward-101",
+            "ward_name": "Ward 1 - Model Town",
+            "designation": "Ward Administrator",
+        })
+
+        # Provision Field Officer
+        officer_doc = UserManager.upsert_user({
+            "name": "Er. Harpreet Singh",
+            "phone": "9814099881",
+            "role": UserRole.OFFICER,
+            "employee_id": "PB-MCJ-W102-ENG-084",
+            "ward_id": "Ward-102",
+            "ward_name": "Ward 2 - Civil Lines",
+            "designation": "Assistant Engineer",
+            "department": "Civil Infrastructure",
+        })
+
+        # 1. Ward Admin requests OTP
+        admin_otp_res = self.client.post("/api/users/send-otp/", {
+            "phone": "9876543210",
+            "role": "admin",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(admin_otp_res.status_code, status.HTTP_200_OK)
+        admin_otp = admin_otp_res.data.get("test_otp") or "123456"
+
+        # Ward Admin verifies OTP -> must get admin role in JWT/Profile
+        admin_ver_res = self.client.post("/api/users/verify-otp/", {
+            "phone": "9876543210",
+            "otp": admin_otp,
+            "role": "admin",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(admin_ver_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(admin_ver_res.data["user"]["role"], "admin")
+        self.assertIn("token", admin_ver_res.data)
+
+        # 2. Field Officer requests OTP
+        off_otp_res = self.client.post("/api/users/send-otp/", {
+            "phone": "9814099881",
+            "role": "officer",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(off_otp_res.status_code, status.HTTP_200_OK)
+        off_otp = off_otp_res.data.get("test_otp") or "123456"
+
+        # Field Officer verifies OTP -> must get officer role
+        off_ver_res = self.client.post("/api/users/verify-otp/", {
+            "phone": "9814099881",
+            "otp": off_otp,
+            "role": "officer",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(off_ver_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(off_ver_res.data["user"]["role"], "officer")
+
+        # 3. Non-existent staff phone number returns 404
+        ghost_res = self.client.post("/api/users/send-otp/", {
+            "phone": "9999900000",
+            "role": "officer",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(ghost_res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("No municipal staff", ghost_res.data["detail"])
+
+        # 4. Citizen phone number trying to log in as municipal staff returns 403
+        UserManager.upsert_user({
+            "name": "Citizen User",
+            "phone": "9876599999",
+            "role": UserRole.CITIZEN,
+        })
+        citizen_as_staff_res = self.client.post("/api/users/send-otp/", {
+            "phone": "9876599999",
+            "role": "officer",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(citizen_as_staff_res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("registered as a Citizen account", citizen_as_staff_res.data["detail"])
+
+
 
