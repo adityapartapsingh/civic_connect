@@ -41,37 +41,54 @@ export const MapPage: React.FC = () => {
   });
 
   return (
-    <div className="space-y-5">
-      {/* Page Header */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            City Civic Transparency Map
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Real-time public audit of municipal issues, field dispatches, and resolved repairs across all wards.
-          </p>
+    <div className="space-y-3 sm:space-y-5">
+      {/* Compact Page Header */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h1 className="text-base sm:text-2xl font-bold text-slate-900 tracking-tight">
+              City Civic Map
+            </h1>
+            <p className="hidden sm:block text-xs text-slate-500 mt-1">
+              Real-time public audit of municipal issues, field dispatches, and resolved repairs across all wards.
+            </p>
+          </div>
+
+          {/* Quick Heatmap Toggle for Mobile */}
+          <div className="md:hidden">
+            <button
+              type="button"
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition flex items-center gap-1 border ${
+                showHeatmap
+                  ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200'
+              }`}
+            >
+              <span>🔥 Heatmap</span>
+            </button>
+          </div>
         </div>
 
-        {/* Status Mode Switcher */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold">
+        {/* Status Mode Switcher: Single-Line on Mobile */}
+        <div className="flex items-center gap-1 bg-slate-100 p-0.5 sm:p-1 rounded-lg border border-slate-200 text-xs font-semibold overflow-x-auto scrollbar-none shrink-0">
           <button
             type="button"
             onClick={() => setSelectedStatus('all')}
-            className={`px-3 py-1.5 rounded-md transition ${
+            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md transition whitespace-nowrap text-[11px] sm:text-xs ${
               selectedStatus === 'all'
-                ? 'bg-white text-slate-900 shadow-xs'
+                ? 'bg-white text-slate-900 font-bold shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            All Issues ({issues.length})
+            All ({issues.length})
           </button>
           <button
             type="button"
             onClick={() => setSelectedStatus('active')}
-            className={`px-3 py-1.5 rounded-md transition ${
+            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md transition whitespace-nowrap text-[11px] sm:text-xs ${
               selectedStatus === 'active'
-                ? 'bg-amber-600 text-white shadow-xs'
+                ? 'bg-amber-600 text-white font-bold shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -80,9 +97,9 @@ export const MapPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedStatus('resolved')}
-            className={`px-3 py-1.5 rounded-md transition flex items-center gap-1 ${
+            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md transition flex items-center gap-1 whitespace-nowrap text-[11px] sm:text-xs ${
               selectedStatus === 'resolved'
-                ? 'bg-emerald-600 text-white shadow-xs'
+                ? 'bg-emerald-600 text-white font-bold shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -91,13 +108,13 @@ export const MapPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Controls Bar: Category filter & Heatmap toggle */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2 flex flex-wrap items-center gap-1.5">
+      <div className="space-y-2 sm:space-y-3">
+        {/* Controls Bar: Single horizontal scroll row for categories */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap pb-1 w-full">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition cursor-pointer border ${
+              className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-semibold transition cursor-pointer border whitespace-nowrap shrink-0 ${
                 selectedCategory === 'all'
                   ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -109,7 +126,7 @@ export const MapPage: React.FC = () => {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition border cursor-pointer ${
+                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-semibold transition border cursor-pointer whitespace-nowrap shrink-0 ${
                   selectedCategory === cat.id
                     ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -120,7 +137,7 @@ export const MapPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="md:col-span-1">
+          <div className="hidden md:block shrink-0">
             <HeatmapToggle
               enabled={showHeatmap}
               onToggle={setShowHeatmap}
@@ -129,8 +146,8 @@ export const MapPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Interactive Leaflet Map Box */}
-        <div className="h-[520px] sm:h-[600px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs">
+        {/* Interactive Leaflet Map Box: Expansive on phone */}
+        <div className="h-[calc(100vh-210px)] min-h-[420px] sm:h-[600px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs">
           <IssueMap
             issues={filteredIssues}
             userLocation={coords}

@@ -688,22 +688,25 @@ export const SuperAdminPortalPage: React.FC = () => {
 
   // Super Admin Authenticated Console
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-3 sm:space-y-6">
       {/* Super Admin Top Header */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-slate-900">
+      <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-5 shadow-xs flex items-center justify-between gap-3 text-slate-900">
         <div>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-slate-800" />
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Super Admin Console • Full Website Governance
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-slate-800 shrink-0" />
+            <h1 className="text-base sm:text-xl font-bold tracking-tight text-slate-900">
+              Super Admin Console
             </h1>
+            <span className="sm:hidden px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-900 border border-amber-200">
+              ROOT
+            </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5 font-mono">
+          <p className="hidden sm:block text-xs text-slate-500 mt-0.5 font-mono">
             Active: <strong className="text-slate-800">{user?.name}</strong> (ID: {user?.employee_id || 'CC-SUPERADMIN-001'}) · Punjab Municipal Corporation Root Authority
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -714,56 +717,72 @@ export const SuperAdminPortalPage: React.FC = () => {
                 message: 'Exited Super Admin session.',
               });
             }}
-            className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-bold border border-slate-200 hover:border-red-200 transition flex items-center gap-1.5"
+            className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-[11px] sm:text-xs font-bold border border-slate-200 hover:border-red-200 transition flex items-center gap-1"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             <span>Sign Out</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Stats Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Total System Accounts</span>
-          <div className="text-2xl font-black text-slate-900 font-mono mt-1">{userStats.total || allUsers.length}</div>
-          <span className="text-[11px] text-slate-500 font-medium">Atlas Database Records</span>
+      {/* KPI Stats: Mobile Single-Line Strip vs Desktop 5-Box Grid */}
+      <div>
+        {/* Mobile Single-Line Strip */}
+        <div className="sm:hidden flex items-center justify-between text-[11px] font-mono font-bold text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+          <span>Wards: <strong className="text-slate-900">{municipalWards.length}</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>Admins: <strong className="text-slate-900">{admins.length}</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>Squads: <strong className="text-slate-900">{officers.length}</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>Citizens: <strong className="text-emerald-700">{citizens.length}</strong></span>
+          <span className="text-slate-300">|</span>
+          <span className="text-red-700">Blocked: <strong>{blockedUsers.length}</strong></span>
         </div>
 
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-xs font-semibold text-slate-700">Ward Administrators</span>
-          <div className="text-2xl font-black text-slate-900 font-mono mt-1">{admins.length} Admins</div>
-          <span className="text-[11px] text-slate-500 font-medium">
-            {userStats.wards_count || new Set(admins.map((a) => a.ward_id).filter(Boolean)).size} Municipal Jurisdictions
-          </span>
-        </div>
+        {/* Desktop 5-Column Grid */}
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500">Total System Accounts</span>
+            <div className="text-2xl font-black text-slate-900 font-mono mt-1">{userStats.total || allUsers.length}</div>
+            <span className="text-[11px] text-slate-500 font-medium">Atlas Database Records</span>
+          </div>
 
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-xs font-semibold text-slate-700">Field Squad Officers</span>
-          <div className="text-2xl font-black text-slate-900 font-mono mt-1">{officers.length} Officers</div>
-          <span className="text-[11px] text-slate-500 font-medium">On-Site Dispatch Force</span>
-        </div>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-xs font-semibold text-slate-700">Ward Administrators</span>
+            <div className="text-2xl font-black text-slate-900 font-mono mt-1">{admins.length} Admins</div>
+            <span className="text-[11px] text-slate-500 font-medium">
+              {userStats.wards_count || new Set(admins.map((a) => a.ward_id).filter(Boolean)).size} Municipal Jurisdictions
+            </span>
+          </div>
 
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-xs font-semibold text-emerald-700">Registered Citizens</span>
-          <div className="text-2xl font-black text-emerald-600 font-mono mt-1">{citizens.length} Citizens</div>
-          <span className="text-[11px] text-slate-500 font-medium">Public Community Users</span>
-        </div>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-xs font-semibold text-slate-700">Field Squad Officers</span>
+            <div className="text-2xl font-black text-slate-900 font-mono mt-1">{officers.length} Officers</div>
+            <span className="text-[11px] text-slate-500 font-medium">On-Site Dispatch Force</span>
+          </div>
 
-        <div className="bg-red-50/50 p-4 rounded-xl border border-red-200 shadow-xs">
-          <span className="text-xs font-bold text-red-700">Suspended / Blocked</span>
-          <div className="text-2xl font-black text-red-700 font-mono mt-1">{blockedUsers.length} Blocked</div>
-          <span className="text-[11px] text-red-600 font-medium">Illegal &amp; Spam Enforcements</span>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-xs font-semibold text-emerald-700">Registered Citizens</span>
+            <div className="text-2xl font-black text-emerald-600 font-mono mt-1">{citizens.length} Citizens</div>
+            <span className="text-[11px] text-slate-500 font-medium">Public Community Users</span>
+          </div>
+
+          <div className="bg-red-50/50 p-4 rounded-xl border border-red-200 shadow-xs">
+            <span className="text-xs font-bold text-red-700">Suspended / Blocked</span>
+            <div className="text-2xl font-black text-red-700 font-mono mt-1">{blockedUsers.length} Blocked</div>
+            <span className="text-[11px] text-red-600 font-medium">Illegal &amp; Spam Enforcements</span>
+          </div>
         </div>
       </div>
 
-      {/* Control Tabs Navigation */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* Control Tabs Navigation: Sleek single horizontal scroll row */}
+      <div className="bg-white rounded-lg sm:rounded-xl border border-slate-200 shadow-xs p-1 sm:p-2 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('admins')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'admins'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -781,7 +800,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('officers')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'officers'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -799,7 +818,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('citizens')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'citizens'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -817,7 +836,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('blocked')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'blocked'
                 ? 'bg-red-700 text-white shadow-xs'
                 : 'text-red-700 hover:text-red-900 hover:bg-red-50'
@@ -835,7 +854,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('create')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'create'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -848,7 +867,7 @@ export const SuperAdminPortalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('whatsapp')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'whatsapp'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'

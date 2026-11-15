@@ -383,50 +383,62 @@ export const HomePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-5 shadow-xs">
+        <div className="flex items-center justify-between gap-2 pb-2 sm:pb-4 border-b border-slate-100">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h1 className="text-base sm:text-2xl font-bold text-slate-900 tracking-tight">
                 Civic Issues &amp; Grievance Feed
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
                 LIVE CITY FEED
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="hidden sm:block text-xs text-slate-500 mt-1">
               Real-time municipal reports, repair progress, and citizen confirmations across all wards.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
-            <span className="font-semibold text-slate-900 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200 font-mono">
+          <div className="flex items-center gap-1 text-[11px] sm:text-xs shrink-0">
+            <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <span className="font-semibold text-slate-800 bg-slate-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md border border-slate-200 font-mono text-[10px] sm:text-xs">
               {address ? address.split(',').slice(0, 2).join(',') : 'Jalandhar Municipal Zone'}
             </span>
           </div>
         </div>
 
-        {/* 3-Column Performance Metric Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 pt-3 text-xs">
-          <div className="sm:pr-4 py-2 sm:py-0">
-            <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">SLA Compliance</span>
-            <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{slaCompliance}</div>
-            <span className="text-[11px] text-slate-500">Resolved under statutory 48h SLA</span>
+        {/* Compact Single-Line Metric Strip on Mobile / 3-Column on Desktop */}
+        <div className="pt-2 sm:pt-3">
+          {/* Mobile Single-Line Strip */}
+          <div className="sm:hidden flex items-center justify-between text-[11px] font-mono font-bold text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+            <span>SLA: <strong className="text-slate-900">{slaCompliance}</strong></span>
+            <span className="text-slate-300">|</span>
+            <span>Reports: <strong className="text-slate-900">{issues.length}</strong> <span className="text-[10px] font-normal text-slate-500">({activeCount} act · {resolvedCount} res)</span></span>
+            <span className="text-slate-300">|</span>
+            <span className="text-emerald-700">Valid: <strong>{pendingConfirmationsCount}</strong></span>
           </div>
 
-          <div className="sm:px-4 py-2 sm:py-0">
-            <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Total City Reports</span>
-            <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{issues.length} Issues</div>
-            <span className="text-[11px] text-slate-500">{activeCount} in progress · {resolvedCount} resolved</span>
-          </div>
-
-          <div className="sm:pl-4 py-2 sm:py-0">
-            <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Citizen Validations</span>
-            <div className="text-xl font-black text-emerald-600 font-mono mt-0.5">
-              {pendingConfirmationsCount} Pending
+          {/* Desktop 3-Column Strip */}
+          <div className="hidden sm:grid grid-cols-3 divide-x divide-slate-100 text-xs">
+            <div className="pr-4 py-0">
+              <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">SLA Compliance</span>
+              <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{slaCompliance}</div>
+              <span className="text-[11px] text-slate-500">Resolved under statutory 48h SLA</span>
             </div>
-            <span className="text-[11px] text-slate-500">Repairs awaiting on-site verification</span>
+
+            <div className="px-4 py-0">
+              <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Total City Reports</span>
+              <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{issues.length} Issues</div>
+              <span className="text-[11px] text-slate-500">{activeCount} in progress · {resolvedCount} resolved</span>
+            </div>
+
+            <div className="pl-4 py-0">
+              <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Citizen Validations</span>
+              <div className="text-xl font-black text-emerald-600 font-mono mt-0.5">
+                {pendingConfirmationsCount} Pending
+              </div>
+              <span className="text-[11px] text-slate-500">Repairs awaiting on-site verification</span>
+            </div>
           </div>
         </div>
       </div>

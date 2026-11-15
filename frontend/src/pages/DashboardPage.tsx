@@ -138,73 +138,67 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Officer Header & Deployment Context Banner */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800 font-mono text-[11px] font-bold tracking-wider uppercase">
+      <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-5 shadow-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-0.5 sm:space-y-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800 font-mono text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
                 {user?.employee_id || 'PB-MCJ-FIELD-SQUAD'}
               </span>
-              <span className="text-xs font-mono text-slate-500">
+              <span className="text-[11px] sm:text-xs font-mono text-slate-500">
                 {user?.ward_name || user?.ward_id || 'Ward 2 - Civil Lines Zone'}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-slate-700 shrink-0" />
-              <span>Field Squad Dispatch &amp; Work Orders</span>
+            <h1 className="text-base sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-1.5 sm:gap-2">
+              <Wrench className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 shrink-0" />
+              <span>Field Dispatch Queue</span>
             </h1>
-            <p className="text-xs text-slate-500">
+            <p className="hidden sm:block text-xs text-slate-500">
               Assigned Field Officer: <strong className="text-slate-800">{user?.name || 'On-Duty Officer'}</strong> · {user?.designation || 'Junior Engineer'} · {user?.department || 'Civil Infrastructure Cell'}
             </p>
           </div>
 
-          <div className="flex items-center gap-3 self-start md:self-auto shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={loadTickets}
               disabled={isLoading}
-              className="p-2 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition"
+              className="p-1.5 sm:p-2 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition"
               title="Refresh Work Orders"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-slate-900' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin text-slate-900' : ''}`} />
             </button>
 
             {user?.role === 'admin' && (
               <Link
                 to="/admin-portal"
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-md border border-slate-200 transition flex items-center gap-1.5"
+                className="hidden sm:inline-flex px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-md border border-slate-200 transition items-center gap-1.5"
               >
                 <Building2 className="w-3.5 h-3.5" />
-                <span>Switch to Ward Console</span>
+                <span>Ward Console</span>
               </Link>
             )}
           </div>
         </div>
 
-        {/* Assigned Task Domain Tags */}
-        <div className="mt-4 pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
-              Assigned Squad Specialty:
-            </span>
-            {officerTasks.length > 0 ? (
-              officerTasks.map((t) => (
+        {/* Assigned Task Domain Tags (Desktop only / compact mobile) */}
+        {officerTasks.length > 0 && (
+          <div className="hidden sm:flex mt-4 pt-3 border-t border-slate-200 flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+                Assigned Squad Specialty:
+              </span>
+              {officerTasks.map((t) => (
                 <span
                   key={t}
                   className="px-2.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px] font-semibold uppercase"
                 >
                   {t.replace(/_/g, ' ')}
                 </span>
-              ))
-            ) : (
-              <span className="px-2.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 font-mono text-[11px]">
-                ALL FIELD INFRASTRUCTURE
-              </span>
-            )}
-          </div>
+              ))}
+            </div>
 
-          {/* Scope Toggle Button */}
-          {officerTasks.length > 0 && (
+            {/* Scope Toggle Button */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
               <button
                 type="button"
@@ -229,12 +223,60 @@ export const DashboardPage: React.FC = () => {
                 🏛️ All Ward ({wardTickets.length})
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Field KPI Counter Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Mobile: Sleek Single-Line Tab Strip */}
+      <div className="sm:hidden flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+        <button
+          type="button"
+          onClick={() => setFilterTab('all')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+            filterTab === 'all'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+              : 'bg-white text-slate-700 border-slate-200'
+          }`}
+        >
+          All ({totalCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterTab('in_progress')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+            filterTab === 'in_progress'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+              : 'bg-white text-blue-700 border-blue-200'
+          }`}
+        >
+          In Progress ({inProgressCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterTab('resolved')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+            filterTab === 'resolved'
+              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+              : 'bg-white text-emerald-700 border-emerald-200'
+          }`}
+        >
+          Completed ({resolvedCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterTab('breached')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ${
+            filterTab === 'breached'
+              ? 'bg-red-600 text-white border-red-600 shadow-xs'
+              : 'bg-white text-red-700 border-red-200'
+          }`}
+        >
+          Breached ({breachedCount})
+        </button>
+      </div>
+
+      {/* Desktop: Field KPI Counter Grid */}
+      <div className="hidden sm:grid sm:grid-cols-4 gap-3">
         <button
           type="button"
           onClick={() => setFilterTab('all')}

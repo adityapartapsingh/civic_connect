@@ -383,40 +383,40 @@ export const ProfilePage: React.FC = () => {
   const unlockedBadgesCount = badgesList.filter((b) => b.is_unlocked).length;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-12">
+    <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6 pb-12">
       {/* ========================================================= */}
       {/* PROFILE HEADER CARD */}
       {/* ========================================================= */}
-      <div className="relative overflow-hidden rounded-lg bg-slate-900 text-white p-6 sm:p-7 border border-slate-800 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-700 text-amber-400 flex items-center justify-center font-black text-2xl shadow-inner">
+      <div className="relative overflow-hidden rounded-xl bg-slate-900 text-white p-4 sm:p-7 border border-slate-800 shadow-sm">
+        <div className="flex items-center justify-between gap-3 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-slate-800 border-2 border-slate-700 text-amber-400 flex items-center justify-center font-black text-xl sm:text-2xl shadow-inner shrink-0">
               {(user.name || 'Citizen').charAt(0).toUpperCase()}
             </div>
 
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{user.name || 'Civic User'}</h1>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-base sm:text-2xl font-bold tracking-tight">{user.name || 'Civic User'}</h1>
                 {isOfficer ? (
-                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  <span className="text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
                     {user.designation || 'Field Officer'}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">
-                    Lvl {currentLevel} Citizen
+                  <span className="text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">
+                    Lvl {currentLevel}
                   </span>
                 )}
               </div>
 
               {isOfficer && (
-                <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-y-1 gap-x-2.5">
-                  <span className="flex items-center gap-1.5 text-slate-200">
-                    <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-y-0.5 gap-x-2">
+                  <span className="flex items-center gap-1 text-slate-200">
+                    <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
                     <span>{user.department || 'Municipal Division'}</span>
                   </span>
                   {user.employee_id && (
-                    <span className="font-mono text-[11px] text-slate-400">
-                      Badge ID: <strong className="text-slate-200">{user.employee_id}</strong>
+                    <span className="font-mono text-[10px] sm:text-[11px] text-slate-400">
+                      ID: <strong className="text-slate-200">{user.employee_id}</strong>
                     </span>
                   )}
                 </div>
@@ -424,31 +424,32 @@ export const ProfilePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Header Action: Edit Profile (Single Line Button) */}
+          {/* Header Action: Edit Profile */}
           <button
             type="button"
             onClick={() => setIsEditModalOpen(true)}
-            className="px-3.5 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white shrink-0 self-start sm:self-auto shadow-xs"
+            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-md text-xs font-bold transition flex items-center gap-1 border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white shrink-0 shadow-xs"
             title="Edit Profile Details"
           >
-            <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-            <span>Edit Profile</span>
+            <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Edit Profile</span>
+            <span className="sm:hidden">Edit</span>
           </button>
         </div>
 
         {/* Level Progression Progress Bar */}
-        <div className="mt-6 pt-5 border-t border-slate-800">
-          <div className="flex items-center justify-between text-xs mb-1.5">
+        <div className="mt-3 sm:mt-6 pt-3 sm:pt-5 border-t border-slate-800">
+          <div className="flex items-center justify-between text-[11px] sm:text-xs mb-1">
             <span className="font-semibold text-slate-300 flex items-center gap-1">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              Level {currentLevel} Civic Standing
+              <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+              Lvl {currentLevel} Standing
             </span>
-            <span className="font-mono text-amber-300 font-bold">
-              Current: {currentPoints} PTS · Next Goal: {nextLevelThreshold} PTS ({Math.max(0, 60 - pointsInCurrentLevel)} pts to Lvl {currentLevel + 1})
+            <span className="font-mono text-amber-300 font-bold text-[10px] sm:text-xs">
+              {currentPoints} / {nextLevelThreshold} PTS
             </span>
           </div>
 
-          <div className="h-2 w-full bg-slate-800 rounded overflow-hidden p-0.5 border border-slate-700">
+          <div className="h-1.5 sm:h-2 w-full bg-slate-800 rounded overflow-hidden p-0.5 border border-slate-700">
             <div
               className="bg-amber-400 h-full rounded transition-all duration-500"
               style={{ width: `${levelProgressPercent}%` }}
@@ -458,75 +459,86 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* ========================================================= */}
-      {/* QUICK ACTION BUTTONS */}
+      {/* QUICK ACTION BUTTONS: Single Line on Mobile */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2">
         <Link
           to="/?tab=my_reports"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 font-bold text-xs rounded-lg border border-slate-300 shadow-xs transition"
+          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] sm:text-xs rounded-lg border border-slate-300 shadow-xs transition"
         >
-          <FileText className="w-4 h-4 text-blue-600" />
-          <span>My Reports</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">
+          <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+          <span className="truncate">Reports</span>
+          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-blue-100 text-blue-800 font-bold">
             {user.reports_submitted_count ?? 0}
           </span>
         </Link>
 
         <Link
           to="/rewards?tab=rewards"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 font-bold text-xs rounded-lg border border-slate-300 shadow-xs transition"
+          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] sm:text-xs rounded-lg border border-slate-300 shadow-xs transition"
         >
-          <Gift className="w-4 h-4 text-amber-600" />
-          <span>Redeem Rewards</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold">
-            {currentPoints} PTS
+          <Gift className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+          <span className="truncate">Rewards</span>
+          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-amber-100 text-amber-900 font-bold">
+            {currentPoints}
           </span>
         </Link>
 
         <Link
           to="/volunteers"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 font-bold text-xs rounded-lg border border-slate-300 shadow-xs transition"
+          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] sm:text-xs rounded-lg border border-slate-300 shadow-xs transition"
         >
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Volunteer Hub</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-            {user.role === 'volunteer' ? 'Active' : 'Join'}
-          </span>
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="truncate">Volunteer</span>
         </Link>
       </div>
 
       {/* ========================================================= */}
-      {/* IMPACT STATS GRID */}
+      {/* IMPACT STATS: Mobile Single-Line Strip vs Desktop Grid */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Reports Filed</span>
-          <div className="text-2xl font-black text-slate-900 mt-0.5">
-            {user.reports_submitted_count ?? 0}
-          </div>
-          <span className="text-[11px] text-slate-600 font-medium">All verified live</span>
+      <div>
+        {/* Mobile Single-Line Strip */}
+        <div className="sm:hidden flex items-center justify-between text-[11px] font-mono font-bold text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+          <span>Reports: <strong className="text-slate-900">{user.reports_submitted_count ?? 0}</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>Fixes: <strong className="text-emerald-700">{user.reports_resolved_count ?? 0}</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>Points: <strong className="text-amber-800">{user.points ?? 0}</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>Upvotes: <strong className="text-slate-900">{user.upvotes_given_count ?? 0}</strong></span>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Fixes Completed</span>
-          <div className="text-2xl font-black text-emerald-700 mt-0.5">
-            {user.reports_resolved_count ?? 0}
+        {/* Desktop 4-Card Grid */}
+        <div className="hidden sm:grid sm:grid-cols-4 gap-3">
+          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500">Reports Filed</span>
+            <div className="text-2xl font-black text-slate-900 mt-0.5">
+              {user.reports_submitted_count ?? 0}
+            </div>
+            <span className="text-[11px] text-slate-600 font-medium">All verified live</span>
           </div>
-          <span className="text-[11px] text-emerald-800 font-medium">80% resolution rate</span>
-        </div>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Civic Points</span>
-          <div className="text-2xl font-black text-slate-900 mt-0.5">{user.points ?? 0}</div>
-          <span className="text-[11px] text-slate-600 font-medium">Top 5% in Ward</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Upvotes Given</span>
-          <div className="text-2xl font-black text-slate-900 mt-0.5">
-            {user.upvotes_given_count ?? 0}
+          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500">Fixes Completed</span>
+            <div className="text-2xl font-black text-emerald-700 mt-0.5">
+              {user.reports_resolved_count ?? 0}
+            </div>
+            <span className="text-[11px] text-emerald-800 font-medium">80% resolution rate</span>
           </div>
-          <span className="text-[11px] text-slate-500 font-medium">Duplicates spared</span>
+
+          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500">Civic Points</span>
+            <div className="text-2xl font-black text-slate-900 mt-0.5">{user.points ?? 0}</div>
+            <span className="text-[11px] text-slate-600 font-medium">Top 5% in Ward</span>
+          </div>
+
+          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500">Upvotes Given</span>
+            <div className="text-2xl font-black text-slate-900 mt-0.5">
+              {user.upvotes_given_count ?? 0}
+            </div>
+            <span className="text-[11px] text-slate-600 font-medium">Community priority votes</span>
+          </div>
         </div>
       </div>
 

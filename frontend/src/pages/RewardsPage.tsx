@@ -555,16 +555,26 @@ export const RewardsPage: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Top Banner: Civic Points & Spendable Coins Overview */}
-      <div className="bg-white rounded-xl p-5 sm:p-7 border border-slate-200 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+      <div className="bg-white rounded-xl p-3 sm:p-7 border border-slate-200 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-5">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Civic Rewards &amp; Resolution Rankings
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-xl leading-relaxed">
+            <div className="flex items-center justify-between">
+              <h1 className="text-base sm:text-3xl font-bold tracking-tight text-slate-900">
+                Civic Rewards &amp; Resolution Rankings
+              </h1>
+              <button
+                type="button"
+                onClick={() => setIsRulesModalOpen(true)}
+                className="sm:hidden inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-bold transition cursor-pointer"
+              >
+                <HelpCircle className="w-3 h-3 text-amber-700" />
+                <span>Rules</span>
+              </button>
+            </div>
+            <p className="hidden sm:block text-xs sm:text-sm text-slate-600 mt-1 max-w-xl leading-relaxed">
               Earn <strong>Civic Coins</strong> and <strong>Civic Points</strong> by reporting and verifying municipal issues. Spend coins on official apparel and gear while keeping your civic reputation permanently safe.
             </p>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="hidden sm:flex mt-3 items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsRulesModalOpen(true)}
@@ -576,8 +586,8 @@ export const RewardsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Dual Balance / Metrics Pills */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+          {/* Desktop Dual Balance Pills */}
+          <div className="hidden sm:flex items-center gap-3 shrink-0">
             {/* Coins Balance Pill (Spendable Wallet) */}
             <div className="bg-amber-50/70 border border-amber-200 p-3.5 rounded-xl flex items-center gap-3 shrink-0 min-w-[170px]">
               <div className="w-11 h-11 rounded-lg bg-amber-200 border border-amber-300 text-amber-900 flex items-center justify-center font-bold text-lg shadow-xs">
@@ -616,15 +626,34 @@ export const RewardsPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Mobile Single-line Compact Balance Strip */}
+          <div className="sm:hidden flex items-center justify-between bg-amber-50/70 border border-amber-200/80 rounded-lg px-2.5 py-1.5 text-xs">
+            <div className="flex items-center gap-1.5">
+              <Coins className="w-3.5 h-3.5 text-amber-700" />
+              <span className="font-mono font-bold text-amber-950">{currentCoins}</span>
+              <span className="text-[10px] font-bold text-amber-800 uppercase">Coins</span>
+            </div>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5 text-slate-700" />
+              <span className="font-mono font-bold text-slate-900">{currentPoints}</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase">Pts (Lvl {user?.level || 1})</span>
+            </div>
+            <span className="text-slate-300">|</span>
+            <div className="text-[11px] font-semibold text-slate-600">
+              {currentProblemsResolved} Fixes
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Primary Tab Navigation: Rankings vs Redeem Rewards */}
-      <div className="flex items-center space-x-6 border-b border-slate-200">
+      <div className="flex items-center space-x-4 sm:space-x-6 border-b border-slate-200 overflow-x-auto scrollbar-none flex-nowrap">
         <button
           type="button"
           onClick={() => setActiveTab('rankings')}
-          className={`pb-3 text-sm font-bold transition-colors border-b-2 -mb-px flex items-center gap-2 cursor-pointer ${
+          className={`pb-2.5 sm:pb-3 text-xs sm:text-sm font-bold transition-colors border-b-2 -mb-px flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer ${
             activeTab === 'rankings'
               ? 'border-slate-900 text-slate-900'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -637,7 +666,7 @@ export const RewardsPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('rewards')}
-          className={`pb-3 text-sm font-bold transition-colors border-b-2 -mb-px flex items-center gap-2 cursor-pointer ${
+          className={`pb-2.5 sm:pb-3 text-xs sm:text-sm font-bold transition-colors border-b-2 -mb-px flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer ${
             activeTab === 'rewards'
               ? 'border-slate-900 text-slate-900'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -704,37 +733,37 @@ export const RewardsPage: React.FC = () => {
             <div className="space-y-6">
               {/* Scope Selector: Local Division, District, State, National */}
               <div className="w-full bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
-                <div className="w-full border-b border-slate-200 flex items-center">
+                <div className="w-full border-b border-slate-200 flex items-center overflow-x-auto scrollbar-none flex-nowrap">
                   <button
                     type="button"
                     onClick={() => setRankingScope('local')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'local'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
                     }`}
                   >
                     <MapPin className={`w-3.5 h-3.5 shrink-0 ${rankingScope === 'local' ? 'text-rose-600' : 'text-slate-400'}`} />
-                    <span className="truncate">Local Division (Central Zone)</span>
+                    <span className="truncate">Local Division</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRankingScope('district')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'district'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
                     }`}
                   >
                     <Building className={`w-3.5 h-3.5 shrink-0 ${rankingScope === 'district' ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <span className="truncate">City-wide (Jalandhar)</span>
+                    <span className="truncate">City-wide</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRankingScope('state')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'state'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
@@ -747,14 +776,14 @@ export const RewardsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setRankingScope('india')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'india'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
                     }`}
                   >
                     <Flag className={`w-3.5 h-3.5 shrink-0 ${rankingScope === 'india' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                    <span className="truncate">National (India)</span>
+                    <span className="truncate">National</span>
                   </button>
                 </div>
               </div>
@@ -1149,37 +1178,37 @@ export const RewardsPage: React.FC = () => {
             <div className="space-y-6">
               {/* Scope Selector: Local Ward, District, State, National */}
               <div className="w-full bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
-                <div className="w-full border-b border-slate-200 flex items-center">
+                <div className="w-full border-b border-slate-200 flex items-center overflow-x-auto scrollbar-none flex-nowrap">
                   <button
                     type="button"
                     onClick={() => setRankingScope('local')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'local'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
                     }`}
                   >
                     <MapPin className={`w-3.5 h-3.5 shrink-0 ${rankingScope === 'local' ? 'text-rose-600' : 'text-slate-400'}`} />
-                    <span className="truncate">My Ward (Ward 2)</span>
+                    <span className="truncate">My Ward</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRankingScope('district')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'district'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
                     }`}
                   >
                     <Building className={`w-3.5 h-3.5 shrink-0 ${rankingScope === 'district' ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <span className="truncate">City-wide (Jalandhar)</span>
+                    <span className="truncate">City-wide</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRankingScope('state')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'state'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
@@ -1192,14 +1221,14 @@ export const RewardsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setRankingScope('india')}
-                    className={`flex-1 py-3 px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    className={`shrink-0 sm:shrink sm:flex-1 py-2 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-bold transition-all border-b-2 -mb-px flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                       rankingScope === 'india'
                         ? 'border-slate-900 text-slate-900 bg-slate-50/60'
                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50/30'
                     }`}
                   >
                     <Flag className={`w-3.5 h-3.5 shrink-0 ${rankingScope === 'india' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                    <span className="truncate">National (India)</span>
+                    <span className="truncate">National</span>
                   </button>
                 </div>
               </div>
