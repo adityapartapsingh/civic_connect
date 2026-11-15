@@ -1055,12 +1055,31 @@ export const whatsappAdminApi = {
   },
 };
 
+export const wardsApi = {
+  getAll: async (): Promise<Array<{ id: string; name: string; zone?: string }>> => {
+    try {
+      const response = await apiClient.get('/wards/');
+      if (Array.isArray(response.data)) {
+        return response.data.map((w: any) => ({
+          id: w.ward_number || w.id,
+          name: w.name ? `Ward ${w.ward_number?.replace('Ward-', '') || ''} - ${w.name}` : (w.ward_number || w.id),
+          zone: w.zone || '',
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+};
+
 export interface SuperAdminUserStats {
   total: number;
   admins_count: number;
   officers_count: number;
   citizens_count: number;
   blocked_count: number;
+  wards_count?: number;
 }
 
 export const superAdminUsersApi = {

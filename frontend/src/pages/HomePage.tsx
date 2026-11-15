@@ -166,6 +166,12 @@ export const HomePage: React.FC = () => {
     return issues.filter((i) => i.status === 'resolved' && !i.citizen_feedback).length;
   }, [issues]);
 
+  const slaCompliance = useMemo(() => {
+    if (issues.length === 0) return '100%';
+    const nonBreached = issues.filter((i) => !i.sla_breached).length;
+    return `${Math.round((nonBreached / issues.length) * 100)}%`;
+  }, [issues]);
+
   // Filter & sort logic across the entire city dataset
   const processedIssues = useMemo(() => {
     let list: Issue[] = [];
@@ -405,7 +411,7 @@ export const HomePage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 pt-3 text-xs">
           <div className="sm:pr-4 py-2 sm:py-0">
             <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">SLA Compliance</span>
-            <div className="text-xl font-black text-slate-900 font-mono mt-0.5">94.2%</div>
+            <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{slaCompliance}</div>
             <span className="text-[11px] text-slate-500">Resolved under statutory 48h SLA</span>
           </div>
 

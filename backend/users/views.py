@@ -1197,8 +1197,10 @@ class SuperAdminUsersAPIView(APIView):
             total = col.count_documents({})
             admins_count = col.count_documents({"role": UserRole.ADMIN})
             officers_count = col.count_documents({"role": UserRole.OFFICER})
-            citizens_count = col.count_documents({"role": UserRole.CITIZEN})
+            citizens_count = col.count_documents({"role": {"$in": [UserRole.CITIZEN, "volunteer"]}})
             blocked_count = col.count_documents({"is_blocked": True})
+            distinct_wards = [w for w in col.distinct("ward_id") if w]
+            wards_count = len(distinct_wards)
 
             return Response({
                 "users": UserProfileSerializer(users, many=True, context={"request": request}).data,
@@ -1208,6 +1210,7 @@ class SuperAdminUsersAPIView(APIView):
                     "officers_count": officers_count,
                     "citizens_count": citizens_count,
                     "blocked_count": blocked_count,
+                    "wards_count": wards_count,
                 }
             }, status=status.HTTP_200_OK)
         except Exception as exc:

@@ -316,7 +316,7 @@ export function adaptUserProfile(doc: any): import('../types').UserProfile {
     volunteer_institution: doc.volunteer_institution,
     volunteer_application_id: doc.volunteer_application_id,
     points: doc.points ?? 0,
-    coins: doc.coins ?? doc.points ?? 50,
+    coins: doc.coins ?? doc.points ?? 0,
     level: doc.level ?? Math.max(1, Math.floor((doc.points ?? 0) / 60) + 1),
     badges: doc.badges || [],
     reports_submitted_count: doc.reports_submitted_count ?? 0,
