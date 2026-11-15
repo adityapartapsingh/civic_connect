@@ -29,6 +29,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+const getScreenBatch = () => (typeof window !== 'undefined' && window.innerWidth < 768 ? 2 : 4);
+
 export const HomePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { coords, address, isLoading: geoLoading, refreshLocation } = useGeolocation();
@@ -48,9 +50,20 @@ export const HomePage: React.FC = () => {
   const [showMap, setShowMap] = useState<boolean>(false);
   const [showFilters, setShowFilters] = useState<boolean>(false);
 
-  // Instagram-style continuous stream pagination
-  const [visibleCount, setVisibleCount] = useState<number>(6);
+  // Screen-fit progressive stream pagination (only loads what fits on screen)
+  const [visibleCount, setVisibleCount] = useState<number>(getScreenBatch);
   const scrollSentinelRef = useRef<HTMLDivElement | null>(null);
+  const hasScrolledRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        hasScrolledRef.current = true;
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -137,7 +150,7 @@ export const HomePage: React.FC = () => {
 
   const handleFilterChange = (updated: Partial<ReportFilterParams>) => {
     setFilters((prev) => ({ ...prev, ...updated }));
-    setVisibleCount(6);
+    setVisibleCount(getScreenBatch());
   };
 
   // Metrics for the tab counts
@@ -230,7 +243,7 @@ export const HomePage: React.FC = () => {
     return list;
   }, [issues, myReports, activeTab, statusTab, proximityRadius, selectedCategory, filters, isUserReport]);
 
-  // Instagram-style progressive slice
+  // Progressive slice: only loads what fits the screen and expands as user scrolls
   const displayedIssues = useMemo(() => {
     return processedIssues.slice(0, visibleCount);
   }, [processedIssues, visibleCount]);
@@ -238,19 +251,28 @@ export const HomePage: React.FC = () => {
   const hasMore = visibleCount < processedIssues.length;
 
   const handleLoadMore = () => {
-    setVisibleCount((prev) => Math.min(prev + 6, processedIssues.length));
+    hasScrolledRef.current = true;
+    setVisibleCount((prev) => Math.min(prev + getScreenBatch(), processedIssues.length));
   };
 
-  // Infinite scroll intersection observer (Instagram-style auto loading as you scroll)
+  // Viewport-aware scroll observer: only streams subsequent items when user actively scrolls down
   useEffect(() => {
     if (!hasMore) return;
+    let timeoutId: any = null;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + 6, processedIssues.length));
+        const entry = entries[0];
+        // Only trigger if user has actually scrolled and sentinel is near viewport
+        if (entry.isIntersecting && hasScrolledRef.current) {
+          if (timeoutId) return;
+          timeoutId = setTimeout(() => {
+            setVisibleCount((prev) => Math.min(prev + getScreenBatch(), processedIssues.length));
+            timeoutId = null;
+          }, 150);
         }
       },
-      { rootMargin: '200px', threshold: 0.1 }
+      { rootMargin: '40px', threshold: 0.1 }
     );
 
     const currentSentinel = scrollSentinelRef.current;
@@ -259,6 +281,7 @@ export const HomePage: React.FC = () => {
     }
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       if (currentSentinel) {
         observer.unobserve(currentSentinel);
       }
@@ -410,7 +433,7 @@ export const HomePage: React.FC = () => {
             onClick={() => {
               setActiveTab('feed');
               setStatusTab('all');
-              setVisibleCount(6);
+              setVisibleCount(getScreenBatch());
             }}
             className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
               activeTab === 'feed' && statusTab === 'all'
@@ -426,7 +449,7 @@ export const HomePage: React.FC = () => {
             onClick={() => {
               setActiveTab('feed');
               setStatusTab('active');
-              setVisibleCount(6);
+              setVisibleCount(getScreenBatch());
             }}
             className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
               activeTab === 'feed' && statusTab === 'active'
@@ -442,7 +465,7 @@ export const HomePage: React.FC = () => {
             onClick={() => {
               setActiveTab('feed');
               setStatusTab('resolved');
-              setVisibleCount(6);
+              setVisibleCount(getScreenBatch());
             }}
             className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'feed' && statusTab === 'resolved'
@@ -458,7 +481,7 @@ export const HomePage: React.FC = () => {
             type="button"
             onClick={() => {
               setActiveTab('my_reports');
-              setVisibleCount(6);
+              setVisibleCount(getScreenBatch());
               fetchMyReports();
             }}
             className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
@@ -530,7 +553,7 @@ export const HomePage: React.FC = () => {
           type="button"
           onClick={() => {
             setProximityRadius('auto');
-            setVisibleCount(6);
+            setVisibleCount(getScreenBatch());
           }}
           className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
             proximityRadius === 'auto'
@@ -544,7 +567,7 @@ export const HomePage: React.FC = () => {
           type="button"
           onClick={() => {
             setProximityRadius(500);
-            setVisibleCount(6);
+            setVisibleCount(getScreenBatch());
           }}
           className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
             proximityRadius === 500
@@ -558,7 +581,7 @@ export const HomePage: React.FC = () => {
           type="button"
           onClick={() => {
             setProximityRadius(2000);
-            setVisibleCount(6);
+            setVisibleCount(getScreenBatch());
           }}
           className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
             proximityRadius === 2000
@@ -572,7 +595,7 @@ export const HomePage: React.FC = () => {
           type="button"
           onClick={() => {
             setProximityRadius(5000);
-            setVisibleCount(6);
+            setVisibleCount(getScreenBatch());
           }}
           className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
             proximityRadius === 5000
@@ -586,7 +609,7 @@ export const HomePage: React.FC = () => {
           type="button"
           onClick={() => {
             setProximityRadius('all');
-            setVisibleCount(6);
+            setVisibleCount(getScreenBatch());
           }}
           className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
             proximityRadius === 'all'
@@ -616,7 +639,7 @@ export const HomePage: React.FC = () => {
           type="button"
           onClick={() => {
             setSelectedCategory('all');
-            setVisibleCount(6);
+            setVisibleCount(getScreenBatch());
           }}
           className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer ${
             selectedCategory === 'all'
@@ -633,7 +656,7 @@ export const HomePage: React.FC = () => {
             type="button"
             onClick={() => {
               setSelectedCategory(cat.id);
-              setVisibleCount(6);
+              setVisibleCount(getScreenBatch());
             }}
             className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer ${
               selectedCategory === cat.id
@@ -747,8 +770,34 @@ export const HomePage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Progressive Feed List (Instagram-Style Infinite Flow) */}
+      {/* Main Progressive Feed List (Screen-Fit Viewport Flow) */}
       <div className="space-y-4">
+        {/* Dynamic Screen Viewport Stream Counter */}
+        {processedIssues.length > 0 && !isLoading && (
+          <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-medium text-slate-700">
+                Visible on screen: <strong className="text-slate-900 font-bold">{displayedIssues.length}</strong> of {processedIssues.length} reports
+              </span>
+            </div>
+            {hasMore ? (
+              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                <span>Scroll down to stream more</span>
+                <span>↓</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                <Check className="w-3 h-3 text-emerald-600" />
+                <span>All matching reports in view</span>
+              </span>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <CardSkeleton />
@@ -787,6 +836,7 @@ export const HomePage: React.FC = () => {
               return (
                 <div
                   key={issue.id}
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: '240px' }}
                   className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-4 sm:p-5 flex flex-col justify-between shadow-xs"
                 >
                   <div>
@@ -820,6 +870,8 @@ export const HomePage: React.FC = () => {
                         <img
                           src={issue.photo_url}
                           alt={issue.title}
+                          loading="lazy"
+                          decoding="async"
                           className="w-20 h-20 rounded-lg object-cover border border-slate-200 shrink-0"
                         />
                       ) : (
@@ -945,7 +997,7 @@ export const HomePage: React.FC = () => {
         {/* Sentinel element for infinite scroll observer */}
         <div ref={scrollSentinelRef} className="h-4" />
 
-        {/* Load More Button (Instagram-Style Flow) */}
+        {/* Load More Button (Screen-Fit Viewport Flow) */}
         {!isLoading && hasMore && (
           <div className="pt-2 text-center">
             <button
@@ -953,7 +1005,7 @@ export const HomePage: React.FC = () => {
               onClick={handleLoadMore}
               className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs inline-flex items-center gap-2 cursor-pointer"
             >
-              <span>Load More Community Reports ({processedIssues.length - visibleCount} remaining)</span>
+              <span>Load Next Screen Batch ({Math.min(getScreenBatch(), processedIssues.length - visibleCount)} More · {processedIssues.length - visibleCount} remaining)</span>
               <ArrowDown className="w-4 h-4" />
             </button>
           </div>

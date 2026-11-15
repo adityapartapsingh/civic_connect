@@ -435,7 +435,9 @@ export const issuesApi = {
     radiusMeters = 50000,
     category?: string,
     status?: string,
-    includeResolved = true
+    includeResolved = true,
+    limit = 100,
+    skip = 0
   ): Promise<Issue[]> => {
     try {
       const params: Record<string, any> = {
@@ -443,6 +445,8 @@ export const issuesApi = {
         lng,
         radius: radiusMeters,
         include_resolved: includeResolved,
+        limit,
+        skip,
       };
       if (category && category !== 'all') params.category = category;
       if (status && status !== 'all') params.status = frontendStatusToBackend(status);

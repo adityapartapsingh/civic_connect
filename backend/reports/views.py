@@ -300,6 +300,16 @@ class NearbyReportsAPIView(APIView):
         status_param = request.query_params.get("status")
         include_resolved = request.query_params.get("include_resolved", "true").lower() in ("true", "1")
 
+        try:
+            limit = int(request.query_params.get("limit", 100))
+        except (ValueError, TypeError):
+            limit = 100
+
+        try:
+            skip = int(request.query_params.get("skip", request.query_params.get("offset", 0)))
+        except (ValueError, TypeError):
+            skip = 0
+
         results = ReportManager.query_nearby(
             lat=float(lat),
             lng=float(lng),
@@ -307,6 +317,8 @@ class NearbyReportsAPIView(APIView):
             category=category,
             status=status_param,
             include_resolved=include_resolved,
+            limit=limit,
+            skip=skip,
         )
 
         return Response(

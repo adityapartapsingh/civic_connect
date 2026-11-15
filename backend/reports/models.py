@@ -383,6 +383,7 @@ class ReportManager:
         status: Optional[str] = None,
         include_resolved: bool = True,
         limit: int = 100,
+        skip: int = 0,
     ) -> List[Dict[str, Any]]:
         """Query reports ordered by distance using MongoDB $near or Haversine fallback."""
         lat_f, lng_f = validate_coordinates(lat, lng)
@@ -403,7 +404,7 @@ class ReportManager:
             # 1. Primary MongoDB 2dsphere $near query
             geo_query = dict(filter_dict)
             geo_query["location"] = build_near_query(lat_f, lng_f, radius_meters=radius_meters)
-            cursor = col.find(geo_query).limit(limit)
+            cursor = col.find(geo_query).skip(skip).limit(limit)
             docs = list(cursor)
 
             for doc in docs:
@@ -425,7 +426,7 @@ class ReportManager:
                         doc["distance_meters"] = round(d, 1)
                         results.append(serialize_doc(doc))
             results.sort(key=lambda x: x.get("distance_meters", 999999))
-            results = results[:limit]
+            results = results[skip : skip + limit]
 
         return results
 
