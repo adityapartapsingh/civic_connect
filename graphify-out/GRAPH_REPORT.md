@@ -1,17 +1,17 @@
 # Graph Report - civic connect  (2026-11-16)
 
 ## Corpus Check
-- 142 files · ~105,830 words
+- 142 files · ~104,938 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 27 file(s) not represented in the graph (top: .xml 10, (none) 7, .example 3)
 
 ## Summary
-- 1123 nodes · 2843 edges · 69 communities (35 shown, 34 thin omitted)
+- 1123 nodes · 2841 edges · 70 communities (36 shown, 34 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 144 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `99a1bb30`
+- Built from commit: `87762709`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -25,7 +25,7 @@
 - typing
 - llm_verifier.py
 - rest_framework
-- RewardsPage.tsx
+- ProfilePage.tsx
 - react
 - compilerOptions
 - package.json
@@ -54,8 +54,9 @@
 - VolunteerApplicationSerializer
 - UserTests
 - main.tsx
+- RewardsPage.tsx
 - reports/views.py
-- ReportPage.tsx
+- react
 - OTPManager
 - UserManager
 - ExampleInstrumentedTest.java
@@ -94,7 +95,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (69 total, 34 thin omitted)
+## Communities (70 total, 34 thin omitted)
 
 ### Community 0 - "UserManager"
 Cohesion: 0.08
@@ -124,13 +125,13 @@ Nodes (13): get_gemini_api_key(), verify_hazard_content(), calculate_shannon_ent
 Cohesion: 0.15
 Nodes (7): WardManager, DepartmentSerializer, WardLeaderboardSerializer, WardSerializer, DepartmentListAPIView, WardLeaderboardAPIView, WardListAPIView
 
-### Community 9 - "RewardsPage.tsx"
-Cohesion: 0.08
-Nodes (31): CategoryPickerProps, iconMap, badgeIcons, DEFAULT_CIVIC_BADGES, ProfilePage(), CITIZEN_REWARDS_CATALOG, COMMUNITY_DISTRICT_CITIZENS, COMMUNITY_INDIA_CITIZENS (+23 more)
+### Community 9 - "ProfilePage.tsx"
+Cohesion: 0.15
+Nodes (15): CategoryPickerProps, iconMap, badgeIcons, DEFAULT_CIVIC_BADGES, ProfilePage(), AIAnalysisResult, authApi, IssueCategory (+7 more)
 
 ### Community 10 - "react"
-Cohesion: 0.15
-Nodes (25): FilterBar(), FilterBarProps, CardSkeleton(), LoadingSpinnerProps, Modal(), ModalProps, Pagination(), PaginationProps (+17 more)
+Cohesion: 0.14
+Nodes (26): FilterBar(), FilterBarProps, CardSkeleton(), LoadingSpinnerProps, Modal(), ModalProps, Pagination(), PaginationProps (+18 more)
 
 ### Community 11 - "compilerOptions"
 Cohesion: 0.10
@@ -169,8 +170,8 @@ Cohesion: 0.25
 Nodes (8): scripts, build, cap:build, cap:open, cap:run, cap:sync, dev, preview
 
 ### Community 20 - "index.ts"
-Cohesion: 0.08
-Nodes (42): StatusBadgeProps, Leaderboard(), MUNICIPAL_WARDS, TASK_SPECIALTIES, BLOCK_REASON_PRESETS, MUNICIPAL_WARDS, TASK_OPTIONS, CIVIC_INTEREST_AREAS (+34 more)
+Cohesion: 0.07
+Nodes (46): StatusBadgeProps, Leaderboard(), MUNICIPAL_WARDS, TASK_SPECIALTIES, BLOCK_REASON_PRESETS, MUNICIPAL_WARDS, TASK_OPTIONS, CIVIC_INTEREST_AREAS (+38 more)
 
 ### Community 33 - "get_collection"
 Cohesion: 0.15
@@ -193,8 +194,8 @@ Cohesion: 0.09
 Nodes (10): is_mock_mode(), find_nearby_active_duplicate(), merge_duplicate_into_timeline(), run_report_verification_pipeline(), VerificationResult, haversine_distance(), is_near_facility(), point_to_geojson() (+2 more)
 
 ### Community 42 - "useAuthStore"
-Cohesion: 0.18
-Nodes (27): Toast(), PhotoGeoTag, StatusUpdater(), StatusUpdaterProps, PointsBadge(), CitizenLayout(), Layout(), MobileNav() (+19 more)
+Cohesion: 0.22
+Nodes (20): Toast(), PointsBadge(), CitizenLayout(), Layout(), MobileNav(), OfficerLayout(), SuperAdminLayout(), WardAdminLayout() (+12 more)
 
 ### Community 43 - "validate_coordinates"
 Cohesion: 0.25
@@ -208,13 +209,17 @@ Nodes (11): is_mongo_connected(), HealthCheckAPIView, FraudCheckRequestSerialize
 Cohesion: 0.11
 Nodes (4): evaluate_user_badges(), ActionPoints, GamificationManager, GamificationTests
 
+### Community 50 - "RewardsPage.tsx"
+Cohesion: 0.13
+Nodes (16): CITIZEN_REWARDS_CATALOG, COMMUNITY_DISTRICT_CITIZENS, COMMUNITY_INDIA_CITIZENS, COMMUNITY_LOCAL_CITIZENS, getCitizensForState(), getOfficersForState(), IndianState, LeaderboardUser (+8 more)
+
 ### Community 51 - "reports/views.py"
 Cohesion: 0.06
 Nodes (29): IsAuthenticatedCivicUser, IsOfficerOrAdmin, serialize_doc(), serialize_docs(), PriorityLevel, ReportManager, ReportStatus, EvidenceEntrySerializer (+21 more)
 
-### Community 52 - "ReportPage.tsx"
-Cohesion: 0.30
-Nodes (10): CameraCapture(), CameraCaptureProps, CategoryPicker(), NearbyCheck(), CapturedMedia, useCamera(), ReportPage(), AIAnalysisResult (+2 more)
+### Community 52 - "react"
+Cohesion: 0.23
+Nodes (16): Button(), ButtonProps, CameraCapture(), CameraCaptureProps, CategoryPicker(), NearbyCheck(), NearbyCheckProps, CapturedMedia (+8 more)
 
 ### Community 55 - "OTPManager"
 Cohesion: 0.19
@@ -229,8 +234,8 @@ Cohesion: 0.25
 Nodes (3): ErrorBoundary, Props, State
 
 ### Community 60 - "App.tsx"
-Cohesion: 0.13
-Nodes (22): AdminPortalPage, App(), ConfirmResolutionPage, DashboardPage, MapPage, PublicUpdatePage, RewardsPage, RouteLoadingFallback() (+14 more)
+Cohesion: 0.15
+Nodes (18): AdminPortalPage, App(), ConfirmResolutionPage, DashboardPage, MapPage, PublicUpdatePage, RewardsPage, RouteLoadingFallback() (+10 more)
 
 ### Community 66 - "cloudinary_service.py"
 Cohesion: 0.15
@@ -253,7 +258,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `UserManager` be split into smaller, more focused modules?**
   _Cohesion score 0.07909604519774012 - nodes in this community are weakly interconnected._
 - **Why does `get_collection()` connect `get_collection` to `UserManager`, `UserProfileSerializer`, `cloudinary_service.py`, `otp.py`, `get_db`, `authentication.py`, `typing`, `typing`, `validate_indian_phone`, `get_collection`, `reports/models.py`, `VolunteerApplicationSerializer`, `UserTests`, `reports/views.py`, `UserManager`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
+  _High betweenness centrality (0.043) - this node is a cross-community bridge._
 - **Are the 17 inferred relationships involving `UserProfileSerializer` (e.g. with `BadgeTier` and `UserRole`) actually correct?**
   _`UserProfileSerializer` has 17 INFERRED edges - model-reasoned connections that need verification._
 - **Should `validate_indian_phone` be split into smaller, more focused modules?**

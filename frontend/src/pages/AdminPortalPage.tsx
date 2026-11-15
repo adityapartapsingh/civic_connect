@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { adminApi, issuesApi, volunteerApi } from '../services/api';
-import { VolunteerApplication, UserProfile, AdminCredentialsSlip, Issue, IssueStatus } from '../types';
+import { adminApi, issuesApi } from '../services/api';
+import { UserProfile, AdminCredentialsSlip, Issue, IssueStatus } from '../types';
 import { getSlaInfo, formatRelativeDate } from '../utils/helpers';
 import {
   ShieldCheck,
@@ -139,8 +139,8 @@ export const AdminPortalPage: React.FC = () => {
   // Active Ward: Can be switched by Super Admin, or locked to user's assigned ward
   const [activeWardId, setActiveWardId] = useState<string>(user?.ward_id || 'Ward-102');
 
-  // Navigation Tabs: 'dispatch' | 'roster' | 'matrix' | 'volunteers'
-  const [activeTab, setActiveTab] = useState<'dispatch' | 'roster' | 'matrix' | 'volunteers'>('dispatch');
+  // Navigation Tabs: 'dispatch' | 'roster' | 'matrix'
+  const [activeTab, setActiveTab] = useState<'dispatch' | 'roster' | 'matrix'>('dispatch');
 
   // Data States
   const [officersList, setOfficersList] = useState<UserProfile[]>([]);
@@ -165,17 +165,6 @@ export const AdminPortalPage: React.FC = () => {
     creds: AdminCredentialsSlip;
   } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-
-  // Volunteer Applications Queue State
-  const [volunteerApps, setVolunteerApps] = useState<VolunteerApplication[]>([]);
-  const [volunteersLoading, setVolunteersLoading] = useState<boolean>(false);
-  const [volunteerStatusFilter, setVolunteerStatusFilter] = useState<string>('PENDING');
-  const [reviewingAppId, setReviewingAppId] = useState<string | null>(null);
-  const [reviewModal, setReviewModal] = useState<{
-    app: VolunteerApplication;
-    action: 'approve' | 'reject';
-    notes: string;
-  } | null>(null);
 
   const activeWard = useMemo(() => {
     return MUNICIPAL_WARDS.find((w) => w.id === activeWardId) || MUNICIPAL_WARDS[1];
@@ -284,30 +273,9 @@ export const AdminPortalPage: React.FC = () => {
     }
   };
 
-  const loadVolunteerApplications = async () => {
-    setVolunteersLoading(true);
-    try {
-      const res = await volunteerApi.listAdminQueue({
-        ward_id: activeWardId,
-        status: volunteerStatusFilter === 'ALL' ? undefined : volunteerStatusFilter,
-      });
-      setVolunteerApps(res.applications || []);
-    } catch {
-      setVolunteerApps([]);
-    } finally {
-      setVolunteersLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadWardData();
   }, [activeWardId]);
-
-  useEffect(() => {
-    if (activeTab === 'volunteers') {
-      loadVolunteerApplications();
-    }
-  }, [activeWardId, volunteerStatusFilter, activeTab]);
 
   // Ward Complaints filter
   const wardComplaints = useMemo(() => {
@@ -457,29 +425,6 @@ export const AdminPortalPage: React.FC = () => {
       });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Action: Review Volunteer Application
-  const handleReviewVolunteer = async (applicationId: string, action: 'approve' | 'reject', notes: string) => {
-    setReviewingAppId(applicationId);
-    try {
-      const res = await volunteerApi.review(applicationId, action, notes);
-      addToast({
-        type: action === 'approve' ? 'success' : 'info',
-        title: action === 'approve' ? 'Volunteer Approved & Enlisted' : 'Application Declined',
-        message: res.message,
-      });
-      setReviewModal(null);
-      loadVolunteerApplications();
-    } catch (err: any) {
-      addToast({
-        type: 'error',
-        title: 'Review Action Failed',
-        message: err.message || 'Could not update volunteer application status.',
-      });
-    } finally {
-      setReviewingAppId(null);
     }
   };
 
@@ -663,19 +608,6 @@ export const AdminPortalPage: React.FC = () => {
           >
             <Building2 className="w-3.5 h-3.5 text-teal-300" />
             <span>Municipal Ward Governance Matrix</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('volunteers')}
-            className={`px-3.5 py-2 rounded text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === 'volunteers'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-teal-300" />
-            <span>Youth Volunteer Verification</span>
           </button>
         </div>
       </div>
@@ -1331,207 +1263,6 @@ export const AdminPortalPage: React.FC = () => {
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* TAB 4: YOUTH VOLUNTEER VERIFICATION & AUTHORIZATION QUEUE     */}
-      {/* ============================================================== */}
-      {activeTab === 'volunteers' && (
-        <div className="bg-slate-950 rounded-lg border border-slate-800 shadow-md overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-900/80 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-slate-800 rounded text-amber-400 border border-slate-700">
-                <Users className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm sm:text-base">
-                    Volunteer Verification &amp; Authorization Queue
-                  </h3>
-                  <span className="px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 text-[10px] font-mono font-bold border border-amber-400/30">
-                    {activeWardId} Jurisdictional Intake
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Review collegiate (NSS, NCC, NYKS) and community volunteer applicants. Approvals grant official volunteer status and +100 initiation points.
-                </p>
-              </div>
-            </div>
-
-            {/* Filter Status Pills */}
-            <div className="flex items-center gap-1.5 self-start sm:self-auto font-mono text-xs">
-              {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map((statusKey) => (
-                <button
-                  key={statusKey}
-                  type="button"
-                  onClick={() => setVolunteerStatusFilter(statusKey)}
-                  className={`px-2.5 py-1 rounded text-[11px] font-bold border transition ${
-                    volunteerStatusFilter === statusKey
-                      ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-xs'
-                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                  }`}
-                >
-                  {statusKey}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {volunteersLoading ? (
-            <div className="py-12 text-center text-slate-400 space-y-2">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-400" />
-              <p className="text-xs">Loading volunteer verification queue...</p>
-            </div>
-          ) : volunteerApps.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 space-y-1">
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-              <p className="font-bold text-white text-sm">No Applications in Queue</p>
-              <p className="text-xs text-slate-500">
-                There are currently no volunteer applications matching status '{volunteerStatusFilter}'.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-800/80">
-              {volunteerApps.map((app) => (
-                <div
-                  key={app.application_id}
-                  className="p-4 sm:p-5 hover:bg-slate-900/60 transition flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
-                >
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-white text-sm">{app.name}</span>
-                      <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 font-mono text-[10px] font-bold border border-blue-500/20">
-                        {app.scheme}
-                      </span>
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        ID: {app.cadet_or_enrollment_id || 'N/A'}
-                      </span>
-                    </div>
-
-                    <div className="text-slate-400 font-mono text-[11px]">
-                      {app.phone} {app.email ? `· ${app.email}` : ''} · {app.institution || 'Civic Volunteer'}
-                    </div>
-
-                    {app.statement && (
-                      <p className="text-slate-300 text-xs italic bg-slate-900 p-2 rounded border border-slate-800">
-                        "{app.statement}"
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Actions for Pending */}
-                  {app.status === 'PENDING' && (
-                    <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
-                      <button
-                        type="button"
-                        disabled={reviewingAppId === app.application_id}
-                        onClick={() =>
-                          setReviewModal({
-                            app,
-                            action: 'approve',
-                            notes: 'Credentials and enrollment verified by Ward Administrator.',
-                          })
-                        }
-                        className="px-3.5 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Approve (+100 Pts)</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={reviewingAppId === app.application_id}
-                        onClick={() =>
-                          setReviewModal({
-                            app,
-                            action: 'reject',
-                            notes: 'Identification or institutional status could not be validated.',
-                          })
-                        }
-                        className="px-3 py-2 rounded bg-slate-900 hover:bg-red-950 text-red-300 font-semibold text-xs border border-red-800/40 transition flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>Reject</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Volunteer Review Modal */}
-      {reviewModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-950 border border-slate-800 rounded-lg max-w-md w-full p-6 space-y-4 shadow-2xl text-white">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="font-bold text-base">
-                {reviewModal.action === 'approve' ? 'Authorize Civic Volunteer' : 'Decline Volunteer Application'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setReviewModal(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="text-xs text-slate-300 space-y-2">
-              <p>Applicant: <strong className="text-white">{reviewModal.app.name}</strong> ({reviewModal.app.scheme})</p>
-              <p>Phone: <span className="font-mono text-teal-300">{reviewModal.app.phone}</span></p>
-              {reviewModal.action === 'approve' ? (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded text-emerald-200 text-xs">
-                  Approving will elevate this citizen to official <strong>{reviewModal.app.scheme} Volunteer</strong> in <strong>{activeWard.name}</strong> and award <strong>+100 welcome reputation points</strong>.
-                </div>
-              ) : (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-200 text-xs">
-                  The applicant profile will remain as a standard citizen.
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Administrative Verification Note
-              </label>
-              <textarea
-                rows={2}
-                value={reviewModal.notes}
-                onChange={(e) => setReviewModal({ ...reviewModal, notes: e.target.value })}
-                className="w-full p-2.5 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setReviewModal(null)}
-                className="px-3 py-2 text-xs font-medium text-slate-400 hover:text-white border border-slate-700 rounded bg-slate-900"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={reviewingAppId === reviewModal.app.application_id}
-                onClick={() => handleReviewVolunteer(reviewModal.app.application_id, reviewModal.action, reviewModal.notes)}
-                className={`px-4 py-2 text-xs font-bold rounded text-white transition ${
-                  reviewModal.action === 'approve'
-                    ? 'bg-emerald-700 hover:bg-emerald-600'
-                    : 'bg-red-700 hover:bg-red-600'
-                }`}
-              >
-                {reviewingAppId === reviewModal.app.application_id
-                  ? 'Processing...'
-                  : reviewModal.action === 'approve'
-                  ? 'Confirm & Authorize'
-                  : 'Confirm Rejection'}
-              </button>
-            </div>
           </div>
         </div>
       )}
