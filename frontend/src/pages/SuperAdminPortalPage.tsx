@@ -660,16 +660,16 @@ export const SuperAdminPortalPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Super Admin Top Header */}
-      <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-lg border border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-slate-900">
         <div>
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-amber-400" />
-            <h1 className="text-lg font-bold tracking-tight text-white">
+            <Shield className="w-5 h-5 text-slate-800" />
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
               Super Admin Console • Full Website Governance
             </h1>
           </div>
-          <p className="text-xs text-slate-300 mt-0.5 font-mono">
-            Active: <strong className="text-amber-300">{user?.name}</strong> (ID: {user?.employee_id || 'CC-SUPERADMIN-001'}) · Punjab Municipal Corporation Root Authority
+          <p className="text-xs text-slate-500 mt-0.5 font-mono">
+            Active: <strong className="text-slate-800">{user?.name}</strong> (ID: {user?.employee_id || 'CC-SUPERADMIN-001'}) · Punjab Municipal Corporation Root Authority
           </p>
         </div>
 
@@ -684,7 +684,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                 message: 'Exited Super Admin session.',
               });
             }}
-            className="px-3 py-1.5 rounded bg-red-950 hover:bg-red-900 text-red-200 text-xs font-bold border border-red-800 transition flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-bold border border-slate-200 hover:border-red-200 transition flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>
@@ -694,39 +694,39 @@ export const SuperAdminPortalPage: React.FC = () => {
 
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
           <span className="text-xs font-semibold text-slate-500">Total System Accounts</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">{userStats.total || allUsers.length}</div>
+          <div className="text-2xl font-black text-slate-900 font-mono mt-1">{userStats.total || allUsers.length}</div>
           <span className="text-[11px] text-slate-500 font-medium">Atlas Database Records</span>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Ward Administrators</span>
-          <div className="text-2xl font-black text-amber-600 mt-1">{admins.length} Admins</div>
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
+          <span className="text-xs font-semibold text-slate-700">Ward Administrators</span>
+          <div className="text-2xl font-black text-slate-900 font-mono mt-1">{admins.length} Admins</div>
           <span className="text-[11px] text-slate-500 font-medium">5 Municipal Wards</span>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Field Squad Officers</span>
-          <div className="text-2xl font-black text-cyan-600 mt-1">{officers.length} Officers</div>
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
+          <span className="text-xs font-semibold text-slate-700">Field Squad Officers</span>
+          <div className="text-2xl font-black text-slate-900 font-mono mt-1">{officers.length} Officers</div>
           <span className="text-[11px] text-slate-500 font-medium">On-Site Dispatch Force</span>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Registered Citizens</span>
-          <div className="text-2xl font-black text-emerald-600 mt-1">{citizens.length} Citizens</div>
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
+          <span className="text-xs font-semibold text-emerald-700">Registered Citizens</span>
+          <div className="text-2xl font-black text-emerald-600 font-mono mt-1">{citizens.length} Citizens</div>
           <span className="text-[11px] text-slate-500 font-medium">Public Community Users</span>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-red-200 bg-red-50/40 shadow-xs">
+        <div className="bg-red-50/50 p-4 rounded-xl border border-red-200 shadow-xs">
           <span className="text-xs font-bold text-red-700">Suspended / Blocked</span>
-          <div className="text-2xl font-black text-red-700 mt-1">{blockedUsers.length} Blocked</div>
+          <div className="text-2xl font-black text-red-700 font-mono mt-1">{blockedUsers.length} Blocked</div>
           <span className="text-[11px] text-red-600 font-medium">Illegal &amp; Spam Enforcements</span>
         </div>
       </div>
 
       {/* Control Tabs Navigation */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-xs p-2">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
@@ -737,9 +737,11 @@ export const SuperAdminPortalPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Building2 className="w-3.5 h-3.5 text-amber-400" />
-            <span>Ward Admins</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400/20 text-amber-300 font-mono">
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Ward Matrix</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+              activeTab === 'admins' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
               {admins.length}
             </span>
           </button>
@@ -753,9 +755,11 @@ export const SuperAdminPortalPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+            <ShieldCheck className="w-3.5 h-3.5" />
             <span>Field Officers</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-cyan-400/20 text-cyan-300 font-mono">
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+              activeTab === 'officers' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
               {officers.length}
             </span>
           </button>
@@ -769,9 +773,11 @@ export const SuperAdminPortalPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Users className="w-3.5 h-3.5 text-emerald-400" />
+            <Users className="w-3.5 h-3.5" />
             <span>Citizens / Users</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-400/20 text-emerald-300 font-mono">
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+              activeTab === 'citizens' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
               {citizens.length}
             </span>
           </button>
@@ -781,13 +787,15 @@ export const SuperAdminPortalPage: React.FC = () => {
             onClick={() => setActiveTab('blocked')}
             className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
               activeTab === 'blocked'
-                ? 'bg-red-900 text-white shadow-xs'
+                ? 'bg-red-700 text-white shadow-xs'
                 : 'text-red-700 hover:text-red-900 hover:bg-red-50'
             }`}
           >
             <Ban className="w-3.5 h-3.5" />
             <span>Blocked / Spam</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-200 text-red-900 font-mono font-bold">
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === 'blocked' ? 'bg-red-800 text-white' : 'bg-red-100 text-red-800'
+            }`}>
               {blockedUsers.length}
             </span>
           </button>
@@ -801,21 +809,8 @@ export const SuperAdminPortalPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5 text-amber-400" />
+            <UserPlus className="w-3.5 h-3.5" />
             <span>+ Add Official / User</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('volunteers')}
-            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'volunteers'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 text-blue-400" />
-            <span>Youth Volunteers</span>
           </button>
 
           <button
@@ -827,7 +822,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+            <Smartphone className="w-3.5 h-3.5" />
             <span>WhatsApp Gateway</span>
             <span className={`w-2 h-2 rounded-full ${waStatus?.connected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           </button>
@@ -835,18 +830,18 @@ export const SuperAdminPortalPage: React.FC = () => {
       </div>
 
       {/* ============================================================== */}
-      {/* 1. WARD ADMINS LIST (FULL CONTROL)                             */}
+      {/* 1. WARD ADMINS LIST (FULL CONTROL MATRIX)                      */}
       {/* ============================================================== */}
       {activeTab === 'admins' && (
-        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-amber-600" />
-                <span>Municipal Ward Administrators Governance</span>
+                <Building2 className="w-4 h-4 text-slate-800" />
+                <span>City-Wide Municipal Ward Governance Matrix</span>
               </h2>
               <p className="text-xs text-slate-500">
-                Full authority to view, edit, update, delete, or suspend Ward Admins.
+                Every municipal ward has exactly one assigned Ward Admin who authorizes on-site field officers.
               </p>
             </div>
 
@@ -855,8 +850,8 @@ export const SuperAdminPortalPage: React.FC = () => {
                 type="button"
                 onClick={loadUsersData}
                 disabled={usersLoading}
-                className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
-                title="Refresh Admins"
+                className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
+                title="Refresh Matrix"
               >
                 <RefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />
               </button>
@@ -865,17 +860,17 @@ export const SuperAdminPortalPage: React.FC = () => {
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+              <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="px-4 py-3">Ward Jurisdiction</th>
-                  <th className="px-4 py-3">Administrator Contact</th>
-                  <th className="px-4 py-3">Employee ID &amp; PIN</th>
-                  <th className="px-4 py-3 text-center">Field Squad</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-right">Actions (Full Control)</th>
+                  <th className="px-4 py-3">Designated Administrator</th>
+                  <th className="px-4 py-3">Employee ID</th>
+                  <th className="px-4 py-3">Security Code</th>
+                  <th className="px-4 py-3 text-center">Field Squads</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-100">
                 {admins.map((admin) => (
                   <tr key={admin.id || admin.employee_id} className="hover:bg-slate-50/80 transition">
                     <td className="px-4 py-3.5">
@@ -885,7 +880,7 @@ export const SuperAdminPortalPage: React.FC = () => {
 
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                        <BadgeCheck className="w-3.5 h-3.5 text-cyan-600" />
+                        <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
                         <span>{admin.name}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 font-mono">
@@ -896,47 +891,39 @@ export const SuperAdminPortalPage: React.FC = () => {
                       </div>
                     </td>
 
-                    <td className="px-4 py-3.5 space-y-1">
-                      <div className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold inline-block">
+                    <td className="px-4 py-3.5">
+                      <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold">
                         {admin.employee_id || 'N/A'}
-                      </div>
-                      <div className="font-mono text-[10px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700 font-semibold inline-flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-slate-500" />
-                        <span>Key Configured</span>
-                      </div>
+                      </span>
                     </td>
 
-                    <td className="px-4 py-3.5 text-center">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
-                        {admin.officers_count || 0} Officers
+                    <td className="px-4 py-3.5">
+                      <span className="font-mono text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-800 font-semibold inline-flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-amber-600" />
+                        <span>Security Key Active</span>
                       </span>
                     </td>
 
                     <td className="px-4 py-3.5 text-center">
-                      {admin.is_blocked ? (
-                        <div>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
-                            ● SUSPENDED
-                          </span>
-                          {admin.block_reason && (
-                            <p className="text-[10px] text-red-700 mt-0.5 max-w-xs truncate" title={admin.block_reason}>
-                              Reason: {admin.block_reason}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
-                          ● ACTIVE
-                        </span>
-                      )}
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {admin.officers_count || 0} Officers
+                      </span>
                     </td>
 
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          to="/admin"
+                          className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-semibold text-[11px] transition inline-flex items-center gap-1"
+                        >
+                          <span>Open Ward Console</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </Link>
+
                         <button
                           type="button"
                           onClick={() => setEditUserModal(admin)}
-                          className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition"
+                          className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition"
                           title="Edit Ward Admin Profile"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -946,7 +933,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleUnblockUser(admin)}
-                            className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 transition"
+                            className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition"
                             title="Unblock & Reinstate Admin"
                           >
                             <UserCheck className="w-3.5 h-3.5" />
@@ -955,7 +942,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setBlockUserModal({ user: admin, reason: '' })}
-                            className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                            className="p-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
                             title="Block / Suspend Admin with Reason"
                           >
                             <Ban className="w-3.5 h-3.5" />
@@ -965,7 +952,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setDeleteUserModal(admin)}
-                          className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                          className="p-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
                           title="Delete Ward Admin Account"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -984,8 +971,8 @@ export const SuperAdminPortalPage: React.FC = () => {
       {/* 2. FIELD OFFICERS LIST (FULL CONTROL ACROSS ALL WARDS)         */}
       {/* ============================================================== */}
       {activeTab === 'officers' && (
-        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-cyan-600" />
@@ -1162,8 +1149,8 @@ export const SuperAdminPortalPage: React.FC = () => {
       {/* 3. CITIZENS / USERS LIST (FULL CONTROL)                        */}
       {/* ============================================================== */}
       {activeTab === 'citizens' && (
-        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                 <Users className="w-4 h-4 text-emerald-600" />
@@ -1329,7 +1316,7 @@ export const SuperAdminPortalPage: React.FC = () => {
       {/* 4. BLOCKED & SUSPENDED ACCOUNTS (WITH MANDATORY REASONS)       */}
       {/* ============================================================== */}
       {activeTab === 'blocked' && (
-        <div className="bg-white rounded-lg border border-red-300 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-xl border border-red-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-red-200 bg-red-50 flex items-center justify-between">
             <div>
               <h2 className="font-bold text-sm sm:text-base text-red-950 flex items-center gap-2">
@@ -1432,17 +1419,17 @@ export const SuperAdminPortalPage: React.FC = () => {
       {/* 5. ADD / PROVISION NEW OFFICIAL OR USER                        */}
       {/* ============================================================== */}
       {activeTab === 'create' && (
-        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-slate-800 rounded text-amber-400 border border-slate-700">
+              <div className="p-1.5 bg-slate-100 rounded-lg text-slate-800 border border-slate-200">
                 <UserPlus className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="font-bold text-sm sm:text-base">
+                <h2 className="font-bold text-sm sm:text-base text-slate-900">
                   Provision New Account (Ward Admin, Field Officer, or Citizen)
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500">
                   Super Admin direct provisioning with automated credential codes and role authorization.
                 </p>
               </div>

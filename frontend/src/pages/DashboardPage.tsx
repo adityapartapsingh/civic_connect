@@ -136,25 +136,25 @@ export const DashboardPage: React.FC = () => {
   }).length;
 
   return (
-    <div className="space-y-5 pb-12">
+    <div className="space-y-6 pb-12">
       {/* Officer Header & Deployment Context Banner */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 sm:p-5 text-white shadow-md">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[11px] font-bold tracking-wider uppercase">
+              <span className="px-2.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800 font-mono text-[11px] font-bold tracking-wider uppercase">
                 {user?.employee_id || 'PB-MCJ-FIELD-SQUAD'}
               </span>
-              <span className="text-xs font-mono text-zinc-400">
+              <span className="text-xs font-mono text-slate-500">
                 {user?.ward_name || user?.ward_id || 'Ward 2 - Civil Lines Zone'}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-zinc-100 flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-amber-400 shrink-0" />
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-slate-700 shrink-0" />
               <span>Field Squad Dispatch &amp; Work Orders</span>
             </h1>
-            <p className="text-xs text-zinc-400">
-              Assigned Field Officer: <strong className="text-zinc-200">{user?.name || 'On-Duty Officer'}</strong> · {user?.designation || 'Junior Engineer'} · {user?.department || 'Civil Infrastructure Cell'}
+            <p className="text-xs text-slate-500">
+              Assigned Field Officer: <strong className="text-slate-800">{user?.name || 'On-Duty Officer'}</strong> · {user?.designation || 'Junior Engineer'} · {user?.department || 'Civil Infrastructure Cell'}
             </p>
           </div>
 
@@ -163,16 +163,16 @@ export const DashboardPage: React.FC = () => {
               type="button"
               onClick={loadTickets}
               disabled={isLoading}
-              className="p-2.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition"
+              className="p-2 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition"
               title="Refresh Work Orders"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-slate-900' : ''}`} />
             </button>
 
             {user?.role === 'admin' && (
               <Link
                 to="/admin-portal"
-                className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-xs font-bold rounded border border-amber-500/40 transition flex items-center gap-1.5"
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-md border border-slate-200 transition flex items-center gap-1.5"
               >
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Switch to Ward Console</span>
@@ -182,22 +182,22 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Assigned Task Domain Tags */}
-        <div className="mt-4 pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="mt-4 pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-zinc-400 font-semibold uppercase text-[10px] tracking-wider">
+            <span className="text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
               Assigned Squad Specialty:
             </span>
             {officerTasks.length > 0 ? (
               officerTasks.map((t) => (
                 <span
                   key={t}
-                  className="px-2.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-amber-300 font-mono text-[11px] font-bold uppercase"
+                  className="px-2.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px] font-semibold uppercase"
                 >
                   {t.replace(/_/g, ' ')}
                 </span>
               ))
             ) : (
-              <span className="px-2.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300 font-mono text-[11px]">
+              <span className="px-2.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 font-mono text-[11px]">
                 ALL FIELD INFRASTRUCTURE
               </span>
             )}
@@ -205,14 +205,14 @@ export const DashboardPage: React.FC = () => {
 
           {/* Scope Toggle Button */}
           {officerTasks.length > 0 && (
-            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded border border-zinc-800">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
               <button
                 type="button"
                 onClick={() => setScope('specialty')}
-                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
                   scope === 'specialty'
-                    ? 'bg-amber-500 text-zinc-950 shadow-xs'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-white text-slate-900 font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 ★ My Specialty ({specialtyTickets.length})
@@ -220,10 +220,10 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setScope('ward')}
-                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
                   scope === 'ward'
-                    ? 'bg-amber-500 text-zinc-950 shadow-xs'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-white text-slate-900 font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 🏛️ All Ward ({wardTickets.length})
@@ -233,90 +233,90 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Rugged Field KPI Counter Grid */}
+      {/* Field KPI Counter Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button
           type="button"
           onClick={() => setFilterTab('all')}
-          className={`p-4 rounded-lg border text-left transition ${
+          className={`p-4 rounded-xl border text-left transition ${
             filterTab === 'all'
-              ? 'bg-zinc-800 border-amber-500 text-white shadow-sm ring-1 ring-amber-500'
-              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+              ? 'bg-white border-slate-900 shadow-sm ring-1 ring-slate-900'
+              : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
           }`}
         >
-          <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+          <span className="text-[11px] uppercase font-bold tracking-wider text-slate-500 block">
             Total Work Orders
           </span>
-          <div className="text-2xl font-black text-zinc-100 font-mono mt-1">{totalCount}</div>
-          <span className="text-[11px] text-zinc-500">Active in queue</span>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono mt-1">{totalCount}</div>
+          <span className="text-xs text-slate-500">Active in queue</span>
         </button>
 
         <button
           type="button"
           onClick={() => setFilterTab('in_progress')}
-          className={`p-4 rounded-lg border text-left transition ${
+          className={`p-4 rounded-xl border text-left transition ${
             filterTab === 'in_progress'
-              ? 'bg-zinc-800 border-amber-500 text-white shadow-sm ring-1 ring-amber-500'
-              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+              ? 'bg-white border-blue-600 shadow-sm ring-1 ring-blue-600'
+              : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
           }`}
         >
-          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block flex items-center gap-1">
-            <Flame className="w-3 h-3" />
+          <span className="text-[11px] uppercase font-bold tracking-wider text-blue-700 block flex items-center gap-1">
+            <Flame className="w-3.5 h-3.5" />
             In Progress
           </span>
-          <div className="text-2xl font-black text-amber-400 font-mono mt-1">{inProgressCount}</div>
-          <span className="text-[11px] text-zinc-500">Squad on-site</span>
+          <div className="text-2xl sm:text-3xl font-black text-blue-800 font-mono mt-1">{inProgressCount}</div>
+          <span className="text-xs text-slate-500">Squad on-site</span>
         </button>
 
         <button
           type="button"
           onClick={() => setFilterTab('resolved')}
-          className={`p-4 rounded-lg border text-left transition ${
+          className={`p-4 rounded-xl border text-left transition ${
             filterTab === 'resolved'
-              ? 'bg-zinc-800 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500'
-              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+              ? 'bg-white border-emerald-600 shadow-sm ring-1 ring-emerald-600'
+              : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
           }`}
         >
-          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" />
+          <span className="text-[11px] uppercase font-bold tracking-wider text-emerald-700 block flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" />
             Completed
           </span>
-          <div className="text-2xl font-black text-emerald-400 font-mono mt-1">{resolvedCount}</div>
-          <span className="text-[11px] text-zinc-500">Verified resolved</span>
+          <div className="text-2xl sm:text-3xl font-black text-emerald-800 font-mono mt-1">{resolvedCount}</div>
+          <span className="text-xs text-slate-500">Verified resolved</span>
         </button>
 
         <button
           type="button"
           onClick={() => setFilterTab('breached')}
-          className={`p-4 rounded-lg border text-left transition ${
+          className={`p-4 rounded-xl border text-left transition ${
             filterTab === 'breached'
-              ? 'bg-zinc-800 border-red-500 text-white shadow-sm ring-1 ring-red-500'
-              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+              ? 'bg-white border-red-600 shadow-sm ring-1 ring-red-600'
+              : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
           }`}
         >
-          <span className="text-[10px] uppercase font-bold tracking-wider text-red-400 block flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
+          <span className="text-[11px] uppercase font-bold tracking-wider text-red-700 block flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5" />
             SLA Breached
           </span>
-          <div className="text-2xl font-black text-red-400 font-mono mt-1">{breachedCount}</div>
-          <span className="text-[11px] text-zinc-500">Exceeded 48h limit</span>
+          <div className="text-2xl sm:text-3xl font-black text-red-800 font-mono mt-1">{breachedCount}</div>
+          <span className="text-xs text-slate-500">Exceeded 48h limit</span>
         </button>
       </div>
 
       {/* Work Orders List Feed */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs font-mono text-zinc-400 px-1">
+        <div className="flex items-center justify-between text-xs font-mono text-slate-500 px-1">
           <span>
-            SHOWING <strong className="text-zinc-200">{displayedOrders.length}</strong> WORK ORDERS ({filterTab.toUpperCase()})
+            SHOWING <strong className="text-slate-800">{displayedOrders.length}</strong> WORK ORDERS ({filterTab.toUpperCase()})
           </span>
-          <span>HIGH-CONTRAST FIELD MODE</span>
+          <span className="text-[11px]">48H STATUTORY SLA WORKSTATION</span>
         </div>
 
         {displayedOrders.length === 0 ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-10 text-center text-zinc-400 space-y-2">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-            <h3 className="text-sm font-bold text-zinc-200">No Orders in this Queue</h3>
-            <p className="text-xs text-zinc-500">
+          <div className="bg-white border border-slate-200 rounded-xl p-10 text-center text-slate-500 space-y-2 shadow-xs">
+            <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+            <h3 className="text-sm font-bold text-slate-800">No Orders in this Queue</h3>
+            <p className="text-xs text-slate-500">
               All assigned municipal work orders for this filter have been addressed.
             </p>
           </div>
@@ -329,41 +329,41 @@ export const DashboardPage: React.FC = () => {
             return (
               <div
                 key={ticket.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 sm:p-5 text-white hover:border-zinc-700 transition space-y-4 shadow-sm"
+                className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 transition space-y-4 shadow-xs"
               >
                 {/* Order Top Bar: Tracking ID + Category + SLA Radar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-black bg-zinc-950 border border-zinc-700 text-amber-400 px-2.5 py-1 rounded">
+                    <span className="font-mono text-xs font-bold bg-slate-100 border border-slate-200 text-slate-900 px-2.5 py-1 rounded">
                       {ticket.tracking_id}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 font-mono text-[10px] uppercase font-bold border border-zinc-700">
+                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] uppercase font-semibold border border-slate-200">
                       {ticket.category.replace(/_/g, ' ')}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase font-mono ${
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono border ${
                         ticket.priority === 'urgent'
-                          ? 'bg-red-950 text-red-300 border border-red-700'
+                          ? 'bg-red-50 text-red-700 border-red-200'
                           : ticket.priority === 'high'
-                          ? 'bg-amber-950 text-amber-300 border border-amber-700'
-                          : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
                       {ticket.priority} PRIORITY
                     </span>
-                    <span className="text-[11px] text-zinc-500 font-mono">
+                    <span className="text-xs text-slate-400 font-mono">
                       • {formatRelativeDate(ticket.created_at)}
                     </span>
                   </div>
 
                   {/* SLA Radar Badge */}
                   <div
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded font-mono text-xs font-bold border self-start sm:self-auto ${
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded font-mono text-xs font-semibold border self-start sm:self-auto ${
                       isResolved
-                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                         : sla.isBreached
-                        ? 'bg-red-950 text-red-300 border-red-600 animate-pulse'
-                        : 'bg-zinc-950 text-amber-300 border-zinc-800'
+                        ? 'bg-red-50 text-red-700 border-red-300 font-bold'
+                        : 'bg-slate-100 text-slate-700 border-slate-200'
                     }`}
                   >
                     <Clock className="w-3.5 h-3.5" />
@@ -377,7 +377,7 @@ export const DashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedPhotoPreview(ticket.photo_url || null)}
-                      className="relative shrink-0 group rounded overflow-hidden border border-zinc-700"
+                      className="relative shrink-0 group rounded-lg overflow-hidden border border-slate-200"
                       title="Inspect Citizen Evidence"
                     >
                       <img
@@ -385,8 +385,8 @@ export const DashboardPage: React.FC = () => {
                         alt={ticket.title}
                         className="w-24 h-24 sm:w-28 sm:h-28 object-cover group-hover:scale-105 transition"
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                        <span className="text-[10px] font-bold text-white uppercase bg-black/70 px-1.5 py-0.5 rounded">
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                        <span className="text-[10px] font-bold text-white uppercase bg-slate-900/80 px-1.5 py-0.5 rounded">
                           Zoom
                         </span>
                       </div>
@@ -394,22 +394,22 @@ export const DashboardPage: React.FC = () => {
                   )}
 
                   <div className="flex-1 min-w-0 space-y-2">
-                    <h3 className="text-base font-bold text-zinc-100 leading-snug">
+                    <h3 className="text-base font-bold text-slate-900 leading-snug">
                       {ticket.title}
                     </h3>
-                    <p className="text-xs text-zinc-300 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                       {ticket.description}
                     </p>
 
                     {/* Landmark & GPS */}
-                    <div className="pt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-400 font-mono">
-                      <div className="flex items-center gap-1 text-amber-400">
-                        <MapPin className="w-3.5 h-3.5 shrink-0" />
+                    <div className="pt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500 font-mono">
+                      <div className="flex items-center gap-1 text-slate-700">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-500" />
                         <span className="truncate max-w-sm">
                           {ticket.location.landmark || ticket.location.address || ticket.location.ward}
                         </span>
                       </div>
-                      <span className="text-zinc-600">•</span>
+                      <span className="text-slate-300">•</span>
                       <span>
                         GPS: {ticket.location.latitude.toFixed(4)}°N, {ticket.location.longitude.toFixed(4)}°E
                       </span>
@@ -417,26 +417,26 @@ export const DashboardPage: React.FC = () => {
 
                     {/* Existing Resolution / Materials Note */}
                     {ticket.materials_used && (
-                      <div className="p-2 rounded bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                        <strong className="text-amber-400">Materials Used:</strong> {ticket.materials_used}
+                      <div className="p-2 rounded bg-slate-50 border border-slate-200 text-xs font-mono text-slate-700">
+                        <strong className="text-slate-900">Materials Used:</strong> {ticket.materials_used}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Outdoor High-Touch Action Bar */}
-                <div className="pt-3 border-t border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                {/* Field Action Buttons */}
+                <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-zinc-400 font-mono">
-                      Current Status:
+                    <span className="text-xs text-slate-500 font-mono">
+                      Status:
                     </span>
                     <span
-                      className={`px-2.5 py-0.5 rounded text-xs font-bold font-mono uppercase ${
+                      className={`px-2.5 py-0.5 rounded text-xs font-bold font-mono uppercase border ${
                         ticket.status === 'resolved' || ticket.status === 'closed'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           : ticket.status === 'in_progress'
-                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          : 'bg-zinc-800 text-zinc-300'
+                          ? 'bg-blue-50 text-blue-800 border-blue-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
                       {ticket.status.replace(/_/g, ' ')}
@@ -449,20 +449,20 @@ export const DashboardPage: React.FC = () => {
                       href={mapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="min-h-[44px] px-4 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs transition flex items-center justify-center gap-2 shadow-xs uppercase tracking-wider"
+                      className="px-4 py-2 rounded-md bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 transition flex items-center justify-center gap-2 shadow-xs"
                     >
-                      <Navigation className="w-4 h-4 fill-zinc-950" />
+                      <Navigation className="w-4 h-4 text-slate-600" />
                       <span>Navigate to Site (Google Maps)</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                     </a>
 
                     {/* Resolution & Status Update Button */}
                     <button
                       type="button"
                       onClick={() => handleOpenUpdater(ticket)}
-                      className="min-h-[44px] px-4 py-2.5 rounded bg-zinc-800 hover:bg-zinc-750 text-white font-bold text-xs border border-zinc-700 transition flex items-center justify-center gap-2"
+                      className="px-4 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-xs"
                     >
-                      <Camera className="w-4 h-4 text-amber-400" />
+                      <Camera className="w-4 h-4" />
                       <span>Update &amp; Resolution Proof</span>
                     </button>
                   </div>
@@ -473,18 +473,18 @@ export const DashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Status Updater Modal (Outdoor High Contrast) */}
+      {/* Status Updater Modal (Clean Unified Modal) */}
       {isUpdaterOpen && selectedTicket && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-white my-8">
-            <div className="p-4 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-slate-900 my-8">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Wrench className="w-5 h-5 text-amber-400" />
+                <Wrench className="w-5 h-5 text-slate-700" />
                 <div>
-                  <h3 className="font-bold text-sm sm:text-base text-zinc-100">
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900">
                     On-Site Resolution &amp; Status Station
                   </h3>
-                  <span className="font-mono text-[11px] text-amber-400">
+                  <span className="font-mono text-xs text-slate-500">
                     Work Order: {selectedTicket.tracking_id}
                   </span>
                 </div>
@@ -493,7 +493,7 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsUpdaterOpen(false)}
-                className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -513,19 +513,19 @@ export const DashboardPage: React.FC = () => {
       {/* Image Zoom Modal */}
       {selectedPhotoPreview && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-pointer"
           onClick={() => setSelectedPhotoPreview(null)}
         >
           <div className="relative max-w-3xl max-h-[85vh] w-full" onClick={(e) => e.stopPropagation()}>
             <img
               src={selectedPhotoPreview}
               alt="Evidence zoom"
-              className="w-full h-auto max-h-[80vh] object-contain rounded border border-zinc-700"
+              className="w-full h-auto max-h-[80vh] object-contain rounded-lg border border-white/20 shadow-2xl"
             />
             <button
               type="button"
               onClick={() => setSelectedPhotoPreview(null)}
-              className="absolute top-2 right-2 p-2 rounded-full bg-black/70 text-white hover:bg-black transition"
+              className="absolute top-2 right-2 p-2 rounded-full bg-slate-900/80 text-white hover:bg-slate-900 transition"
             >
               <X className="w-5 h-5" />
             </button>

@@ -390,9 +390,9 @@
     "semantic_hash": "e2a413ef79aff6b28173125aca7d9fc8"
   },
   "frontend/src/App.tsx": {
-    "mtime": 1794766705.9676597,
-    "seen": 1794767418.709537,
-    "ast_hash": "fe7126313f431c80dbc3c7ba64dd9b32",
+    "mtime": 1794770058.2341838,
+    "seen": 1794770706.859371,
+    "ast_hash": "19ee1d14b2994a0bb2edcf6f210ca74c",
     "semantic_hash": ""
   },
   "frontend/src/components/common/Button.tsx": {
@@ -534,9 +534,9 @@
     "semantic_hash": "829a398d2abba2b654892c4fde68389b"
   },
   "frontend/src/pages/DashboardPage.tsx": {
-    "mtime": 1794767146.1138642,
-    "seen": 1794767418.7096162,
-    "ast_hash": "c38b5f8da6622120b8dd1957a892baf6",
+    "mtime": 1794770143.839841,
+    "seen": 1794770706.8594043,
+    "ast_hash": "a75bf243dfdda62f9ec6d00f1cf46e95",
     "semantic_hash": ""
   },
   "frontend/src/pages/HomePage.tsx": {
@@ -750,9 +750,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/AdminPortalPage.tsx": {
-    "mtime": 1794769256.7945273,
-    "seen": 1794769796.0482848,
-    "ast_hash": "9017c7b5dd49f36a3e246057bbb5f932",
+    "mtime": 1794770433.916432,
+    "seen": 1794770706.8594022,
+    "ast_hash": "b72e81c304e7dbcc6710d7c88b465bc6",
     "semantic_hash": ""
   },
   "frontend/src/pages/RewardsPage.tsx": {
@@ -762,9 +762,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/SuperAdminPortalPage.tsx": {
-    "mtime": 1794769298.082871,
-    "seen": 1794769796.0482955,
-    "ast_hash": "c8736e2272437ad8b49f2def2480abf9",
+    "mtime": 1794770570.6055627,
+    "seen": 1794770706.8594148,
+    "ast_hash": "e24f7e288ddc99df2d082a8dc462e5b0",
     "semantic_hash": ""
   },
   "frontend/src/pages/VolunteersPage.tsx": {
@@ -1011,30 +1011,6 @@
     "mtime": 1794756934.7573526,
     "seen": 1794757126.1825304,
     "ast_hash": "b2bc6d61a131018a573c7fe471930d40",
-    "semantic_hash": ""
-  },
-  "frontend/src/components/layout/CitizenLayout.tsx": {
-    "mtime": 1794766641.6407883,
-    "seen": 1794767418.7095754,
-    "ast_hash": "4fbcd3114ece27c5c9fa47688529a73d",
-    "semantic_hash": ""
-  },
-  "frontend/src/components/layout/OfficerLayout.tsx": {
-    "mtime": 1794767174.082709,
-    "seen": 1794767418.7095823,
-    "ast_hash": "da0ed94ffd939c816b7359631c099ee5",
-    "semantic_hash": ""
-  },
-  "frontend/src/components/layout/SuperAdminLayout.tsx": {
-    "mtime": 1794766680.308165,
-    "seen": 1794767418.709588,
-    "ast_hash": "4e44b9a79ae33a5e6dfd5bd4cc41648f",
-    "semantic_hash": ""
-  },
-  "frontend/src/components/layout/WardAdminLayout.tsx": {
-    "mtime": 1794766668.3334553,
-    "seen": 1794767418.7095902,
-    "ast_hash": "5198891787013ff51e7bb9127af1558c",
     "semantic_hash": ""
   }
 }

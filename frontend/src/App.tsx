@@ -1,9 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { CitizenLayout } from './components/layout/CitizenLayout';
-import { OfficerLayout } from './components/layout/OfficerLayout';
-import { WardAdminLayout } from './components/layout/WardAdminLayout';
-import { SuperAdminLayout } from './components/layout/SuperAdminLayout';
+import { Layout } from './components/layout/Layout';
 import { HomePage } from './pages/HomePage';
 import { ReportPage } from './pages/ReportPage';
 import { TicketPage } from './pages/TicketPage';
@@ -35,9 +32,10 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           {/* ============================================================== */}
-          {/* 1. CITIZEN COMMUNITY PUBLIC PORTAL                             */}
+          {/* UNIFIED CIVIC CONNECT APPLICATION PORTAL                       */}
           {/* ============================================================== */}
-          <Route element={<CitizenLayout />}>
+          <Route element={<Layout />}>
+            {/* 1. Citizen Community Public Portal */}
             <Route path="/" element={<HomePage />} />
             <Route
               path="/report"
@@ -88,11 +86,48 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
+
+            {/* 2. Field Officer Work Orders / Dispatch Queue */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}>
+                  <Suspense fallback={<RouteLoadingFallback />}>
+                    <DashboardPage />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/officer-portal" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/officer" element={<Navigate to="/dashboard" replace />} />
+
+            {/* 3. Municipal Ward Admin Tactical Console */}
+            <Route
+              path="/admin-portal"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                  <Suspense fallback={<RouteLoadingFallback />}>
+                    <AdminPortalPage />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/ward-console" element={<Navigate to="/admin-portal" replace />} />
+
+            {/* 4. Super Admin Full Website Governance */}
+            <Route
+              path="/super-admin"
+              element={
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <SuperAdminPortalPage />
+                </Suspense>
+              }
+            />
+            <Route path="/super-admin-portal" element={<Navigate to="/super-admin" replace />} />
+            <Route path="/super-admin/login" element={<Navigate to="/super-admin" replace />} />
           </Route>
 
-          {/* ============================================================== */}
-          {/* 2. AUTHENTICATION & LOGIN (STANDALONE CANVAS)                  */}
-          {/* ============================================================== */}
+          {/* Standalone Canvas Routes */}
           <Route path="/login" element={<div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center px-4"><LoginPage /></div>} />
           <Route path="/signup" element={<div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center px-4"><LoginPage /></div>} />
           <Route path="/register" element={<div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center px-4"><LoginPage /></div>} />
@@ -108,65 +143,6 @@ export const App: React.FC = () => {
               </Suspense>
             }
           />
-
-          {/* ============================================================== */}
-          {/* 3. FIELD OFFICER WORKSTATION (RUGGED ON-SITE UTILITY)          */}
-          {/* ============================================================== */}
-          <Route
-            element={
-              <ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}>
-                <OfficerLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route
-              path="/dashboard"
-              element={
-                <Suspense fallback={<RouteLoadingFallback />}>
-                  <DashboardPage />
-                </Suspense>
-              }
-            />
-            <Route path="/officer-portal" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/officer" element={<Navigate to="/dashboard" replace />} />
-          </Route>
-
-          {/* ============================================================== */}
-          {/* 4. MUNICIPAL WARD ADMIN TACTICAL CONSOLE (ZONAL DISPATCH)      */}
-          {/* ============================================================== */}
-          <Route
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                <WardAdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route
-              path="/admin-portal"
-              element={
-                <Suspense fallback={<RouteLoadingFallback />}>
-                  <AdminPortalPage />
-                </Suspense>
-              }
-            />
-            <Route path="/ward-console" element={<Navigate to="/admin-portal" replace />} />
-          </Route>
-
-          {/* ============================================================== */}
-          {/* 5. SUPER ADMIN ROOT GOVERNANCE (EXECUTIVE COMMAND TERMINAL)    */}
-          {/* ============================================================== */}
-          <Route element={<SuperAdminLayout />}>
-            <Route
-              path="/super-admin"
-              element={
-                <Suspense fallback={<RouteLoadingFallback />}>
-                  <SuperAdminPortalPage />
-                </Suspense>
-              }
-            />
-            <Route path="/super-admin-portal" element={<Navigate to="/super-admin" replace />} />
-            <Route path="/super-admin/login" element={<Navigate to="/super-admin" replace />} />
-          </Route>
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
