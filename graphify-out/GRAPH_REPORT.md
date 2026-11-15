@@ -1,7 +1,7 @@
 # Graph Report - civic connect  (2026-11-15)
 
 ## Corpus Check
-- 138 files · ~94,298 words
+- 138 files · ~94,509 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 27 file(s) not represented in the graph (top: .xml 10, (none) 7, .example 3)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `50609bc7`
+- Built from commit: `45bc6853`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

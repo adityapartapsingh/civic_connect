@@ -69,6 +69,7 @@ export interface Issue {
     name: string;
     is_anonymous: boolean;
     phone_masked?: string;
+    phone?: string;
   };
   assigned_department?: string;
   assigned_officer?: string;
@@ -93,6 +94,7 @@ export interface WardLeaderboardItem {
 
 export interface UserProfile {
   id: string;
+  user_id?: string;
   name: string;
   phone: string;
   email?: string;

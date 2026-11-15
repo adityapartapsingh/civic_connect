@@ -406,12 +406,15 @@ export const issuesApi = {
   },
 
   // Get all issues directly from MongoDB
-  getAll: async (params?: { category?: string; status?: string; ward?: string }): Promise<Issue[]> => {
+  getAll: async (params?: { category?: string; status?: string; ward?: string; reporter_id?: string; reporter_phone?: string; my_reports?: boolean }): Promise<Issue[]> => {
     try {
       const apiParams: Record<string, any> = { page_size: 100 };
       if (params?.category && params.category !== 'all') apiParams.category = params.category;
       if (params?.status && params.status !== 'all') apiParams.status = frontendStatusToBackend(params.status);
       if (params?.ward && params.ward !== 'all') apiParams.ward_id = params.ward;
+      if (params?.reporter_id) apiParams.reporter_id = params.reporter_id;
+      if (params?.reporter_phone) apiParams.reporter_phone = params.reporter_phone;
+      if (params?.my_reports) apiParams.my_reports = 'true';
 
       const response = await apiClient.get('/reports/', { params: apiParams });
       const rawList = Array.isArray(response.data?.results) ? response.data.results : response.data;

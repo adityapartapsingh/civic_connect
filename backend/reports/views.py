@@ -91,8 +91,30 @@ class ReportListCreateAPIView(APIView):
             query["priority_level"] = priority_param.upper().strip()
         if ward_param and ward_param != "all":
             query["ward_id"] = ward_param
-        if reporter_id:
-            query["reporter_id"] = reporter_id
+
+        reporter_phone = request.query_params.get("reporter_phone")
+        my_reports = request.query_params.get("my_reports")
+
+        reporter_conditions = []
+        if reporter_id and reporter_id != "undefined":
+            reporter_conditions.append({"reporter_id": reporter_id})
+        if reporter_phone and reporter_phone != "undefined":
+            reporter_conditions.append({"reporter_phone": reporter_phone})
+            reporter_conditions.append({"reporter_id": reporter_phone})
+
+        if my_reports in ("true", "1") and request.user and getattr(request.user, "is_authenticated", False):
+            uid = getattr(request.user, "user_id", None)
+            phone = getattr(request.user, "phone", None)
+            if uid and uid != "None":
+                reporter_conditions.append({"reporter_id": str(uid)})
+            if phone:
+                reporter_conditions.append({"reporter_phone": str(phone)})
+                reporter_conditions.append({"reporter_id": str(phone)})
+
+        if len(reporter_conditions) > 1:
+            query["$or"] = reporter_conditions
+        elif len(reporter_conditions) == 1:
+            query.update(reporter_conditions[0])
 
         # Date range filtering
         date_query = {}
@@ -164,9 +186,11 @@ class ReportListCreateAPIView(APIView):
         is_mock = data.get("is_mock_location", False)
         
         # Attribute authenticated user strictly from verified session
-        reporter_id = str(getattr(request.user, "user_id", None) or "")
-        reporter_name = getattr(request.user, "name", None) or "Citizen"
-        reporter_phone = getattr(request.user, "phone", None) or "" 
+        reporter_id = str(getattr(request.user, "user_id", "") or "").strip()
+        if not reporter_id or reporter_id == "None":
+            reporter_id = str(data.get("reporter_id") or getattr(request.user, "phone", "") or "")
+        reporter_name = getattr(request.user, "name", None) or data.get("reporter_name", "Citizen")
+        reporter_phone = getattr(request.user, "phone", None) or data.get("reporter_phone", "")
 
         # Rapid duplicate / double-click idempotency guard (prevent duplicate ticket punch)
         try:

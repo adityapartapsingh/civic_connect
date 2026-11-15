@@ -243,6 +243,7 @@ export function adaptBackendReportToIssue(doc: any): Issue {
       id: doc.reporter_id || 'anonymous',
       name: doc.reporter_name || 'Citizen',
       is_anonymous: !doc.reporter_id || doc.reporter_id === 'anonymous',
+      phone: doc.reporter_phone || undefined,
       phone_masked: doc.reporter_phone ? doc.reporter_phone.slice(-4).padStart(doc.reporter_phone.length, '•') : undefined,
     },
     assigned_department: doc.department_id || doc.assigned_department,

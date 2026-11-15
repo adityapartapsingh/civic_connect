@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useNearbyReports } from '../hooks/useNearbyReports';
 import { Issue, ReportFilterParams } from '../types';
@@ -22,7 +22,7 @@ import {
   Check,
   X,
   FileText,
-  Map,
+  Map as MapIcon,
   SlidersHorizontal,
 } from 'lucide-react';
 
@@ -73,16 +73,70 @@ export const HomePage: React.FC = () => {
   const { addToast } = useToastStore();
   const [upvotingIds, setUpvotingIds] = useState<Record<string, boolean>>({});
 
+  // Dedicated state for authenticated user's reports (unrestricted by 500m nearby GPS boundary)
+  const [myReports, setMyReports] = useState<Issue[]>([]);
+  const [isFetchingMyReports, setIsFetchingMyReports] = useState(false);
+
+  const isUserReport = useCallback((i: Issue) => {
+    if (!user) return false;
+    const matchesId = Boolean(
+      i.reporter?.id && (
+        i.reporter.id === user.id ||
+        (user.user_id && i.reporter.id === user.user_id)
+      )
+    );
+    const matchesPhone = Boolean(
+      user.phone && (
+        (i.reporter?.phone && i.reporter.phone === user.phone) ||
+        (i.reporter?.phone_masked && user.phone.endsWith(i.reporter.phone_masked.slice(-4)))
+      )
+    );
+    return matchesId || matchesPhone;
+  }, [user]);
+
+  const fetchMyReports = useCallback(async () => {
+    if (!user) {
+      setMyReports([]);
+      return;
+    }
+    setIsFetchingMyReports(true);
+    try {
+      const reports = await issuesApi.getAll({
+        reporter_id: user.user_id || user.id,
+        reporter_phone: user.phone,
+        my_reports: true,
+      });
+      setMyReports(reports);
+    } catch (err) {
+      console.error('Failed to load user reports:', err);
+    } finally {
+      setIsFetchingMyReports(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchMyReports();
+    }
+  }, [user, fetchMyReports]);
+
   const handleFilterChange = (updated: Partial<ReportFilterParams>) => {
     setFilters((prev) => ({ ...prev, ...updated, page: updated.page !== undefined ? updated.page : 1 }));
   };
 
   // Filter & sort logic
   const processedIssues = useMemo(() => {
-    let list = [...issues];
+    let list: Issue[] = [];
 
     if (activeTab === 'my_reports') {
-      list = list.filter((i) => i.reporter?.id === user?.id || i.status === 'resolved');
+      const map = new Map<string, Issue>();
+      myReports.forEach((item) => map.set(item.id, item));
+      issues.forEach((item) => {
+        if (isUserReport(item)) map.set(item.id, item);
+      });
+      list = Array.from(map.values());
+    } else {
+      list = [...issues];
     }
 
     if (selectedCategory !== 'all') {
@@ -112,7 +166,7 @@ export const HomePage: React.FC = () => {
     }
 
     return list;
-  }, [issues, activeTab, selectedCategory, filters, user?.id]);
+  }, [issues, myReports, activeTab, selectedCategory, filters, isUserReport]);
 
   // Pagination calculation
   const totalItems = processedIssues.length;
@@ -138,13 +192,8 @@ export const HomePage: React.FC = () => {
 
     if (upvotingIds[issueId]) return;
 
-    const targetIssue = issues.find((i) => i.id === issueId);
-    const isOwnReport = Boolean(
-      targetIssue && (
-        (user?.id && targetIssue.reporter?.id === user.id) ||
-        (user?.phone && targetIssue.reporter?.phone_masked && user.phone.endsWith(targetIssue.reporter.phone_masked.slice(-4)))
-      )
-    );
+    const targetIssue = [...issues, ...myReports].find((i) => i.id === issueId);
+    const isOwnReport = Boolean(targetIssue && isUserReport(targetIssue));
 
     if (isOwnReport) {
       addToast({
@@ -288,6 +337,7 @@ export const HomePage: React.FC = () => {
             onClick={() => {
               setActiveTab('my_reports');
               handleFilterChange({ page: 1 });
+              fetchMyReports();
             }}
             className={`pb-3 text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
               activeTab === 'my_reports'
@@ -296,6 +346,11 @@ export const HomePage: React.FC = () => {
             }`}
           >
             <span>My Reports</span>
+            {myReports.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-800 text-[10px] font-bold">
+                {myReports.length}
+              </span>
+            )}
             {pendingConfirmationsCount > 0 && (
               <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
                 {pendingConfirmationsCount}
@@ -337,7 +392,7 @@ export const HomePage: React.FC = () => {
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <Map className="w-3.5 h-3.5" />
+            <MapIcon className="w-3.5 h-3.5" />
             <span>{showMap ? 'Hide Map' : 'Map'}</span>
           </button>
         </div>
@@ -575,10 +630,14 @@ export const HomePage: React.FC = () => {
                     </div>
 
                     <div className="text-sm text-slate-500 mb-3">
-                      <span className="font-medium text-slate-700">
-                        {formatDistanceString(issue.distanceMeters)} away
-                      </span>
-                      <span className="text-slate-300 mx-1.5">•</span>
+                      {(issue as any).distanceMeters !== undefined && (
+                        <>
+                          <span className="font-medium text-slate-700">
+                            {formatDistanceString((issue as any).distanceMeters)} away
+                          </span>
+                          <span className="text-slate-300 mx-1.5">•</span>
+                        </>
+                      )}
                       <span>{issue.location.address || issue.location.landmark || 'Incident Location'}</span>
                     </div>
 

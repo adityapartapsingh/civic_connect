@@ -55,7 +55,7 @@ def generate_jwt(user_payload: Dict[str, Any], expiry_days: int = JWT_DEFAULT_EX
         "typ": "JWT",
     }
     payload = {
-        "user_id": str(user_payload.get("user_id") or user_payload.get("id")),
+        "user_id": str(user_payload.get("user_id") or user_payload.get("id") or user_payload.get("_id") or ""),
         "phone": str(user_payload.get("phone", "")),
         "name": user_payload.get("name", "Citizen"),
         "role": user_payload.get("role", "citizen").lower(),

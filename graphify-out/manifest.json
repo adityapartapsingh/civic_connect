@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "backend/reports/views.py": {
-    "mtime": 1794756640.0658164,
-    "seen": 1794757126.1825366,
-    "ast_hash": "a29b580a1c8400096bdc30b551c48799",
+    "mtime": 1794764644.034159,
+    "seen": 1794764789.309531,
+    "ast_hash": "502e7659d2bddf279c2499026758c7d6",
     "semantic_hash": ""
   },
   "backend/users/__init__.py": {
@@ -540,9 +540,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/HomePage.tsx": {
-    "mtime": 1793739224.5398233,
-    "seen": 1793779805.0317087,
-    "ast_hash": "f3574379d3063f58e785c9045ed42074",
+    "mtime": 1794764700.9727461,
+    "seen": 1794764789.309667,
+    "ast_hash": "fa2eef878d77a3021423ab436438eb7a",
     "semantic_hash": ""
   },
   "frontend/src/pages/LoginPage.tsx": {
@@ -582,9 +582,9 @@
     "semantic_hash": ""
   },
   "frontend/src/services/api.ts": {
-    "mtime": 1793790962.0090911,
-    "seen": 1793791163.601811,
-    "ast_hash": "06bec2370b5e7198c91eb92b7d551253",
+    "mtime": 1794764644.0361505,
+    "seen": 1794764789.3096921,
+    "ast_hash": "795cc521b8abaa7499b589b0a35a768c",
     "semantic_hash": ""
   },
   "frontend/src/store/authStore.ts": {
@@ -600,9 +600,9 @@
     "semantic_hash": "28b3f472defa817277333a0f114c56e1"
   },
   "frontend/src/types/index.ts": {
-    "mtime": 1793778706.4225082,
-    "seen": 1793779805.031811,
-    "ast_hash": "784ca5ed041b7078983fd1059396eff9",
+    "mtime": 1794764700.9727461,
+    "seen": 1794764789.3096979,
+    "ast_hash": "08caf830fb2dd63af851fbfb9a2cdd75",
     "semantic_hash": ""
   },
   "frontend/src/utils/constants.ts": {
@@ -696,9 +696,9 @@
     "semantic_hash": ""
   },
   "backend/civic_connect/authentication.py": {
-    "mtime": 1793739224.5063083,
-    "seen": 1793779805.0310395,
-    "ast_hash": "546494b1915089a9b6c2a86f1dbeabcf",
+    "mtime": 1794764644.034159,
+    "seen": 1794764789.3094347,
+    "ast_hash": "48ccc160068d23c4cf018195eecacc8e",
     "semantic_hash": ""
   },
   "frontend/src/components/common/ErrorBoundary.tsx": {
@@ -708,9 +708,9 @@
     "semantic_hash": ""
   },
   "frontend/src/services/adapters.ts": {
-    "mtime": 1793778735.3975286,
-    "seen": 1793779805.0317762,
-    "ast_hash": "14740de2c51106b3ea13a9d94dd58aae",
+    "mtime": 1794764644.0351467,
+    "seen": 1794764789.309688,
+    "ast_hash": "d33cc166b0cdd2ef89dbe1cc770730e9",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
