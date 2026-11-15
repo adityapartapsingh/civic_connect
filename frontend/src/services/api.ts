@@ -1055,21 +1055,51 @@ export const whatsappAdminApi = {
   },
 };
 
+export interface WardItem {
+  id: string;
+  ward_number?: string;
+  name: string;
+  zone?: string;
+  counselor_name?: string;
+  contact_phone?: string;
+  location?: {
+    type: string;
+    coordinates: [number, number];
+  };
+}
+
 export const wardsApi = {
-  getAll: async (): Promise<Array<{ id: string; name: string; zone?: string }>> => {
+  getAll: async (): Promise<WardItem[]> => {
     try {
       const response = await apiClient.get('/wards/');
       if (Array.isArray(response.data)) {
         return response.data.map((w: any) => ({
           id: w.ward_number || w.id,
+          ward_number: w.ward_number || w.id,
           name: w.name ? `Ward ${w.ward_number?.replace('Ward-', '') || ''} - ${w.name}` : (w.ward_number || w.id),
           zone: w.zone || '',
+          counselor_name: w.counselor_name || '',
+          contact_phone: w.contact_phone || '',
+          location: w.location,
         }));
       }
       return [];
     } catch {
       return [];
     }
+  },
+
+  create: async (payload: {
+    ward_number: string;
+    name: string;
+    zone: string;
+    counselor_name?: string;
+    contact_phone?: string;
+    lat?: number;
+    lng?: number;
+  }): Promise<any> => {
+    const response = await apiClient.post('/wards/', payload);
+    return response.data;
   },
 };
 

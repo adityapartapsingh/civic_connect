@@ -9,6 +9,7 @@ import {
   wardsApi,
   SuperAdminUserStats,
   WhatsAppGatewayStatus,
+  WardItem,
 } from '../services/api';
 import { UserProfile, AdminCredentialsSlip, Issue } from '../types';
 import {
@@ -103,16 +104,34 @@ export const SuperAdminPortalPage: React.FC = () => {
   const [usersLoading, setUsersLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedWard, setSelectedWard] = useState<string>('ALL');
-  const [municipalWards, setMunicipalWards] = useState<Array<{ id: string; name: string; zone?: string }>>(MUNICIPAL_WARDS);
+  const [municipalWards, setMunicipalWards] = useState<WardItem[]>(MUNICIPAL_WARDS);
 
   // Load real municipal wards dynamically from database
-  useEffect(() => {
-    wardsApi.getAll().then((list) => {
+  const loadMunicipalWards = async () => {
+    try {
+      const list = await wardsApi.getAll();
       if (list && list.length > 0) {
         setMunicipalWards(list);
       }
-    }).catch(() => {});
+    } catch {
+      // fallback
+    }
+  };
+
+  useEffect(() => {
+    loadMunicipalWards();
   }, []);
+
+  // Add Ward Modal States
+  const [isAddWardModalOpen, setIsAddWardModalOpen] = useState<boolean>(false);
+  const [newWardNumber, setNewWardNumber] = useState<string>('Ward-106');
+  const [newWardName, setNewWardName] = useState<string>('');
+  const [newWardZone, setNewWardZone] = useState<string>('Central Jalandhar');
+  const [newCounselorName, setNewCounselorName] = useState<string>('');
+  const [newContactPhone, setNewContactPhone] = useState<string>('');
+  const [newWardLat, setNewWardLat] = useState<number>(31.3260);
+  const [newWardLng, setNewWardLng] = useState<number>(75.5762);
+  const [isSubmittingWard, setIsSubmittingWard] = useState<boolean>(false);
 
   // Action Modals State
   const [editUserModal, setEditUserModal] = useState<UserProfile | null>(null);
@@ -442,7 +461,7 @@ export const SuperAdminPortalPage: React.FC = () => {
       return;
     }
 
-    const selectedWardObj = MUNICIPAL_WARDS.find((w) => w.id === createWardId);
+    const selectedWardObj = municipalWards.find((w) => w.id === createWardId || w.ward_number === createWardId) || MUNICIPAL_WARDS.find((w) => w.id === createWardId);
 
     setIsSubmittingCreate(true);
     try {
@@ -491,6 +510,55 @@ export const SuperAdminPortalPage: React.FC = () => {
       });
     } finally {
       setIsSubmittingCreate(false);
+    }
+  };
+
+  // Super Admin Action: Enrol New Municipal Ward
+  const handleCreateWard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWardNumber.trim() || !newWardName.trim()) {
+      addToast({
+        type: 'error',
+        title: 'Fields Required',
+        message: 'Ward code and jurisdiction name are required.',
+      });
+      return;
+    }
+
+    setIsSubmittingWard(true);
+    try {
+      const res = await wardsApi.create({
+        ward_number: newWardNumber.trim(),
+        name: newWardName.trim(),
+        zone: newWardZone.trim(),
+        counselor_name: newCounselorName.trim() || undefined,
+        contact_phone: newContactPhone.trim() || undefined,
+        lat: Number(newWardLat) || 31.3260,
+        lng: Number(newWardLng) || 75.5762,
+      });
+
+      addToast({
+        type: 'success',
+        title: 'Ward Enrolled Successfully',
+        message: `${res.ward_number || newWardNumber} - ${res.name || newWardName} added to municipal records.`,
+      });
+
+      await loadMunicipalWards();
+      await loadUsersData();
+
+      setNewWardName('');
+      setNewCounselorName('');
+      setNewContactPhone('');
+      setIsAddWardModalOpen(false);
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to create ward jurisdiction.';
+      addToast({
+        type: 'error',
+        title: 'Ward Creation Failed',
+        message: msg,
+      });
+    } finally {
+      setIsSubmittingWard(false);
     }
   };
 
@@ -812,7 +880,26 @@ export const SuperAdminPortalPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={loadUsersData}
+                onClick={() => {
+                  const existingNumbers = municipalWards
+                    .map((w) => parseInt((w.id || w.ward_number || '').replace('Ward-', ''), 10))
+                    .filter((n) => !isNaN(n));
+                  const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 106;
+                  setNewWardNumber(`Ward-${nextNum}`);
+                  setIsAddWardModalOpen(true);
+                }}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-amber-400" />
+                <span>+ Add New Ward</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  loadUsersData();
+                  loadMunicipalWards();
+                }}
                 disabled={usersLoading}
                 className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
                 title="Refresh Matrix"
@@ -834,81 +921,202 @@ export const SuperAdminPortalPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {admins.map((admin) => (
-                  <tr key={admin.id || admin.employee_id} className="hover:bg-slate-50/80 transition">
-                    <td className="px-4 py-3.5">
-                      <span className="font-bold text-slate-900 block">{admin.ward_name || admin.ward_id}</span>
-                      <span className="text-[11px] text-slate-500 font-mono">{admin.ward_id}</span>
-                    </td>
+                {municipalWards.map((ward) => {
+                  const wardId = ward.id || ward.ward_number || 'Ward';
+                  const admin = admins.find(
+                    (a) =>
+                      a.ward_id === wardId ||
+                      a.ward_id === ward.ward_number ||
+                      (a.ward_name && a.ward_name.includes(wardId))
+                  );
+                  const cleanName = ward.name.includes(' - ') ? ward.name : `${wardId} - ${ward.name}`;
 
-                    <td className="px-4 py-3.5">
-                      <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                        <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{admin.name}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 font-mono">
-                        +91 {admin.phone} {admin.email ? `· ${admin.email}` : ''}
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        {admin.designation || 'Ward Municipal Administrator'}
-                      </div>
-                    </td>
+                  if (admin) {
+                    return (
+                      <tr key={admin.id || admin.employee_id || wardId} className="hover:bg-slate-50/80 transition">
+                        <td className="px-4 py-3.5">
+                          <span className="font-bold text-slate-900 block">{admin.ward_name || cleanName}</span>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            {wardId} {ward.zone ? `· ${ward.zone}` : ''}
+                          </span>
+                        </td>
 
-                    <td className="px-4 py-3.5">
-                      <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold">
-                        {admin.employee_id || 'N/A'}
-                      </span>
-                    </td>
+                        <td className="px-4 py-3.5">
+                          <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                            <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{admin.name}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono">
+                            +91 {admin.phone} {admin.email ? `· ${admin.email}` : ''}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {admin.designation || 'Ward Municipal Administrator'}
+                          </div>
+                        </td>
 
-                    <td className="px-4 py-3.5 text-center">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {admin.officers_count || 0} Officers
-                      </span>
-                    </td>
+                        <td className="px-4 py-3.5">
+                          <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold">
+                            {admin.employee_id || 'N/A'}
+                          </span>
+                        </td>
 
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setEditUserModal(admin)}
-                          className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition"
-                          title="Edit Ward Admin Profile"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {admin.officers_count || 0} Officers
+                          </span>
+                        </td>
 
-                        {admin.is_blocked ? (
-                          <button
-                            type="button"
-                            onClick={() => handleUnblockUser(admin)}
-                            className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition"
-                            title="Unblock & Reinstate Admin"
-                          >
-                            <UserCheck className="w-3.5 h-3.5" />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setBlockUserModal({ user: admin, reason: '' })}
-                            className="p-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
-                            title="Block / Suspend Admin with Reason"
-                          >
-                            <Ban className="w-3.5 h-3.5" />
-                          </button>
+                        <td className="px-4 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditUserModal(admin)}
+                              className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition"
+                              title="Edit Ward Admin Profile"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+
+                            {admin.is_blocked ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUnblockUser(admin)}
+                                className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition"
+                                title="Unblock & Reinstate Admin"
+                              >
+                                <UserCheck className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setBlockUserModal({ user: admin, reason: '' })}
+                                className="p-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                                title="Block / Suspend Admin with Reason"
+                              >
+                                <Ban className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setDeleteUserModal(admin)}
+                              className="p-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                              title="Delete Ward Admin Account"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // Vacant Ward Jurisdiction
+                  return (
+                    <tr key={wardId} className="hover:bg-amber-50/40 transition bg-amber-50/15">
+                      <td className="px-4 py-3.5">
+                        <span className="font-bold text-slate-900 block">{cleanName}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          {wardId} {ward.zone ? `· ${ward.zone}` : ''}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-amber-800 bg-amber-100/70 border border-amber-300 px-2 py-0.5 rounded text-[11px] font-semibold">
+                          <AlertTriangle className="w-3 h-3 text-amber-600" />
+                          <span>Vacant Ward Jurisdiction</span>
+                        </span>
+                        {ward.counselor_name && (
+                          <div className="text-[10px] text-slate-500 mt-0.5">
+                            Counselor: {ward.counselor_name} {ward.contact_phone ? `(${ward.contact_phone})` : ''}
+                          </div>
                         )}
+                      </td>
 
+                      <td className="px-4 py-3.5">
+                        <span className="text-slate-400 font-mono text-[11px] italic">Unassigned</span>
+                      </td>
+
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                          0 Officers
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3.5 text-right">
                         <button
                           type="button"
-                          onClick={() => setDeleteUserModal(admin)}
-                          className="p-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
-                          title="Delete Ward Admin Account"
+                          onClick={() => {
+                            setCreateRole('admin');
+                            setCreateWardId(wardId);
+                            setCreateDepartment('Municipal Corporation Jalandhar');
+                            setCreateDesignation(`${ward.name.split('-')[1]?.trim() || ward.name} Ward Administrator`);
+                            setActiveTab('create');
+                          }}
+                          className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded font-bold text-[11px] transition shadow-xs inline-flex items-center gap-1"
+                          title="Assign Ward Administrator"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <UserPlus className="w-3 h-3 text-amber-400" />
+                          <span>Assign Admin</span>
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {/* Unmapped Admins (if any exist outside current known wards) */}
+                {admins
+                  .filter(
+                    (admin) =>
+                      !municipalWards.some(
+                        (w) => w.id === admin.ward_id || w.ward_number === admin.ward_id
+                      )
+                  )
+                  .map((admin) => (
+                    <tr key={admin.id || admin.employee_id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-4 py-3.5">
+                        <span className="font-bold text-slate-900 block">{admin.ward_name || admin.ward_id}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">{admin.ward_id}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                          <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{admin.name}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono">
+                          +91 {admin.phone} {admin.email ? `· ${admin.email}` : ''}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold">
+                          {admin.employee_id || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {admin.officers_count || 0} Officers
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditUserModal(admin)}
+                            className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteUserModal(admin)}
+                            className="p-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -2263,6 +2471,202 @@ export const SuperAdminPortalPage: React.FC = () => {
                 Close Window
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 6: ENROL NEW MUNICIPAL WARD                              */}
+      {/* ============================================================== */}
+      {isAddWardModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-slate-300 shadow-xl max-w-xl w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Building2 className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h3 className="font-bold text-base leading-tight">
+                    Enrol New Municipal Ward Jurisdiction
+                  </h3>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Establishes an official ward boundary for GPS report routing, officer dispatch, and civic governance.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddWardModalOpen(false)}
+                className="text-white/70 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateWard} className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Ward Code / Identifier <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newWardNumber}
+                    onChange={(e) => setNewWardNumber(e.target.value)}
+                    placeholder="e.g. Ward-106"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
+                    Unique system code for the jurisdiction
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Administrative Zone <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newWardZone}
+                    onChange={(e) => setNewWardZone(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded text-slate-900 font-medium focus:outline-none focus:border-slate-900"
+                  >
+                    <option value="Central Jalandhar">Central Jalandhar</option>
+                    <option value="North Jalandhar">North Jalandhar</option>
+                    <option value="East Jalandhar">East Jalandhar</option>
+                    <option value="West Jalandhar">West Jalandhar</option>
+                    <option value="Cantonment Zone">Cantonment Zone</option>
+                    <option value="Phillaur Sub-Division">Phillaur Sub-Division</option>
+                    <option value="Urban Extension Zone">Urban Extension Zone</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Jurisdiction &amp; Locality Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newWardName}
+                  onChange={(e) => setNewWardName(e.target.value)}
+                  placeholder="e.g. Model House &amp; Basti Nau Urban Core"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded text-slate-900 font-medium focus:outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Designated Counselor (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newCounselorName}
+                    onChange={(e) => setNewCounselorName(e.target.value)}
+                    placeholder="e.g. Sh. Harpreet Singh"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Ward Office Phone (Optional)
+                  </label>
+                  <div className="flex rounded border border-slate-300 overflow-hidden focus-within:border-slate-900">
+                    <span className="bg-slate-100 text-slate-500 px-2.5 py-2 text-xs font-mono border-r border-slate-300">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      value={newContactPhone}
+                      onChange={(e) => setNewContactPhone(e.target.value)}
+                      placeholder="9876543215"
+                      className="w-full px-2.5 py-2 text-xs bg-white text-slate-900 font-mono focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Coordinates Section */}
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-red-500" />
+                    <span>Centroid Coordinates (For GPS Auto-Routing)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewWardLat(31.3260);
+                      setNewWardLng(75.5762);
+                    }}
+                    className="text-[11px] text-blue-700 hover:underline font-semibold"
+                  >
+                    Reset to Jalandhar Core
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Citizen reports filed within 25 km of this centroid are automatically routed to this ward and its assigned administrator.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Latitude
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      required
+                      value={newWardLat}
+                      onChange={(e) => setNewWardLat(parseFloat(e.target.value) || 0)}
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-900 font-mono focus:outline-none focus:border-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Longitude
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      required
+                      value={newWardLng}
+                      onChange={(e) => setNewWardLng(parseFloat(e.target.value) || 0)}
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-900 font-mono focus:outline-none focus:border-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddWardModalOpen(false)}
+                  className="px-4 py-2 rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingWard}
+                  className="px-4 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  {isSubmittingWard ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      <span>Enrolling Ward Jurisdiction...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Enrol Ward Jurisdiction</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -8,9 +8,20 @@ class WardSerializer(serializers.Serializer):
     ward_number = serializers.CharField()
     name = serializers.CharField()
     zone = serializers.CharField()
-    counselor_name = serializers.CharField(required=False, allow_blank=True)
-    contact_phone = serializers.CharField(required=False, allow_blank=True)
+    counselor_name = serializers.CharField(required=False, allow_blank=True, default="")
+    contact_phone = serializers.CharField(required=False, allow_blank=True, default="")
     location = serializers.DictField(required=False)
+    created_at = serializers.CharField(required=False)
+
+
+class WardCreateSerializer(serializers.Serializer):
+    ward_number = serializers.CharField(max_length=50)
+    name = serializers.CharField(max_length=200)
+    zone = serializers.CharField(max_length=100)
+    counselor_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    contact_phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
+    lat = serializers.FloatField(required=False, default=31.3260)
+    lng = serializers.FloatField(required=False, default=75.5762)
 
 
 class DepartmentSerializer(serializers.Serializer):

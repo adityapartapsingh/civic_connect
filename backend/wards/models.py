@@ -5,6 +5,7 @@ Ward and Department Data Access and Analytics.
 from __future__ import annotations
 
 import datetime
+import re
 from typing import Any, Dict, List, Optional
 from civic_connect.mongo import get_collection, serialize_doc, serialize_docs
 
@@ -78,6 +79,59 @@ class WardManager:
             return serialize_docs(list(docs))
         except Exception:
             return INITIAL_SAMPLE_WARDS
+
+    @classmethod
+    def create_ward(cls, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new municipal ward document.
+        Validates unique ward_number and coordinates.
+        """
+        cls.ensure_seed_wards()
+        col = cls.get_collection()
+
+        raw_number = str(payload.get("ward_number", "")).strip()
+        if not raw_number:
+            raise ValueError("Ward number is required (e.g., 'Ward-106').")
+
+        # Standardize ward number e.g. "106" -> "Ward-106", "Ward 106" -> "Ward-106"
+        if not raw_number.lower().startswith("ward-"):
+            clean_num = raw_number.lower().replace("ward", "").strip().replace("-", "").replace(" ", "")
+            ward_number = f"Ward-{clean_num}" if clean_num.isdigit() else raw_number
+        else:
+            ward_number = raw_number
+
+        name = str(payload.get("name", "")).strip()
+        if not name:
+            raise ValueError("Ward jurisdiction name is required.")
+
+        zone = str(payload.get("zone", "")).strip() or "General Jurisdiction"
+        counselor_name = str(payload.get("counselor_name", "")).strip()
+        contact_phone = str(payload.get("contact_phone", "")).strip()
+
+        # Check uniqueness of ward_number
+        existing = col.find_one({"ward_number": {"$regex": f"^{re.escape(ward_number)}$", "$options": "i"}})
+        if existing:
+            raise ValueError(f"A ward with code '{ward_number}' already exists in the system.")
+
+        lat = float(payload.get("lat", 31.3260))
+        lng = float(payload.get("lng", 75.5762))
+
+        doc: Dict[str, Any] = {
+            "ward_number": ward_number,
+            "name": name,
+            "zone": zone,
+            "counselor_name": counselor_name,
+            "contact_phone": contact_phone,
+            "location": {
+                "type": "Point",
+                "coordinates": [lng, lat],
+            },
+            "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+        }
+
+        result = col.insert_one(doc)
+        doc["_id"] = result.inserted_id
+        return serialize_doc(doc)
 
     @classmethod
     def calculate_leaderboard(cls) -> List[Dict[str, Any]]:

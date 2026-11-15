@@ -1149,7 +1149,7 @@ def _require_super_admin(request):
     if not caller and request.user and getattr(request.user, "is_authenticated", False):
         caller = request.user
 
-    if not caller or getattr(caller, "role", "") != UserRole.SUPER_ADMIN:
+    if not caller or getattr(caller, "role", "") not in (UserRole.SUPER_ADMIN, "superadmin"):
         return False, Response(
             {"detail": "Access denied. Root Super Administrator authority required."},
             status=status.HTTP_403_FORBIDDEN,
