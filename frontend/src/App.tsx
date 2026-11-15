@@ -36,7 +36,14 @@ export const App: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<LoginPage />} />
             <Route path="/register" element={<LoginPage />} />
-            <Route path="/report" element={<ReportPage />} />
+            <Route
+              path="/report"
+              element={
+                <ProtectedRoute>
+                  <ReportPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/tickets/:id" element={<TicketPage />} />
             <Route
               path="/tickets/:id/confirm"

@@ -38,6 +38,17 @@ export const ReportPage: React.FC = () => {
   const { user, addPoints } = useAuthStore();
   const { addToast } = useToastStore();
 
+  React.useEffect(() => {
+    if (!user) {
+      addToast({
+        type: 'info',
+        title: 'Sign In Required',
+        message: 'Please sign in with your mobile number to file a civic issue.',
+      });
+      navigate(`/login?redirect=${encodeURIComponent('/report')}`, { replace: true });
+    }
+  }, [user, navigate, addToast]);
+
   // Multi-step flow state
   // 1 = Camera, 2 = Category & Details, 3 = Duplicate Check, 4 = Success
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -218,6 +229,16 @@ export const ReportPage: React.FC = () => {
       return;
     }
     if (isSubmitting) return;
+
+    if (!user) {
+      addToast({
+        type: 'error',
+        title: 'Authentication Required',
+        message: 'Please sign in to submit a civic issue report.',
+      });
+      navigate(`/login?redirect=${encodeURIComponent('/report')}`);
+      return;
+    }
 
     isActionLockedRef.current = true;
     setIsSubmitting(true);

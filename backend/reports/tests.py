@@ -6,6 +6,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 from civic_connect.mongo import get_collection
+from civic_connect.authentication import generate_jwt
 from reports.models import PriorityLevel, ReportManager, ReportStatus
 
 
@@ -16,6 +17,27 @@ class ReportAPITests(TestCase):
         get_collection("reports").delete_many({})
         get_collection("upvotes").delete_many({})
         get_collection("gamification_ledger").delete_many({})
+
+        # Citizen credentials
+        self.citizen_payload = {
+            "user_id": "user_123",
+            "phone": "9876543210",
+            "name": "John Doe",
+            "role": "citizen",
+        }
+        self.citizen_token = generate_jwt(self.citizen_payload)
+
+        # Officer credentials
+        self.officer_payload = {
+            "user_id": "officer_456",
+            "phone": "9876543211",
+            "name": "Inspector Ramesh",
+            "role": "officer",
+        }
+        self.officer_token = generate_jwt(self.officer_payload)
+
+        # Authenticate client as citizen by default for test cases
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.citizen_token}")
 
     def test_create_report_and_verify_ticket_id(self):
         payload = {
@@ -112,6 +134,8 @@ class ReportAPITests(TestCase):
         }, format="json")
         rep_id = res.data["id"]
 
+        # Authenticate as officer to update status
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.officer_token}")
         patch_res = self.client.patch(f"/api/reports/{rep_id}/status/", {
             "status": ReportStatus.IN_PROGRESS,
             "notes": "Assigned crew to inspect site",
@@ -168,6 +192,10 @@ class ReportAPITests(TestCase):
         }, format="json")
         rep_id = res.data["id"]
 
+        # Authenticate as a different citizen (cannot upvote your own report)
+        voter_token = generate_jwt({"user_id": "user_voter_1", "role": "citizen", "phone": "9998887771"})
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {voter_token}")
+
         # 1. First Upvote -> Should succeed
         upvote1 = self.client.post(f"/api/reports/{rep_id}/upvote/", {
             "user_id": "user_voter_1",
@@ -184,6 +212,7 @@ class ReportAPITests(TestCase):
         self.assertEqual(upvote2.data["report"]["upvote_count"], 0)
 
     def test_add_corroborating_evidence(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.citizen_token}")
         res = self.client.post("/api/reports/", {
             "title": "Evidence Test",
             "description": "Drain overflowing",
@@ -273,3 +302,57 @@ class ReportAPITests(TestCase):
         # 2. Test with empty payload -> 400
         bad_res = self.client.post("/api/reports/analyze-image/", {}, format="json")
         self.assertEqual(bad_res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_unauthenticated_user_cannot_create_report(self):
+        # Clear credentials (simulate unauthenticated public visitor)
+        self.client.credentials()
+
+        payload = {
+            "title": "Unauthorized Hazard",
+            "description": "Trying to report without login",
+            "category": "pothole",
+            "latitude": 12.9716,
+            "longitude": 77.5946,
+        }
+        res = self.client.post("/api/reports/", payload, format="json")
+        # Must be rejected with 401 Unauthorized or 403 Forbidden
+        self.assertIn(res.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_public_unauthenticated_can_view_reports(self):
+        # 1. Create a report as authenticated citizen
+        create_res = self.client.post("/api/reports/", {
+            "title": "Public Viewable Pothole",
+            "description": "Should be readable by anyone without login",
+            "category": "pothole",
+            "latitude": 12.9716,
+            "longitude": 77.5946,
+        }, format="json")
+        rep_id = create_res.data["id"]
+        ticket_id = create_res.data["ticket_id"]
+
+        # 2. Clear credentials (simulate unauthenticated visitor)
+        self.client.credentials()
+
+        # Public list view
+        list_res = self.client.get("/api/reports/")
+        self.assertEqual(list_res.status_code, status.HTTP_200_OK)
+
+        # Public detail view by ID
+        detail_res = self.client.get(f"/api/reports/{rep_id}/")
+        self.assertEqual(detail_res.status_code, status.HTTP_200_OK)
+
+        # Public detail view by Ticket ID
+        ticket_res = self.client.get(f"/api/reports/ticket/{ticket_id}/")
+        self.assertEqual(ticket_res.status_code, status.HTTP_200_OK)
+
+        # Public nearby view
+        nearby_res = self.client.get("/api/reports/nearby/?lat=12.9716&lng=77.5946&radius=5000")
+        self.assertEqual(nearby_res.status_code, status.HTTP_200_OK)
+
+        # Public feed view
+        feed_res = self.client.get("/api/reports/feed/?lat=12.9716&lng=77.5946&radius=10000")
+        self.assertEqual(feed_res.status_code, status.HTTP_200_OK)
+
+        # Public map view
+        map_res = self.client.get("/api/reports/map/?north=13.05&south=12.90&east=77.70&west=77.50")
+        self.assertEqual(map_res.status_code, status.HTTP_200_OK)

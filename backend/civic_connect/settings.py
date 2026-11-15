@@ -98,7 +98,8 @@ DATABASES = {
 }
 
 # MongoDB PyMongo Settings
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+# Strictly loaded from environment variable (never hardcoded in code)
+MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "civic_connect")
 
 # Password validation

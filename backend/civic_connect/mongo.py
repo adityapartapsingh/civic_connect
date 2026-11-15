@@ -34,15 +34,16 @@ _indexes_initialized: bool = False
 
 
 def get_mongo_uri() -> str:
-    """Return MongoDB connection URI from settings, environment, or default."""
+    """Return MongoDB connection URI from settings or environment variable."""
     try:
         from django.conf import settings
         if hasattr(settings, "MONGODB_URI") and settings.MONGODB_URI:
-            return str(settings.MONGODB_URI)
+            val = str(settings.MONGODB_URI).strip()
+            if val:
+                return val
     except Exception:
         pass
-    return os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
-
+    return os.environ.get("MONGODB_URI", "").strip()
 
 def get_mongo_db_name() -> str:
     """Return MongoDB database name from settings, environment, or default."""
@@ -65,6 +66,17 @@ def get_mongo_client() -> Any:
         return _mongo_client
 
     uri = get_mongo_uri()
+    if not uri:
+        is_render = "RENDER" in os.environ or bool(os.getenv("RENDER_SERVICE_ID"))
+        if is_render:
+            logger.critical("🚨 MONGODB_URI environment variable is missing in Render Dashboard! Please set MONGODB_URI under Render Service Environment Variables.")
+        if HAS_MONGOMOCK:
+            logger.warning("No MONGODB_URI provided. Initializing in-memory mongomock engine for local testing.")
+            _mongo_client = mongomock.MongoClient()
+            _is_mock_mode = True
+            return _mongo_client
+        raise ValueError("MONGODB_URI environment variable is not configured.")
+
     is_localhost = "localhost" in uri or "127.0.0.1" in uri
     conn_timeout = 2000 if is_localhost else 10000
 

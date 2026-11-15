@@ -31,6 +31,7 @@ from fraud.services import analyze_report_fraud
 import base64
 import logging
 from rest_framework.permissions import AllowAny
+from civic_connect.authentication import IsAuthenticatedCivicUser, IsOfficerOrAdmin
 from reports.ai_vision import analyze_issue_image_data
 from reports.models import ReportManager, ReportStatus
 
@@ -49,11 +50,16 @@ from reports.serializers import (
 
 class ReportListCreateAPIView(APIView):
     """
-    GET  /api/reports/ -> List recent reports (supports status & category filtering)
-    POST /api/reports/ -> Submit new civic issue report with fraud verification
+    GET  /api/reports/ -> List recent reports (supports status & category filtering) - PUBLIC ACCESS
+    POST /api/reports/ -> Submit new civic issue report with fraud verification - REQUIRES AUTHENTICATION
     """
 
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAuthenticatedCivicUser()]
+        return [AllowAny()]
 
     def get(self, request, *args, **kwargs):
         status_param = request.query_params.get("status")
@@ -141,6 +147,12 @@ class ReportListCreateAPIView(APIView):
         )
 
     def post(self, request, *args, **kwargs):
+        if not request.user or not getattr(request.user, "is_authenticated", False):
+            return Response(
+                {"detail": "Authentication required to submit reports. Please log in first."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         serializer = ReportCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -151,10 +163,10 @@ class ReportListCreateAPIView(APIView):
         accuracy = data.get("accuracy", 15.0)
         is_mock = data.get("is_mock_location", False)
         
-        # Attribute authenticated user or fallback to payload
-        reporter_id = getattr(request.user, "user_id", None) or data.get("reporter_id")
-        reporter_name = getattr(request.user, "name", None) or data.get("reporter_name", "Citizen")
-        reporter_phone = getattr(request.user, "phone", None) or data.get("reporter_phone", "")
+        # Attribute authenticated user strictly from verified session
+        reporter_id = str(getattr(request.user, "user_id", None) or "")
+        reporter_name = getattr(request.user, "name", None) or "Citizen"
+        reporter_phone = getattr(request.user, "phone", None) or "" 
 
         # Rapid duplicate / double-click idempotency guard (prevent duplicate ticket punch)
         try:
@@ -222,6 +234,7 @@ class ReportListCreateAPIView(APIView):
 
 
 class NearbyReportsAPIView(APIView):
+    permission_classes = [AllowAny]
     """
     GET /api/reports/nearby/?lat=&lng=&category=&radius=
     Find reports within radius_meters using MongoDB 2dsphere index.
@@ -258,6 +271,7 @@ class NearbyReportsAPIView(APIView):
 
 
 class FeedReportsAPIView(APIView):
+    permission_classes = [AllowAny]
     """
     GET /api/reports/feed/?lat=&lng=&radius=
     Ranked feed of active reports (combines priority, upvotes, and proximity).
@@ -280,6 +294,7 @@ class FeedReportsAPIView(APIView):
 
 
 class MapReportsAPIView(APIView):
+    permission_classes = [AllowAny]
     """
     GET /api/reports/map/?north=&south=&east=&west=
     Map bounding box query returning light pin objects.
@@ -310,6 +325,7 @@ class MapReportsAPIView(APIView):
 
 
 class ReportDetailAPIView(APIView):
+    permission_classes = [AllowAny]
     """
     GET /api/reports/<id>/
     Fetch report by MongoDB _id or ticket_id.
@@ -326,6 +342,7 @@ class ReportDetailAPIView(APIView):
 
 
 class ReportTicketAPIView(APIView):
+    permission_classes = [AllowAny]
     """
     GET /api/reports/ticket/<ticket_id>/
     Fetch report by human-readable ticket ID (e.g. CC-2026-00042).
@@ -342,6 +359,7 @@ class ReportTicketAPIView(APIView):
 
 
 class ReportStatusUpdateAPIView(APIView):
+    permission_classes = [IsOfficerOrAdmin]
     """
     PATCH /api/reports/<id>/status/
     Update report status (e.g. IN_PROGRESS, RESOLVED, REJECTED) with notes & resolution photo.
@@ -383,6 +401,7 @@ class ReportStatusUpdateAPIView(APIView):
 
 
 class ReportConfirmAPIView(APIView):
+    permission_classes = [IsAuthenticatedCivicUser]
     """
     POST /api/reports/<id>/confirm/
     Citizen confirms resolution -> awards +20 points, closes ticket.
@@ -414,6 +433,7 @@ class ReportConfirmAPIView(APIView):
 
 
 class ReportDisputeAPIView(APIView):
+    permission_classes = [IsAuthenticatedCivicUser]
     """
     POST /api/reports/<id>/dispute/
     Citizen dispute -> auto-escalates to DISPUTED status with priority boost.
@@ -444,6 +464,7 @@ class ReportDisputeAPIView(APIView):
 
 
 class ReportEvidenceAPIView(APIView):
+    permission_classes = [IsAuthenticatedCivicUser]
     """
     POST /api/reports/<id>/evidence/
     Add new corroborating photo with timestamp to an existing report.
@@ -493,6 +514,7 @@ class ReportEvidenceAPIView(APIView):
 
 
 class ReportUpvoteAPIView(APIView):
+    permission_classes = [IsAuthenticatedCivicUser]
     """
     POST /api/reports/<id>/upvote/
     'I see this too' community corroboration with optional photo.
