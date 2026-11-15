@@ -115,6 +115,28 @@ class UserProfileSerializer(serializers.Serializer):
         from users.validators import validate_password_strength
         return validate_password_strength(value)
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get("request") if hasattr(self, "context") else None
+        caller = getattr(request, "user", None) if request else None
+        caller_role = getattr(caller, "role", "") if caller else ""
+        caller_uid = getattr(caller, "user_id", "") if caller else ""
+
+        is_self = caller_uid and (str(caller_uid) == str(ret.get("id")) or str(caller_uid) == str(ret.get("user_id")))
+        is_super = caller_role == "super_admin"
+
+        # Security & Privacy Shield:
+        # Never expose raw credential passcodes in profile representations
+        ret.pop("credential_code", None)
+
+        # Hide administrative moderation records from non-superadmin third parties
+        if not is_super:
+            ret.pop("block_reason", None)
+            ret.pop("blocked_by", None)
+            ret.pop("blocked_at", None)
+
+        return ret
+
 
 class UserSyncSerializer(serializers.Serializer):
     """Payload sent by frontend upon Firebase Auth authentication."""
@@ -137,6 +159,28 @@ class UserSyncSerializer(serializers.Serializer):
             return value
         from users.validators import validate_password_strength
         return validate_password_strength(value)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get("request") if hasattr(self, "context") else None
+        caller = getattr(request, "user", None) if request else None
+        caller_role = getattr(caller, "role", "") if caller else ""
+        caller_uid = getattr(caller, "user_id", "") if caller else ""
+
+        is_self = caller_uid and (str(caller_uid) == str(ret.get("id")) or str(caller_uid) == str(ret.get("user_id")))
+        is_super = caller_role == "super_admin"
+
+        # Security & Privacy Shield:
+        # Never expose raw credential passcodes in profile representations
+        ret.pop("credential_code", None)
+
+        # Hide administrative moderation records from non-superadmin third parties
+        if not is_super:
+            ret.pop("block_reason", None)
+            ret.pop("blocked_by", None)
+            ret.pop("blocked_at", None)
+
+        return ret
 
 
 class VolunteerApplicationSerializer(serializers.Serializer):

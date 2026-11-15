@@ -11,22 +11,64 @@ from users.serializers import UserProfileSerializer, UserSyncSerializer
 
 class UserProfileAPIView(APIView):
     """
-    GET: Retrieve user profile by user_id, phone, or email.
-    POST: Create or update user profile.
+    GET: Retrieve user profile with strict isolation.
+         Users can ONLY view their own profile. Only Super Admin can view other profiles.
+    POST: Create or update own profile. Non-superadmins cannot modify roles, wards, or bans.
     """
 
     def get(self, request, *args, **kwargs):
+        from civic_connect.authentication import JWTBearerAuthentication
+        caller = None
+        try:
+            auth = JWTBearerAuthentication()
+            user_auth = auth.authenticate(request)
+            caller = user_auth[0] if user_auth else None
+        except Exception:
+            caller = None
+
+        if not caller and request.user and getattr(request.user, "is_authenticated", False):
+            caller = request.user
+
+        if not caller:
+            return Response(
+                {"detail": "Authentication required to access user profiles."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         user_id = request.query_params.get("user_id") or request.query_params.get("id")
         phone = request.query_params.get("phone")
         email = request.query_params.get("email")
 
+        # Strict profile privacy enforcement:
+        caller_uid = str(getattr(caller, "user_id", "") or getattr(caller, "id", "") or "")
+        caller_phone = str(getattr(caller, "phone", "") or "")
+        caller_role = getattr(caller, "role", "citizen")
+
+        # If user is requesting a specific profile, verify ownership
+        if user_id or phone or email:
+            matches_caller = (
+                (user_id and str(user_id) == caller_uid) or
+                (phone and str(phone) == caller_phone) or
+                (email and hasattr(caller, "email") and str(email) == str(getattr(caller, "email", "")))
+            )
+            if not matches_caller and caller_role != UserRole.SUPER_ADMIN:
+                return Response(
+                    {"detail": "Access denied. You are only authorized to view your own profile."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         user = None
-        if user_id:
+        if user_id and caller_role == UserRole.SUPER_ADMIN:
             user = UserManager.find_by_id(user_id)
-        elif phone:
+        elif phone and caller_role == UserRole.SUPER_ADMIN:
             user = UserManager.find_by_phone(phone)
-        elif email:
+        elif email and caller_role == UserRole.SUPER_ADMIN:
             user = UserManager.find_by_email(email)
+        else:
+            if caller_uid:
+                user = UserManager.find_by_id(caller_uid)
+            if not user and caller_phone:
+                user = UserManager.find_by_phone(caller_phone)
 
         if not user:
             return Response(
@@ -34,16 +76,50 @@ class UserProfileAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = UserProfileSerializer(user)
+        serializer = UserProfileSerializer(user, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        serializer = UserProfileSerializer(data=request.data)
+        from civic_connect.authentication import JWTBearerAuthentication
+        caller = None
+        try:
+            auth = JWTBearerAuthentication()
+            user_auth = auth.authenticate(request)
+            caller = user_auth[0] if user_auth else None
+        except Exception:
+            caller = None
+
+        if not caller and request.user and getattr(request.user, "is_authenticated", False):
+            caller = request.user
+
+        serializer = UserProfileSerializer(data=request.data, context={"request": request})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         phone = serializer.validated_data.get("phone")
         user_id = serializer.validated_data.get("user_id")
+
+        if caller:
+            caller_uid = str(getattr(caller, "user_id", "") or getattr(caller, "id", "") or "")
+            caller_phone = str(getattr(caller, "phone", "") or "")
+            caller_role = getattr(caller, "role", "citizen")
+
+            if caller_role != UserRole.SUPER_ADMIN:
+                is_owner = (
+                    (user_id and str(user_id) == caller_uid) or
+                    (phone and str(phone) == caller_phone)
+                )
+                if not is_owner:
+                    return Response(
+                        {"detail": "Access denied. You can only update your own profile."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                # Prevent self-elevation of roles, wards, or clearing bans
+                serializer.validated_data.pop("role", None)
+                serializer.validated_data.pop("is_blocked", None)
+                serializer.validated_data.pop("ward_id", None)
+                serializer.validated_data.pop("ward_name", None)
+
         if phone:
             existing = UserManager.find_by_phone(phone)
             if existing and user_id and existing.get("user_id") != user_id and str(existing.get("_id")) != str(user_id):
@@ -54,7 +130,7 @@ class UserProfileAPIView(APIView):
 
         user_doc = UserManager.upsert_user(serializer.validated_data)
         return Response(
-            UserProfileSerializer(user_doc).data,
+            UserProfileSerializer(user_doc, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
 
@@ -773,9 +849,25 @@ class AdminProvisionAPIView(APIView):
             except Exception:
                 caller = None
 
+            if not caller and request.user and getattr(request.user, "is_authenticated", False):
+                caller = request.user
+
+            caller_role = getattr(caller, "role", "")
+            if not caller or caller_role not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+                return Response(
+                    {"detail": "Access denied. Administrative authorization required to provision personnel."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             target_role = request.data.get("target_role", "").strip().lower()
 
             if target_role == UserRole.ADMIN:
+                if caller_role != UserRole.SUPER_ADMIN:
+                    return Response(
+                        {"detail": "Access denied. Only Super Administrators can provision Ward Administrators."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
                 # Super Admin creates Ward Admin
                 from users.validators import validate_indian_phone
                 from rest_framework import serializers
@@ -806,7 +898,7 @@ class AdminProvisionAPIView(APIView):
 
                 return Response({
                     "message": f"Municipal Ward Admin credentials generated successfully for {name}.",
-                    "admin": UserProfileSerializer(admin_doc).data,
+                    "admin": UserProfileSerializer(admin_doc, context={"request": request}).data,
                     "credentials": {
                         "employee_id": admin_doc.get("employee_id"),
                         "passcode": admin_doc.get("credential_code"),
@@ -816,14 +908,18 @@ class AdminProvisionAPIView(APIView):
                 }, status=status.HTTP_201_CREATED)
 
             elif target_role == UserRole.OFFICER:
-                # Ward Admin creates Field Officer for their specific ward
+                # Ward Admin creates Field Officer strictly for their assigned ward
                 from users.validators import validate_indian_phone
                 from rest_framework import serializers
 
                 name = request.data.get("name", "").strip()
                 raw_phone = request.data.get("phone", "").strip()
                 assigned_tasks = request.data.get("assigned_tasks", [])
-                ward_id = getattr(caller, "ward_id", None) or request.data.get("ward_id", "Ward-102")
+                
+                if caller and caller_role == UserRole.ADMIN:
+                    ward_id = getattr(caller, "ward_id", None) or "Ward-102"
+                else:
+                    ward_id = getattr(caller, "ward_id", None) or request.data.get("ward_id", "Ward-102")
 
                 if not name or not raw_phone:
                     return Response(
@@ -877,20 +973,60 @@ class AdminProvisionAPIView(APIView):
 class AdminRosterAPIView(APIView):
     """
     GET /api/users/admin/roster/
-    List Ward Admins (for Super Admin) or Field Officers (for Ward Admin).
+    Strict Zonal Authority:
+    - Super Admin can list all Ward Admins or any ward's Field Officers.
+    - Ward Admin can ONLY list Field Officers within their assigned ward.
+    - Regular citizens and officers are prohibited.
     """
 
     def get(self, request, *args, **kwargs):
         try:
-            role = request.query_params.get("role", "admin").lower()
-            ward_id = request.query_params.get("ward_id")
+            from civic_connect.authentication import JWTBearerAuthentication
+            caller = None
+            try:
+                auth = JWTBearerAuthentication()
+                user_auth = auth.authenticate(request)
+                caller = user_auth[0] if user_auth else None
+            except Exception:
+                caller = None
 
+            if not caller and request.user and getattr(request.user, "is_authenticated", False):
+                caller = request.user
+
+            if not caller or getattr(caller, "role", "") not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+                return Response(
+                    {"detail": "Access denied. Administrative authorization required to view personnel rosters."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            caller_role = getattr(caller, "role", "")
+            caller_ward = getattr(caller, "ward_id", None)
+            role = request.query_params.get("role", "officer").lower()
+            requested_ward = request.query_params.get("ward_id")
+
+            # Strict Ward Admin isolation
+            if caller_role == UserRole.ADMIN:
+                if role == UserRole.ADMIN:
+                    return Response(
+                        {"detail": "Access denied. Ward Administrators may not inspect rosters of other municipal wards."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                if requested_ward and caller_ward and requested_ward != caller_ward:
+                    return Response(
+                        {"detail": f"Access denied. You are only authorized for {caller_ward}."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                ward_id = caller_ward or requested_ward
+                officers = UserManager.list_officers(ward_id=ward_id)
+                return Response(UserProfileSerializer(officers, many=True, context={"request": request}).data, status=status.HTTP_200_OK)
+
+            # Super Admin root access
             if role == "admin":
                 admins = UserManager.list_admins()
-                return Response(UserProfileSerializer(admins, many=True).data, status=status.HTTP_200_OK)
+                return Response(UserProfileSerializer(admins, many=True, context={"request": request}).data, status=status.HTTP_200_OK)
             else:
-                officers = UserManager.list_officers(ward_id=ward_id)
-                return Response(UserProfileSerializer(officers, many=True).data, status=status.HTTP_200_OK)
+                officers = UserManager.list_officers(ward_id=requested_ward)
+                return Response(UserProfileSerializer(officers, many=True, context={"request": request}).data, status=status.HTTP_200_OK)
         except Exception as exc:
             return Response(
                 {"detail": f"Failed to retrieve roster: {str(exc)}"},
@@ -976,6 +1112,19 @@ class AdminRevokeAPIView(APIView):
             if not user_id:
                 return Response({"detail": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+            target_user = UserManager.find_by_id(user_id)
+            if not target_user:
+                return Response({"detail": "Target user not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            caller_role = getattr(caller, "role", "")
+            caller_ward = getattr(caller, "ward_id", "")
+            if caller_role == UserRole.ADMIN:
+                if target_user.get("role") != UserRole.OFFICER or target_user.get("ward_id") != caller_ward:
+                    return Response(
+                        {"detail": "Access denied. Ward Administrators may only revoke Field Officers within their assigned ward."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
             success = UserManager.revoke_user_credential(user_id)
             if success:
                 return Response({"message": f"Credential for {user_id} revoked."}, status=status.HTTP_200_OK)
@@ -985,6 +1134,28 @@ class AdminRevokeAPIView(APIView):
                 {"detail": f"Revocation error: {str(exc)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+def _require_super_admin(request):
+    from civic_connect.authentication import JWTBearerAuthentication
+    caller = None
+    try:
+        auth = JWTBearerAuthentication()
+        user_auth = auth.authenticate(request)
+        caller = user_auth[0] if user_auth else None
+    except Exception:
+        caller = None
+
+    if not caller and request.user and getattr(request.user, "is_authenticated", False):
+        caller = request.user
+
+    if not caller or getattr(caller, "role", "") != UserRole.SUPER_ADMIN:
+        return False, Response(
+            {"detail": "Access denied. Root Super Administrator authority required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    request.user = caller
+    return True, caller
 
 
 class SuperAdminUsersAPIView(APIView):
@@ -998,6 +1169,10 @@ class SuperAdminUsersAPIView(APIView):
     """
 
     def get(self, request, *args, **kwargs):
+        is_allowed, auth_res = _require_super_admin(request)
+        if not is_allowed:
+            return auth_res
+
         try:
             role = request.query_params.get("role", "all").strip().lower()
             ward_id = request.query_params.get("ward_id")
@@ -1026,7 +1201,7 @@ class SuperAdminUsersAPIView(APIView):
             blocked_count = col.count_documents({"is_blocked": True})
 
             return Response({
-                "users": UserProfileSerializer(users, many=True).data,
+                "users": UserProfileSerializer(users, many=True, context={"request": request}).data,
                 "stats": {
                     "total": total,
                     "admins_count": admins_count,
@@ -1042,6 +1217,10 @@ class SuperAdminUsersAPIView(APIView):
             )
 
     def post(self, request, *args, **kwargs):
+        is_allowed, auth_res = _require_super_admin(request)
+        if not is_allowed:
+            return auth_res
+
         try:
             from users.validators import validate_indian_phone
             from rest_framework import serializers
@@ -1095,7 +1274,7 @@ class SuperAdminUsersAPIView(APIView):
 
             return Response({
                 "message": f"Account created successfully for {name} ({role.upper()}).",
-                "user": UserProfileSerializer(doc).data,
+                "user": UserProfileSerializer(doc, context={"request": request}).data,
             }, status=status.HTTP_201_CREATED)
         except Exception as exc:
             return Response(
@@ -1114,6 +1293,10 @@ class SuperAdminUserDetailAPIView(APIView):
     """
 
     def put(self, request, user_id, *args, **kwargs):
+        is_allowed, auth_res = _require_super_admin(request)
+        if not is_allowed:
+            return auth_res
+
         try:
             user = UserManager.find_by_id(user_id)
             if not user:
@@ -1122,7 +1305,7 @@ class SuperAdminUserDetailAPIView(APIView):
             updated = UserManager.update_user_by_admin(user_id, request.data)
             return Response({
                 "message": f"Profile for {updated.get('name', user_id)} updated successfully.",
-                "user": UserProfileSerializer(updated).data,
+                "user": UserProfileSerializer(updated, context={"request": request}).data,
             }, status=status.HTTP_200_OK)
         except Exception as exc:
             return Response(
@@ -1131,6 +1314,10 @@ class SuperAdminUserDetailAPIView(APIView):
             )
 
     def delete(self, request, user_id, *args, **kwargs):
+        is_allowed, auth_res = _require_super_admin(request)
+        if not is_allowed:
+            return auth_res
+
         try:
             user = UserManager.find_by_id(user_id)
             if not user:
@@ -1159,6 +1346,10 @@ class SuperAdminBlockUserAPIView(APIView):
     """
 
     def post(self, request, user_id, *args, **kwargs):
+        is_allowed, auth_res = _require_super_admin(request)
+        if not is_allowed:
+            return auth_res
+
         try:
             action = request.data.get("action", "block").strip().lower()
             caller_name = getattr(request.user, "name", "Super Administrator") if hasattr(request, "user") else "Super Administrator"
@@ -1177,7 +1368,7 @@ class SuperAdminBlockUserAPIView(APIView):
 
                 return Response({
                     "message": f"Account '{blocked_user.get('name')}' has been suspended. Reason: {reason}.",
-                    "user": UserProfileSerializer(blocked_user).data,
+                    "user": UserProfileSerializer(blocked_user, context={"request": request}).data,
                 }, status=status.HTTP_200_OK)
 
             elif action == "unblock":
@@ -1187,7 +1378,7 @@ class SuperAdminBlockUserAPIView(APIView):
 
                 return Response({
                     "message": f"Account '{unblocked_user.get('name')}' has been successfully unblocked and reinstated.",
-                    "user": UserProfileSerializer(unblocked_user).data,
+                    "user": UserProfileSerializer(unblocked_user, context={"request": request}).data,
                 }, status=status.HTTP_200_OK)
 
             else:

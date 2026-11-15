@@ -92,6 +92,26 @@ class ReportDetailSerializer(serializers.Serializer):
     created_at = serializers.CharField()
     updated_at = serializers.CharField()
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get("request") if hasattr(self, "context") else None
+        caller = getattr(request, "user", None) if request else None
+        caller_role = getattr(caller, "role", "") if caller else ""
+        caller_uid = getattr(caller, "user_id", "") if caller else ""
+        caller_phone = getattr(caller, "phone", "") if caller else ""
+
+        is_author = (caller_uid and str(caller_uid) == str(ret.get("reporter_id"))) or (caller_phone and str(caller_phone) == str(ret.get("reporter_phone")))
+        is_official = caller_role in ("officer", "admin", "super_admin")
+
+        # Privacy Shield: Mask citizen phone number unless caller is report author or authorized official
+        if not is_author and not is_official:
+            phone = ret.get("reporter_phone")
+            if phone and len(phone) >= 4:
+                ret["reporter_phone"] = phone[:2] + ("*" * (len(phone) - 4)) + phone[-2:]
+            elif phone:
+                ret["reporter_phone"] = "******"
+        return ret
+
 
 class ReportStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=ReportStatus.CHOICES, required=True)

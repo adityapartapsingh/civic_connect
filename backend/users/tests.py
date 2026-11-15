@@ -6,6 +6,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 from civic_connect.mongo import get_collection
+from civic_connect.authentication import generate_jwt
 from users.models import UserRole, VolunteerScheme
 
 
@@ -25,9 +26,25 @@ class UserTests(TestCase):
         self.assertEqual(post_res.status_code, status.HTTP_200_OK)
         user_id = post_res.data["id"]
 
-        get_res = self.client.get(f"/api/users/profile/?user_id={user_id}")
+        # 1. Unauthenticated profile lookup must be rejected with 401
+        unauth_res = self.client.get(f"/api/users/profile/?user_id={user_id}")
+        self.assertEqual(unauth_res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # 2. Authenticated user viewing own profile -> 200 OK
+        token = generate_jwt({"user_id": user_id, "id": user_id, "phone": "+91-9876500001", "role": UserRole.CITIZEN})
+        get_res = self.client.get(f"/api/users/profile/?user_id={user_id}", HTTP_AUTHORIZATION=f"Bearer {token}")
         self.assertEqual(get_res.status_code, status.HTTP_200_OK)
         self.assertEqual(get_res.data["name"], "Kavita Singh")
+
+        # 3. Unauthorized third-party citizen attempting to view another's profile -> 403 FORBIDDEN
+        other_token = generate_jwt({"user_id": "other_cit_999", "id": "other_cit_999", "phone": "+91-9876599999", "role": UserRole.CITIZEN})
+        forbidden_res = self.client.get(f"/api/users/profile/?user_id={user_id}", HTTP_AUTHORIZATION=f"Bearer {other_token}")
+        self.assertEqual(forbidden_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 4. Super Admin authority viewing user profile -> 200 OK
+        super_token = generate_jwt({"user_id": "sa_root_01", "id": "sa_root_01", "role": UserRole.SUPER_ADMIN})
+        super_res = self.client.get(f"/api/users/profile/?user_id={user_id}", HTTP_AUTHORIZATION=f"Bearer {super_token}")
+        self.assertEqual(super_res.status_code, status.HTTP_200_OK)
 
     def test_user_sync_endpoint(self):
         sync_res = self.client.post("/api/users/sync/", {
@@ -80,6 +97,16 @@ class UserTests(TestCase):
         self.assertFalse(is_val_tamp)
 
     def test_super_admin_provisions_ward_admin(self):
+        super_token = generate_jwt({"user_id": "sa_root_01", "role": UserRole.SUPER_ADMIN})
+        # Unauthenticated provisioning attempt must fail with 403
+        unauth_res = self.client.post("/api/users/admin/provision/", {
+            "target_role": "admin",
+            "name": "Smt. Sunita Talwar Test",
+            "phone": "9876599901",
+            "ward_id": "Ward-102",
+        }, format="json")
+        self.assertEqual(unauth_res.status_code, status.HTTP_403_FORBIDDEN)
+
         res = self.client.post("/api/users/admin/provision/", {
             "target_role": "admin",
             "name": "Smt. Sunita Talwar Test",
@@ -89,7 +116,7 @@ class UserTests(TestCase):
             "ward_name": "Ward 2 - Civil Lines Administrative Ward",
             "department": "Municipal Corporation Jalandhar",
             "designation": "Ward 2 Municipal Councillor & Admin",
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertIn("credentials", res.data)
         self.assertEqual(res.data["credentials"]["ward_id"], "Ward-102")
@@ -97,6 +124,7 @@ class UserTests(TestCase):
         self.assertTrue(bool(res.data["credentials"]["employee_id"]))
 
     def test_ward_admin_provisions_field_officer(self):
+        ward_token = generate_jwt({"user_id": "wa_102_01", "role": UserRole.ADMIN, "ward_id": "Ward-102"})
         res = self.client.post("/api/users/admin/provision/", {
             "target_role": "officer",
             "name": "Er. Harpreet Singh Test",
@@ -106,20 +134,21 @@ class UserTests(TestCase):
             "department": "Roads & Infrastructure Division",
             "designation": "Junior Engineer (JE)",
             "assigned_tasks": ["pothole", "road_damage"],
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {ward_token}")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertIn("credentials", res.data)
         self.assertEqual(res.data["credentials"]["ward_id"], "Ward-102")
         self.assertIn("pothole", res.data["credentials"]["assigned_tasks"])
 
     def test_admin_quick_login_flow(self):
+        super_token = generate_jwt({"user_id": "sa_root_01", "role": UserRole.SUPER_ADMIN})
         # 1. Provision an admin
         prov_res = self.client.post("/api/users/admin/provision/", {
             "target_role": "admin",
             "name": "Sh. Ramesh Kumar Test",
             "phone": "9876599903",
             "ward_id": "Ward-101",
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(prov_res.status_code, status.HTTP_201_CREATED)
         emp_id = prov_res.data["credentials"]["employee_id"]
         passcode = prov_res.data["credentials"]["passcode"]
@@ -161,13 +190,14 @@ class UserTests(TestCase):
         self.assertIn("already exists", res.data.get("detail", ""))
 
     def test_duplicate_phone_rejected_on_provisioning(self):
+        super_token = generate_jwt({"user_id": "sa_root_01", "role": UserRole.SUPER_ADMIN})
         # 1. Provision initial Ward Admin
         res1 = self.client.post("/api/users/admin/provision/", {
             "target_role": "admin",
             "name": "First Admin",
             "phone": "9876522222",
             "ward_id": "Ward-101",
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(res1.status_code, status.HTTP_201_CREATED)
 
         # 2. Attempt to provision another officer or admin with the exact same phone -> must be rejected
@@ -177,7 +207,7 @@ class UserTests(TestCase):
             "phone": "+91-9876522222",  # Different format, same normalized number
             "ward_id": "Ward-101",
             "assigned_tasks": ["pothole"],
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(res2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already exists", res2.data.get("detail", ""))
 
@@ -617,6 +647,13 @@ class UserTests(TestCase):
         """
         from users.models import UserManager
 
+        super_token = generate_jwt({"user_id": "sa_root_01", "role": UserRole.SUPER_ADMIN})
+        ward_token = generate_jwt({"user_id": "wa_101", "role": UserRole.ADMIN, "ward_id": "Ward-101"})
+
+        # 0. Unauthorized access check: Ward Admin or citizen must NOT access super admin user controls
+        unauth_crud = self.client.get("/api/users/admin/users/?role=all", HTTP_AUTHORIZATION=f"Bearer {ward_token}")
+        self.assertEqual(unauth_crud.status_code, status.HTTP_403_FORBIDDEN)
+
         # 1. Super Admin creates a Field Officer for Ward-103
         create_off_res = self.client.post("/api/users/admin/users/", {
             "role": "officer",
@@ -627,7 +664,7 @@ class UserTests(TestCase):
             "department": "Electrical Division",
             "designation": "Junior Engineer",
             "assigned_tasks": ["streetlight", "traffic_signal"],
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(create_off_res.status_code, status.HTTP_201_CREATED)
         officer_data = create_off_res.data["user"]
         officer_uid = officer_data["id"] or officer_data["user_id"]
@@ -641,14 +678,14 @@ class UserTests(TestCase):
             "phone": "9876554321",
             "email": "tarun@example.com",
             "ward_id": "Ward-101",
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(create_cit_res.status_code, status.HTTP_201_CREATED)
         citizen_data = create_cit_res.data["user"]
         citizen_uid = citizen_data["id"] or citizen_data["user_id"]
         self.assertEqual(citizen_data["role"], "citizen")
 
         # 3. List all users and verify stats
-        list_res = self.client.get("/api/users/admin/users/?role=all")
+        list_res = self.client.get("/api/users/admin/users/?role=all", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(list_res.status_code, status.HTTP_200_OK)
         self.assertIn("users", list_res.data)
         self.assertIn("stats", list_res.data)
@@ -659,7 +696,7 @@ class UserTests(TestCase):
             "name": "Er. Rohit Verma (Senior JE)",
             "designation": "Senior Junior Engineer",
             "assigned_tasks": ["streetlight", "traffic_signal", "road_damage"],
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(update_res.status_code, status.HTTP_200_OK)
         self.assertEqual(update_res.data["user"]["name"], "Er. Rohit Verma (Senior JE)")
         self.assertEqual(update_res.data["user"]["designation"], "Senior Junior Engineer")
@@ -668,7 +705,7 @@ class UserTests(TestCase):
         fail_block_res = self.client.post(f"/api/users/admin/users/{citizen_uid}/block/", {
             "action": "block",
             "reason": "",
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(fail_block_res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("mandatory specific reason", fail_block_res.data["detail"])
 
@@ -676,7 +713,7 @@ class UserTests(TestCase):
         block_res = self.client.post(f"/api/users/admin/users/{citizen_uid}/block/", {
             "action": "block",
             "reason": "Repeated submission of fake/spam civic reports and abusive content",
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(block_res.status_code, status.HTTP_200_OK)
         self.assertTrue(block_res.data["user"]["is_blocked"])
         self.assertEqual(block_res.data["user"]["block_reason"], "Repeated submission of fake/spam civic reports and abusive content")
@@ -693,7 +730,7 @@ class UserTests(TestCase):
         # 8. Super Admin unblocks the citizen
         unblock_res = self.client.post(f"/api/users/admin/users/{citizen_uid}/block/", {
             "action": "unblock",
-        }, format="json")
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(unblock_res.status_code, status.HTTP_200_OK)
         self.assertFalse(unblock_res.data["user"]["is_blocked"])
 
@@ -706,7 +743,7 @@ class UserTests(TestCase):
         self.assertEqual(reinstated_otp_res.status_code, status.HTTP_200_OK)
 
         # 9. Super Admin deletes the created Field Officer
-        del_res = self.client.delete(f"/api/users/admin/users/{officer_uid}/")
+        del_res = self.client.delete(f"/api/users/admin/users/{officer_uid}/", HTTP_AUTHORIZATION=f"Bearer {super_token}")
         self.assertEqual(del_res.status_code, status.HTTP_200_OK)
         self.assertIn("removed permanently", del_res.data["message"])
 

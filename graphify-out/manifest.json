@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "backend/reports/serializers.py": {
-    "mtime": 1794766978.1084,
-    "seen": 1794767418.7094474,
-    "ast_hash": "8332fee62e6411472aaef32e786071c2",
+    "mtime": 1794768454.103501,
+    "seen": 1794769796.0482028,
+    "ast_hash": "4154f603141f43f1c2e510f34ba0151c",
     "semantic_hash": ""
   },
   "backend/reports/tests.py": {
@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "backend/reports/views.py": {
-    "mtime": 1794766985.753286,
-    "seen": 1794767418.709454,
-    "ast_hash": "0b5ed0b8923f19e8ca134218eb76b5d0",
+    "mtime": 1794769126.081674,
+    "seen": 1794769796.048207,
+    "ast_hash": "6ec3f62e33ca8adda9a9afc049f654da",
     "semantic_hash": ""
   },
   "backend/users/__init__.py": {
@@ -270,15 +270,15 @@
     "semantic_hash": ""
   },
   "backend/users/serializers.py": {
-    "mtime": 1794765553.3036623,
-    "seen": 1794766124.175429,
-    "ast_hash": "a02a48de528e57a7a23dbbf8a4ed9f14",
+    "mtime": 1794769171.5047474,
+    "seen": 1794769796.048213,
+    "ast_hash": "1b3579798d26376ab75045ddac23d5a6",
     "semantic_hash": ""
   },
   "backend/users/tests.py": {
-    "mtime": 1794765774.159289,
-    "seen": 1794766124.17543,
-    "ast_hash": "5d34a937f3a205e56ef6ee5dd73901da",
+    "mtime": 1794769478.3974903,
+    "seen": 1794769796.048214,
+    "ast_hash": "2a95de23e7b9e7c84b7de6bdcc7b2042",
     "semantic_hash": ""
   },
   "backend/users/urls.py": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "backend/users/views.py": {
-    "mtime": 1794765665.4294875,
-    "seen": 1794766124.1754332,
-    "ast_hash": "98b6579a1a09923a4e2cff6d2a5635ab",
+    "mtime": 1794769642.5588577,
+    "seen": 1794769796.048218,
+    "ast_hash": "68e02ca76cee35a5e8d80bcd06e21f74",
     "semantic_hash": ""
   },
   "backend/utils/__init__.py": {
@@ -750,9 +750,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/AdminPortalPage.tsx": {
-    "mtime": 1794768175.0163836,
-    "seen": 1794768202.3209767,
-    "ast_hash": "2986f6b5dff71208c0f87be7fecd294e",
+    "mtime": 1794769256.7945273,
+    "seen": 1794769796.0482848,
+    "ast_hash": "9017c7b5dd49f36a3e246057bbb5f932",
     "semantic_hash": ""
   },
   "frontend/src/pages/RewardsPage.tsx": {
@@ -762,9 +762,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/SuperAdminPortalPage.tsx": {
-    "mtime": 1794765999.8856318,
-    "seen": 1794766124.1755073,
-    "ast_hash": "0cd9cdf34e7e43cff42877b4e90accbe",
+    "mtime": 1794769298.082871,
+    "seen": 1794769796.0482955,
+    "ast_hash": "c8736e2272437ad8b49f2def2480abf9",
     "semantic_hash": ""
   },
   "frontend/src/pages/VolunteersPage.tsx": {

@@ -33,65 +33,16 @@ import {
   Send,
   X,
   Scale,
+  Lock,
 } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 
 const MUNICIPAL_WARDS = [
-  {
-    id: 'Ward-101',
-    name: 'Ward 1 - Model Town Urban Zone',
-    zone: 'Central Jalandhar',
-    admin_name: 'Sh. Ramesh Kumar',
-    admin_phone: '9876543210',
-    admin_email: 'ward101.admin@mcjalandhar.in',
-    employee_id: 'PB-MCJ-ADM-W101',
-    credential_code: 'MCJ-W101-SEC4',
-    designation: 'Ward 1 Municipal Administrator',
-  },
-  {
-    id: 'Ward-102',
-    name: 'Ward 2 - Civil Lines Administrative Ward',
-    zone: 'North Jalandhar',
-    admin_name: 'Smt. Sunita Talwar',
-    admin_phone: '9876543211',
-    admin_email: 'ward102.admin@mcjalandhar.in',
-    employee_id: 'PB-MCJ-ADM-W102',
-    credential_code: 'MCJ-W102-SEC9',
-    designation: 'Ward 2 Municipal Councillor & Admin',
-  },
-  {
-    id: 'Ward-103',
-    name: 'Ward 3 - Cantt Road & Defense Colony',
-    zone: 'East Jalandhar',
-    admin_name: 'Sh. Anand Rao',
-    admin_phone: '9876543212',
-    admin_email: 'ward103.admin@mcjalandhar.in',
-    employee_id: 'PB-MCJ-ADM-W103',
-    credential_code: 'MCJ-W103-SEC7',
-    designation: 'Ward 3 Municipal Administrator',
-  },
-  {
-    id: 'Ward-104',
-    name: 'Ward 4 - Rama Mandi Commercial Hub',
-    zone: 'East Jalandhar',
-    admin_name: 'Smt. Sunita Patil',
-    admin_phone: '9876543213',
-    admin_email: 'ward104.admin@mcjalandhar.in',
-    employee_id: 'PB-MCJ-ADM-W104',
-    credential_code: 'MCJ-W104-SEC2',
-    designation: 'Ward 4 Municipal Administrator',
-  },
-  {
-    id: 'Ward-105',
-    name: 'Ward 5 - Phillaur Municipal Core',
-    zone: 'Phillaur Sub-Division',
-    admin_name: 'Sh. Vijay Reddy',
-    admin_phone: '9876543214',
-    admin_email: 'ward105.admin@mcjalandhar.in',
-    employee_id: 'PB-MCJ-ADM-W105',
-    credential_code: 'MCJ-W105-SEC5',
-    designation: 'Ward 5 Municipal Administrator',
-  },
+  { id: 'Ward-101', name: 'Ward 1 - Model Town Urban Zone', zone: 'Central Jalandhar' },
+  { id: 'Ward-102', name: 'Ward 2 - Civil Lines Administrative Ward', zone: 'North Jalandhar' },
+  { id: 'Ward-103', name: 'Ward 3 - Cantt Road & Defense Colony', zone: 'East Jalandhar' },
+  { id: 'Ward-104', name: 'Ward 4 - Rama Mandi Commercial Hub', zone: 'East Jalandhar' },
+  { id: 'Ward-105', name: 'Ward 5 - Phillaur Municipal Core', zone: 'Phillaur Sub-Division' },
 ];
 
 const TASK_SPECIALTIES = [
@@ -139,8 +90,8 @@ export const AdminPortalPage: React.FC = () => {
   // Active Ward: Can be switched by Super Admin, or locked to user's assigned ward
   const [activeWardId, setActiveWardId] = useState<string>(user?.ward_id || 'Ward-102');
 
-  // Navigation Tabs: 'dispatch' | 'roster' | 'matrix'
-  const [activeTab, setActiveTab] = useState<'dispatch' | 'roster' | 'matrix'>('dispatch');
+  // Navigation Tabs: 'dispatch' | 'roster'
+  const [activeTab, setActiveTab] = useState<'dispatch' | 'roster'>('dispatch');
 
   // Data States
   const [officersList, setOfficersList] = useState<UserProfile[]>([]);
@@ -191,7 +142,6 @@ export const AdminPortalPage: React.FC = () => {
             department: 'Municipal Roads & Infrastructure Division',
             designation: 'Junior Engineer (JE)',
             employee_id: `PB-MCJ-${activeWardId.replace('Ward-', 'W')}-ENG-084`,
-            credential_code: 'OFF-W102-7492',
             assigned_tasks: ['pothole', 'road_damage', 'sidewalk'],
             reports_resolved_count: 142,
             points: 4260,
@@ -211,7 +161,6 @@ export const AdminPortalPage: React.FC = () => {
             department: 'Solid Waste & Sanitation Department',
             designation: 'Sanitary Inspector (SI)',
             employee_id: `PB-MCJ-${activeWardId.replace('Ward-', 'W')}-SAN-019`,
-            credential_code: 'OFF-W102-3810',
             assigned_tasks: ['garbage'],
             reports_resolved_count: 118,
             points: 3540,
@@ -231,7 +180,6 @@ export const AdminPortalPage: React.FC = () => {
             department: 'Electrical & Street Lighting Cell',
             designation: 'Lineman / Field Inspector',
             employee_id: `PB-MCJ-${activeWardId.replace('Ward-', 'W')}-ELE-052`,
-            credential_code: 'OFF-W102-9124',
             assigned_tasks: ['streetlight', 'traffic_signal'],
             reports_resolved_count: 84,
             points: 2520,
@@ -251,7 +199,6 @@ export const AdminPortalPage: React.FC = () => {
             department: 'Water Supply & Sewerage Unit',
             designation: 'Assistant Engineer (AE)',
             employee_id: `PB-MCJ-${activeWardId.replace('Ward-', 'W')}-WAT-033`,
-            credential_code: 'OFF-W102-6045',
             assigned_tasks: ['water_leakage', 'drainage'],
             reports_resolved_count: 96,
             points: 2880,
@@ -495,7 +442,7 @@ export const AdminPortalPage: React.FC = () => {
               <span>{activeWard.name} • Ward Tactical Console</span>
             </h1>
             <p className="text-xs text-slate-400">
-              Assigned Administrator: <strong className="text-teal-300">{activeWard.admin_name}</strong> · ID: {activeWard.employee_id} · Sovereign Zonal Authority
+              Assigned Administrator: <strong className="text-teal-300">{user?.name || 'Municipal Administrator'}</strong> · ID: {user?.employee_id || user?.phone || 'MCJ-OFFICIAL'} · Sovereign Zonal Authority
             </p>
           </div>
 
@@ -595,19 +542,6 @@ export const AdminPortalPage: React.FC = () => {
             <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-900 text-teal-200 font-mono font-bold">
               {officersList.length}
             </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('matrix')}
-            className={`px-3.5 py-2 rounded text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === 'matrix'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5 text-teal-300" />
-            <span>Municipal Ward Governance Matrix</span>
           </button>
         </div>
       </div>
@@ -1081,7 +1015,7 @@ export const AdminPortalPage: React.FC = () => {
                     <th className="px-4 py-3">Officer Details</th>
                     <th className="px-4 py-3">Employee ID</th>
                     <th className="px-4 py-3">Assigned Tasks</th>
-                    <th className="px-4 py-3">Security Code</th>
+                    <th className="px-4 py-3 text-center">Auth Status</th>
                     <th className="px-4 py-3 text-center">Problems Solved</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
@@ -1125,9 +1059,10 @@ export const AdminPortalPage: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="px-4 py-3.5">
-                        <span className="font-mono text-[11px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-amber-300 font-bold">
-                          {off.credential_code || 'OFF-SEC-AUTH'}
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-slate-900 px-2 py-0.5 rounded border border-slate-700 text-teal-300 font-semibold">
+                          <Lock className="w-3 h-3 text-teal-400" />
+                          <span>Key Active</span>
                         </span>
                       </td>
 
@@ -1152,117 +1087,6 @@ export const AdminPortalPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* TAB 3: CITY-WIDE MUNICIPAL WARD GOVERNANCE MATRIX             */}
-      {/* ============================================================== */}
-      {activeTab === 'matrix' && (
-        <div className="bg-slate-950 rounded-lg border border-slate-800 shadow-md overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="font-bold text-base sm:text-lg text-white">
-                City-Wide Municipal Ward Governance Matrix
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Every municipal ward has exactly one assigned Ward Admin who authorizes on-site field officers.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={loadWardData}
-              className="self-start sm:self-auto p-1.5 rounded border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900 transition"
-              title="Refresh Governance Matrix"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-900 text-slate-300 font-bold border-b border-slate-800 uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="px-4 py-3">Ward Jurisdiction</th>
-                  <th className="px-4 py-3">Designated Administrator</th>
-                  <th className="px-4 py-3">Employee ID</th>
-                  <th className="px-4 py-3">Security Code</th>
-                  <th className="px-4 py-3 text-center">Field Squads</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/80">
-                {MUNICIPAL_WARDS.map((ward) => {
-                  const isCurrent = ward.id === activeWardId;
-                  const squadCount = ward.id === 'Ward-102' ? officersList.length : 0;
-
-                  return (
-                    <tr
-                      key={ward.id}
-                      className={`transition ${isCurrent ? 'bg-teal-500/10' : 'hover:bg-slate-900/60'}`}
-                    >
-                      <td className="px-4 py-3.5">
-                        <span className="font-bold text-white block text-sm">{ward.name}</span>
-                        <span className="text-[11px] text-slate-400 font-mono">{ward.id}</span>
-                      </td>
-
-                      <td className="px-4 py-3.5">
-                        <div className="font-semibold text-white flex items-center gap-1.5">
-                          <BadgeCheck className="w-3.5 h-3.5 text-teal-400" />
-                          <span>{ward.admin_name}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-mono">
-                          {ward.admin_phone} · {ward.admin_email}
-                        </div>
-                        <div className="text-[10px] text-slate-500">{ward.designation}</div>
-                      </td>
-
-                      <td className="px-4 py-3.5">
-                        <span className="font-mono text-[11px] bg-slate-900 px-2 py-0.5 rounded border border-slate-700 text-slate-200 font-bold">
-                          {ward.employee_id}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3.5">
-                        <span className="font-mono text-[11px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-amber-300 font-bold">
-                          {ward.credential_code}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3.5 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold bg-teal-500/10 text-teal-300 border border-teal-500/20">
-                          {squadCount} Officers
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveWardId(ward.id);
-                            setActiveTab('dispatch');
-                            addToast({
-                              type: 'info',
-                              title: 'Switched Ward Jurisdiction',
-                              message: `Now viewing ${ward.name}.`,
-                            });
-                          }}
-                          className={`px-3 py-1.5 rounded font-bold text-xs transition inline-flex items-center gap-1.5 ${
-                            isCurrent
-                              ? 'bg-teal-600 text-white shadow-xs'
-                              : 'bg-slate-900 text-slate-300 hover:text-white border border-slate-700'
-                          }`}
-                        >
-                          <span>{isCurrent ? 'Current Ward' : 'Open Ward Console'}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
         </div>
       )}

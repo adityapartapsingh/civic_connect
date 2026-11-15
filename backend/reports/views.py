@@ -153,7 +153,7 @@ class ReportListCreateAPIView(APIView):
         total_pages = max(1, (total_count + page_size - 1) // page_size)
 
         docs = col.find(query).sort(sort_field, sort_dir).skip(skip).limit(page_size)
-        serialized_results = ReportDetailSerializer(serialize_docs(list(docs)), many=True).data
+        serialized_results = ReportDetailSerializer(serialize_docs(list(docs)), many=True, context={"request": request}).data
 
         return Response(
             {
@@ -228,7 +228,7 @@ class ReportListCreateAPIView(APIView):
             recent_duplicate = col.find_one(idempotency_query)
             if recent_duplicate:
                 return Response(
-                    ReportDetailSerializer(recent_duplicate).data,
+                    ReportDetailSerializer(recent_duplicate, context={"request": request}).data,
                     status=status.HTTP_201_CREATED,
                 )
         except Exception:
@@ -268,7 +268,7 @@ class ReportListCreateAPIView(APIView):
 
         report_data = pipeline_res["report_data"]
         return Response(
-            ReportDetailSerializer(report_data).data,
+            ReportDetailSerializer(report_data, context={"request": request}).data,
             status=pipeline_res["status_code"],
         )
 
@@ -305,7 +305,7 @@ class NearbyReportsAPIView(APIView):
         )
 
         return Response(
-            ReportDetailSerializer(results, many=True).data,
+            ReportDetailSerializer(results, many=True, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
 
@@ -328,7 +328,7 @@ class FeedReportsAPIView(APIView):
 
         reports = ReportManager.query_feed(lat=lat, lng=lng, radius_meters=radius)
         return Response(
-            ReportDetailSerializer(reports, many=True).data,
+            ReportDetailSerializer(reports, many=True, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
 
@@ -378,7 +378,7 @@ class ReportDetailAPIView(APIView):
                 {"detail": "Report not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(ReportDetailSerializer(report).data, status=status.HTTP_200_OK)
+        return Response(ReportDetailSerializer(report, context={"request": request}).data, status=status.HTTP_200_OK)
 
 
 class ReportTicketAPIView(APIView):
@@ -395,7 +395,7 @@ class ReportTicketAPIView(APIView):
                 {"detail": f"Report with ticket ID '{ticket_id}' not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(ReportDetailSerializer(report).data, status=status.HTTP_200_OK)
+        return Response(ReportDetailSerializer(report, context={"request": request}).data, status=status.HTTP_200_OK)
 
 
 class ReportStatusUpdateAPIView(APIView):
@@ -440,7 +440,7 @@ class ReportStatusUpdateAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return Response(ReportDetailSerializer(updated).data, status=status.HTTP_200_OK)
+        return Response(ReportDetailSerializer(updated, context={"request": request}).data, status=status.HTTP_200_OK)
 
 
 class ReportConfirmAPIView(APIView):
@@ -471,7 +471,7 @@ class ReportConfirmAPIView(APIView):
 
         return Response({
             "message": "Resolution confirmed by citizen. Ticket closed (+20 pts awarded).",
-            "report": ReportDetailSerializer(updated).data,
+            "report": ReportDetailSerializer(updated, context={"request": request}).data,
         }, status=status.HTTP_200_OK)
 
 
@@ -502,7 +502,7 @@ class ReportDisputeAPIView(APIView):
 
         return Response({
             "message": "Resolution disputed by citizen. Ticket auto-escalated to DISPUTED.",
-            "report": ReportDetailSerializer(updated).data,
+            "report": ReportDetailSerializer(updated, context={"request": request}).data,
         }, status=status.HTTP_200_OK)
 
 
@@ -552,7 +552,7 @@ class ReportEvidenceAPIView(APIView):
 
         return Response({
             "message": "Corroborating evidence added successfully (+5 pts).",
-            "report": ReportDetailSerializer(updated).data,
+            "report": ReportDetailSerializer(updated, context={"request": request}).data,
         }, status=status.HTTP_201_CREATED)
 
 
@@ -592,11 +592,11 @@ class ReportUpvoteAPIView(APIView):
 
         if not success:
             return Response(
-                {"detail": msg, "report": ReportDetailSerializer(updated).data if updated else None},
+                {"detail": msg, "report": ReportDetailSerializer(updated, context={"request": request}).data if updated else None},
                 status=status.HTTP_400_BAD_REQUEST if "cannot upvote" in msg else status.HTTP_404_NOT_FOUND,
             )
 
-        report_data = ReportDetailSerializer(updated).data if updated else {}
+        report_data = ReportDetailSerializer(updated, context={"request": request}).data if updated else {}
         report_data["has_upvoted"] = has_upvoted
         report_data["upvotes_count"] = updated.get("upvote_count", 0) if updated else 0
 
