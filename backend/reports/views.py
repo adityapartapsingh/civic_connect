@@ -62,6 +62,7 @@ class ReportListCreateAPIView(APIView):
         return [AllowAny()]
 
     def get(self, request, *args, **kwargs):
+        ReportManager.ensure_seed_reports()
         status_param = request.query_params.get("status")
         category_param = request.query_params.get("category")
         priority_param = request.query_params.get("priority")
@@ -318,6 +319,7 @@ class FeedReportsAPIView(APIView):
     """
 
     def get(self, request, *args, **kwargs):
+        ReportManager.ensure_seed_reports()
         lat_param = request.query_params.get("lat")
         lng_param = request.query_params.get("lng")
         radius_param = request.query_params.get("radius", 10000)
@@ -341,6 +343,7 @@ class MapReportsAPIView(APIView):
     """
 
     def get(self, request, *args, **kwargs):
+        ReportManager.ensure_seed_reports()
         north = request.query_params.get("north")
         south = request.query_params.get("south")
         east = request.query_params.get("east")

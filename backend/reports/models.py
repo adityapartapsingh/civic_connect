@@ -53,12 +53,197 @@ class PriorityLevel:
     CHOICES = [LOW, MEDIUM, HIGH, CRITICAL]
 
 
+INITIAL_SAMPLE_REPORTS = [
+    {
+        "ticket_id": "CC-2026-80101",
+        "title": "Severe Pothole Cluster on Model Town Link Road",
+        "description": "Deep asphalt crater causing traffic disruption and vehicle tire damage near Market Chowk.",
+        "category": "pothole",
+        "photos": ["https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800"],
+        "primary_photo": "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800",
+        "latitude": 31.3090,
+        "longitude": 75.5802,
+        "address": "Model Town Main Commercial Rd, Ward 1, Jalandhar",
+        "ward_id": "Ward-101",
+        "department_id": "roads",
+        "status": ReportStatus.IN_PROGRESS,
+        "priority_score": 85,
+        "priority_level": PriorityLevel.HIGH,
+        "reporter_id": "9876543210",
+        "reporter_name": "Sh. Ramesh Kumar",
+        "reporter_phone": "9876543210",
+        "upvote_count": 14,
+        "assigned_officer": "Er. Harpreet Singh",
+    },
+    {
+        "ticket_id": "CC-2026-80102",
+        "title": "Non-Functioning Streetlights along Civil Lines Court Complex",
+        "description": "Stretch of 6 LED streetlights dark for 3 consecutive nights posing safety hazard for pedestrians.",
+        "category": "streetlight",
+        "photos": ["https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800"],
+        "primary_photo": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800",
+        "latitude": 31.3260,
+        "longitude": 75.5762,
+        "address": "Session Court Rd, Civil Lines, Ward 2, Jalandhar",
+        "ward_id": "Ward-102",
+        "department_id": "electrical",
+        "status": ReportStatus.IN_PROGRESS,
+        "priority_score": 68,
+        "priority_level": PriorityLevel.MEDIUM,
+        "reporter_id": "9876543211",
+        "reporter_name": "Smt. Sunita Talwar",
+        "reporter_phone": "9876543211",
+        "upvote_count": 9,
+        "assigned_officer": "Balwinder Kumar",
+    },
+    {
+        "ticket_id": "CC-2026-80103",
+        "title": "Solid Waste Dumping & Bin Overflow at Cantt Market",
+        "description": "Municipal waste bin overflowing onto sidewalk creating foul odor and blocking shop entrances.",
+        "category": "garbage",
+        "photos": ["https://images.unsplash.com/photo-1605600659908-0ef719419d41?w=800"],
+        "primary_photo": "https://images.unsplash.com/photo-1605600659908-0ef719419d41?w=800",
+        "latitude": 31.2847,
+        "longitude": 75.6178,
+        "address": "Cantt Rd Commercial Strip, Ward 3, Jalandhar",
+        "ward_id": "Ward-103",
+        "department_id": "sanitation",
+        "status": ReportStatus.SUBMITTED,
+        "priority_score": 74,
+        "priority_level": PriorityLevel.HIGH,
+        "reporter_id": "9876543212",
+        "reporter_name": "Sh. Anand Rao",
+        "reporter_phone": "9876543212",
+        "upvote_count": 6,
+    },
+    {
+        "ticket_id": "CC-2026-80104",
+        "title": "Pressurized Water Supply Conduit Fracture",
+        "description": "Potable water pipeline burst causing clean water inundation and low household pressure across sector.",
+        "category": "water_leakage",
+        "photos": ["https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=800"],
+        "primary_photo": "https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=800",
+        "latitude": 31.3120,
+        "longitude": 75.6290,
+        "address": "Rama Mandi Main Chowk, Ward 4, Jalandhar",
+        "ward_id": "Ward-104",
+        "department_id": "water",
+        "status": ReportStatus.SUBMITTED,
+        "priority_score": 92,
+        "priority_level": PriorityLevel.HIGH,
+        "reporter_id": "9876543213",
+        "reporter_name": "Smt. Sunita Patil",
+        "reporter_phone": "9876543213",
+        "upvote_count": 21,
+    },
+    {
+        "ticket_id": "CC-2026-80105",
+        "title": "Blocked Storm Drain Culvert near Old Post Office",
+        "description": "Drainage clogged with silt and plastic waste causing stagnant water accumulation after rains.",
+        "category": "drainage",
+        "photos": ["https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800"],
+        "primary_photo": "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800",
+        "latitude": 31.0205,
+        "longitude": 75.7836,
+        "address": "Phillaur Municipal Core Rd, Ward 5, Phillaur",
+        "ward_id": "Ward-105",
+        "department_id": "water",
+        "status": ReportStatus.SUBMITTED,
+        "priority_score": 62,
+        "priority_level": PriorityLevel.MEDIUM,
+        "reporter_id": "9876543214",
+        "reporter_name": "Sh. Vijay Reddy",
+        "reporter_phone": "9876543214",
+        "upvote_count": 4,
+    },
+    {
+        "ticket_id": "CC-2026-80106",
+        "title": "Broken Sidewalk Kerb and Pedestrian Hazard",
+        "description": "Dislodged concrete slabs and open trench posing risk for seniors and school children.",
+        "category": "sidewalk",
+        "photos": ["https://images.unsplash.com/photo-1541888946425-d0fbb1861564?w=800"],
+        "primary_photo": "https://images.unsplash.com/photo-1541888946425-d0fbb1861564?w=800",
+        "latitude": 31.3210,
+        "longitude": 75.5810,
+        "address": "BMC Chowk Commercial Axis, Ward 2, Jalandhar",
+        "ward_id": "Ward-102",
+        "department_id": "roads",
+        "status": ReportStatus.RESOLVED,
+        "priority_score": 55,
+        "priority_level": PriorityLevel.LOW,
+        "reporter_id": "9876543211",
+        "reporter_name": "Smt. Sunita Talwar",
+        "reporter_phone": "9876543211",
+        "upvote_count": 8,
+        "assigned_officer": "Er. Harpreet Singh",
+    },
+]
+
+
 class ReportManager:
     """Core Data Access Layer for Civic Reports in MongoDB."""
 
     @staticmethod
     def get_collection():
         return get_collection("reports")
+
+    @classmethod
+    def ensure_seed_reports(cls) -> None:
+        """Seed default sample civic reports if reports collection is empty or only has test residue."""
+        col = cls.get_collection()
+        try:
+            count = col.count_documents({})
+            if count <= 1:
+                col.delete_many({"title": "Corroboration Test"})
+                now = datetime.datetime.now(datetime.timezone.utc)
+                docs_to_insert = []
+                for sample in INITIAL_SAMPLE_REPORTS:
+                    lat_f = sample["latitude"]
+                    lng_f = sample["longitude"]
+                    status_entry = {
+                        "status": sample["status"],
+                        "changed_by": sample.get("reporter_name", "Citizen"),
+                        "role": "citizen" if sample["status"] == ReportStatus.SUBMITTED else "officer",
+                        "notes": "Initial municipal system registration.",
+                        "timestamp": now.isoformat(),
+                    }
+                    doc = {
+                        "ticket_id": sample["ticket_id"],
+                        "title": sample["title"],
+                        "description": sample["description"],
+                        "category": sample["category"],
+                        "photos": sample.get("photos", []),
+                        "primary_photo": sample.get("primary_photo"),
+                        "phash": "",
+                        "location": point_to_geojson(lat_f, lng_f),
+                        "latitude": lat_f,
+                        "longitude": lng_f,
+                        "address": sample["address"],
+                        "ward_id": sample["ward_id"],
+                        "department_id": sample["department_id"],
+                        "status": sample["status"],
+                        "priority_score": sample.get("priority_score", 60),
+                        "priority_level": sample.get("priority_level", PriorityLevel.MEDIUM),
+                        "priority_factors": {"urgency": 1.0, "impact": 1.0},
+                        "reporter_id": sample.get("reporter_id", "anonymous"),
+                        "reporter_name": sample.get("reporter_name", "Citizen"),
+                        "reporter_phone": sample.get("reporter_phone", ""),
+                        "upvote_count": sample.get("upvote_count", 0),
+                        "evidence": [],
+                        "status_history": [status_entry],
+                        "fraud_metadata": {"is_flagged_fraud": False},
+                        "is_flagged_fraud": False,
+                        "sla_deadline": (now + datetime.timedelta(hours=48)).isoformat(),
+                        "assigned_officer": sample.get("assigned_officer"),
+                        "created_at": now - datetime.timedelta(hours=4),
+                        "updated_at": now,
+                    }
+                    docs_to_insert.append(doc)
+                if docs_to_insert:
+                    col.insert_many(docs_to_insert)
+                    logger.info(f"Seeded {len(docs_to_insert)} initial civic reports.")
+        except Exception as exc:
+            logger.warning(f"Error ensuring seed reports: {exc}")
 
     @classmethod
     def get_by_id(cls, report_id: str) -> Optional[Dict[str, Any]]:

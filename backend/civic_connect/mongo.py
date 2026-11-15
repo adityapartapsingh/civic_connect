@@ -46,14 +46,28 @@ def get_mongo_uri() -> str:
     return os.environ.get("MONGODB_URI", "").strip()
 
 def get_mongo_db_name() -> str:
-    """Return MongoDB database name from settings, environment, or default."""
+    """Return MongoDB database name from settings, environment, or default with test isolation."""
+    import sys
+    is_testing = (
+        "test" in sys.argv
+        or bool(os.environ.get("TESTING"))
+    )
+    base_name = ""
     try:
         from django.conf import settings
+        if getattr(settings, "TESTING", False):
+            is_testing = True
         if hasattr(settings, "MONGODB_DB_NAME") and settings.MONGODB_DB_NAME:
-            return str(settings.MONGODB_DB_NAME)
+            base_name = str(settings.MONGODB_DB_NAME).strip()
     except Exception:
         pass
-    return os.environ.get("MONGODB_DB_NAME", "civic_connect")
+
+    if not base_name:
+        base_name = os.environ.get("MONGODB_DB_NAME", "civic_connect").strip() or "civic_connect"
+
+    if is_testing:
+        return f"test_{base_name}"
+    return base_name
 
 
 def get_mongo_client() -> Any:
@@ -120,12 +134,12 @@ def get_mongo_client() -> Any:
 
 
 def get_db() -> Any:
-    """Get the application MongoDB database instance."""
+    """Get the application MongoDB database instance (dynamically handles test isolation)."""
     global _mongo_db
-    if _mongo_db is None:
+    target_db_name = get_mongo_db_name()
+    if _mongo_db is None or getattr(_mongo_db, "name", None) != target_db_name:
         client = get_mongo_client()
-        db_name = get_mongo_db_name()
-        _mongo_db = client[db_name]
+        _mongo_db = client[target_db_name]
     return _mongo_db
 
 
