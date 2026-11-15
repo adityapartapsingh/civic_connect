@@ -751,6 +751,183 @@ class UserManager:
         return cls.upsert_user(user_data)
 
     @classmethod
+    def create_officer_by_super_admin(cls, super_admin_id: str, ward_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Super Admin directly provisions credentials for a Field Officer in any municipal ward."""
+        import uuid
+        cls.ensure_seed_admins()
+        phone = normalize_phone(payload.get("phone"))
+        if not phone or len(phone) < 10:
+            raise ValueError("A valid 10-digit phone number is required for the Field Officer.")
+
+        existing_phone = cls.find_by_phone(phone)
+        if existing_phone:
+            raise ValueError(
+                f"A user or official with phone number '{phone}' already exists ({existing_phone.get('name')}, Role: {existing_phone.get('role')}). Official phone numbers must be unique."
+            )
+
+        ward_num = ward_id.replace("Ward-", "W") if ward_id else "W00"
+        rand_code = uuid.uuid4().hex[:4].upper()
+
+        assigned_tasks = payload.get("assigned_tasks", [])
+        if not assigned_tasks:
+            assigned_tasks = ["pothole", "road_damage"]
+
+        task_prefix = "ENG"
+        if "garbage" in assigned_tasks:
+            task_prefix = "SAN"
+        elif "streetlight" in assigned_tasks:
+            task_prefix = "ELE"
+        elif "water_leakage" in assigned_tasks or "drainage" in assigned_tasks:
+            task_prefix = "WAT"
+
+        employee_id = payload.get("employee_id") or f"PB-MCJ-{ward_num}-{task_prefix}-{rand_code[:3]}"
+        credential_code = payload.get("credential_code") or f"OFF-{ward_num}-{rand_code}"
+
+        user_data = {
+            "user_id": f"off_{uuid.uuid4().hex[:8]}",
+            "name": payload.get("name"),
+            "phone": phone,
+            "email": payload.get("email"),
+            "role": UserRole.OFFICER,
+            "ward_id": ward_id,
+            "ward_name": payload.get("ward_name"),
+            "department": payload.get("department", "Municipal Field Operations"),
+            "designation": payload.get("designation", "Junior Engineer (JE)"),
+            "jurisdiction_zone": payload.get("jurisdiction_zone", f"Ward {ward_id}"),
+            "assigned_tasks": assigned_tasks,
+            "employee_id": employee_id,
+            "credential_code": credential_code,
+            "created_by": super_admin_id,
+            "is_active": True,
+        }
+        return cls.upsert_user(user_data)
+
+    @classmethod
+    def list_all_users(
+        cls,
+        role: Optional[str] = None,
+        ward_id: Optional[str] = None,
+        search: Optional[str] = None,
+        is_blocked: Optional[bool] = None,
+        limit: int = 400,
+    ) -> List[Dict[str, Any]]:
+        """List users matching criteria with search across name, phone, email, employee_id."""
+        cls.ensure_seed_admins()
+        query: Dict[str, Any] = {}
+
+        if role and role.lower() != "all":
+            query["role"] = role.lower()
+
+        if ward_id and ward_id.lower() != "all":
+            query["ward_id"] = ward_id
+
+        if is_blocked is not None:
+            if is_blocked:
+                query["is_blocked"] = True
+            else:
+                query["is_blocked"] = {"$ne": True}
+
+        if search:
+            s = search.strip()
+            norm_s = normalize_phone(s)
+            search_regex = {"$regex": re.escape(s), "$options": "i"}
+            search_clauses = [
+                {"name": search_regex},
+                {"email": search_regex},
+                {"employee_id": search_regex},
+                {"user_id": search_regex},
+                {"phone": search_regex},
+            ]
+            if norm_s and norm_s != s:
+                search_clauses.append({"phone": {"$regex": re.escape(norm_s)}})
+            query["$or"] = search_clauses
+
+        docs = cls.get_collection().find(query).sort("created_at", -1).limit(limit)
+        users = serialize_docs(list(docs))
+
+        # Augment admins with officers_count
+        for u in users:
+            if u.get("role") == UserRole.ADMIN:
+                w_id = u.get("ward_id")
+                if w_id:
+                    u["officers_count"] = cls.get_collection().count_documents({"role": UserRole.OFFICER, "ward_id": w_id})
+                else:
+                    u["officers_count"] = 0
+        return users
+
+    @classmethod
+    def block_user(cls, user_id: str, reason: str, blocked_by: str = "Super Admin") -> Optional[Dict[str, Any]]:
+        """Block an account with a mandatory documented reason (spam, illegal content, violation)."""
+        oid = parse_object_id(user_id)
+        query = {"$or": [{"_id": oid}, {"user_id": user_id}, {"employee_id": user_id}]} if oid else {"$or": [{"user_id": user_id}, {"employee_id": user_id}]}
+        now = datetime.datetime.now(datetime.timezone.utc)
+        doc = cls.get_collection().find_one_and_update(
+            query,
+            {
+                "$set": {
+                    "is_blocked": True,
+                    "block_reason": str(reason).strip(),
+                    "blocked_at": now,
+                    "blocked_by": blocked_by,
+                    "updated_at": now,
+                }
+            },
+            return_document=True,
+        )
+        return serialize_doc(doc)
+
+    @classmethod
+    def unblock_user(cls, user_id: str, unblocked_by: str = "Super Admin") -> Optional[Dict[str, Any]]:
+        """Unblock a previously blocked account."""
+        oid = parse_object_id(user_id)
+        query = {"$or": [{"_id": oid}, {"user_id": user_id}, {"employee_id": user_id}]} if oid else {"$or": [{"user_id": user_id}, {"employee_id": user_id}]}
+        now = datetime.datetime.now(datetime.timezone.utc)
+        doc = cls.get_collection().find_one_and_update(
+            query,
+            {
+                "$set": {
+                    "is_blocked": False,
+                    "block_reason": None,
+                    "unblocked_at": now,
+                    "unblocked_by": unblocked_by,
+                    "updated_at": now,
+                }
+            },
+            return_document=True,
+        )
+        return serialize_doc(doc)
+
+    @classmethod
+    def delete_user_by_admin(cls, user_id: str) -> bool:
+        """Permanently delete a user account."""
+        oid = parse_object_id(user_id)
+        query = {"$or": [{"_id": oid}, {"user_id": user_id}, {"employee_id": user_id}]} if oid else {"$or": [{"user_id": user_id}, {"employee_id": user_id}]}
+        res = cls.get_collection().delete_one(query)
+        return res.deleted_count > 0
+
+    @classmethod
+    def update_user_by_admin(cls, user_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update any user profile fields directly as Super Admin."""
+        oid = parse_object_id(user_id)
+        query = {"$or": [{"_id": oid}, {"user_id": user_id}, {"employee_id": user_id}]} if oid else {"$or": [{"user_id": user_id}, {"employee_id": user_id}]}
+        now = datetime.datetime.now(datetime.timezone.utc)
+        fields = {}
+        allowed = [
+            "name", "phone", "email", "role", "ward_id", "ward_name",
+            "department", "designation", "assigned_tasks", "jurisdiction_zone",
+            "employee_id", "credential_code", "is_active"
+        ]
+        for k in allowed:
+            if k in update_data:
+                v = update_data[k]
+                if k == "phone" and v:
+                    v = normalize_phone(v)
+                fields[k] = v
+        fields["updated_at"] = now
+        doc = cls.get_collection().find_one_and_update(query, {"$set": fields}, return_document=True)
+        return serialize_doc(doc)
+
+    @classmethod
     def revoke_user_credential(cls, user_id: str) -> bool:
         """Revoke user credentials / deactivate user."""
         oid = parse_object_id(user_id)

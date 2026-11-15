@@ -129,6 +129,18 @@ class SendOTPAPIView(APIView):
 
         existing_user = UserManager.find_by_phone(phone)
 
+        # Reject suspended/blocked users immediately with documented reason
+        if existing_user and existing_user.get("is_blocked"):
+            block_reason = existing_user.get("block_reason") or "Violation of platform policies (illegal activity or spam)"
+            return Response(
+                {
+                    "detail": f"This account has been suspended by administration. Reason: {block_reason}. Contact support@civicconnect.gov.in.",
+                    "is_blocked": True,
+                    "block_reason": block_reason,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Prohibit duplicate users: if signing up and phone already exists, reject
         if mode == "signup" and existing_user is not None:
             return Response(
@@ -249,6 +261,18 @@ class VerifyOTPAPIView(APIView):
 
         # Check existing user
         existing_user = UserManager.find_by_phone(phone)
+
+        # Reject suspended/blocked accounts
+        if existing_user and existing_user.get("is_blocked"):
+            block_reason = existing_user.get("block_reason") or "Violation of platform policies (illegal activity or spam)"
+            return Response(
+                {
+                    "detail": f"This account has been suspended by administration. Reason: {block_reason}.",
+                    "is_blocked": True,
+                    "block_reason": block_reason,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Prohibit duplicate account creation
         if mode == "signup" and existing_user is not None:
@@ -396,6 +420,13 @@ class PasswordLoginAPIView(APIView):
         if not user.get("is_active", True):
             return Response(
                 {"detail": "Account has been deactivated. Please contact support."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if user.get("is_blocked"):
+            reason = user.get("block_reason") or "Violation of platform policies (illegal activity or spam)"
+            return Response(
+                {"detail": f"This account has been suspended by administration. Reason: {reason}."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -899,6 +930,13 @@ class AdminQuickLoginAPIView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
+            if user.get("is_blocked"):
+                reason = user.get("block_reason") or "Administrative suspension"
+                return Response(
+                    {"detail": f"This official account has been suspended by administration. Reason: {reason}."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             token = generate_jwt(user)
             return Response({
                 "message": f"Welcome, {user.get('name')}. Administrative session authorized.",
@@ -945,6 +983,221 @@ class AdminRevokeAPIView(APIView):
         except Exception as exc:
             return Response(
                 {"detail": f"Revocation error: {str(exc)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class SuperAdminUsersAPIView(APIView):
+    """
+    Super Admin Master Users Controller:
+    GET /api/users/admin/users/
+    List all users (Ward Admins, Field Officers, Citizens, Volunteers) with filtering, search, and system stats.
+
+    POST /api/users/admin/users/
+    Add/provision any user or municipal official directly.
+    """
+
+    def get(self, request, *args, **kwargs):
+        try:
+            role = request.query_params.get("role", "all").strip().lower()
+            ward_id = request.query_params.get("ward_id")
+            search = request.query_params.get("search")
+            is_blocked_str = request.query_params.get("is_blocked")
+
+            is_blocked = None
+            if is_blocked_str in ("true", "1", "True"):
+                is_blocked = True
+            elif is_blocked_str in ("false", "0", "False"):
+                is_blocked = False
+
+            users = UserManager.list_all_users(
+                role=role if role != "all" else None,
+                ward_id=ward_id if ward_id and ward_id.lower() != "all" else None,
+                search=search,
+                is_blocked=is_blocked,
+            )
+
+            # Compute breakdown stats across the entire database
+            col = UserManager.get_collection()
+            total = col.count_documents({})
+            admins_count = col.count_documents({"role": UserRole.ADMIN})
+            officers_count = col.count_documents({"role": UserRole.OFFICER})
+            citizens_count = col.count_documents({"role": UserRole.CITIZEN})
+            blocked_count = col.count_documents({"is_blocked": True})
+
+            return Response({
+                "users": UserProfileSerializer(users, many=True).data,
+                "stats": {
+                    "total": total,
+                    "admins_count": admins_count,
+                    "officers_count": officers_count,
+                    "citizens_count": citizens_count,
+                    "blocked_count": blocked_count,
+                }
+            }, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return Response(
+                {"detail": f"Failed to list users: {str(exc)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def post(self, request, *args, **kwargs):
+        try:
+            from users.validators import validate_indian_phone
+            from rest_framework import serializers
+
+            role = request.data.get("role", "officer").strip().lower()
+            name = request.data.get("name", "").strip()
+            raw_phone = request.data.get("phone", "").strip()
+
+            if not name or not raw_phone:
+                return Response(
+                    {"detail": "Name and valid mobile number are required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            try:
+                phone = validate_indian_phone(raw_phone)
+            except serializers.ValidationError as err:
+                return Response(
+                    {"detail": str(err.detail[0]) if err.detail else "Invalid 10-digit Indian mobile number."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            payload = dict(request.data)
+            payload["phone"] = phone
+            caller_id = getattr(request.user, "user_id", "cc_superadmin_01") if hasattr(request, "user") else "cc_superadmin_01"
+
+            if role == UserRole.ADMIN:
+                doc = UserManager.create_admin_by_super_admin(caller_id, payload)
+            elif role == UserRole.OFFICER:
+                ward_id = payload.get("ward_id", "Ward-102")
+                doc = UserManager.create_officer_by_super_admin(caller_id, ward_id, payload)
+            else:
+                # Citizen / Volunteer
+                import uuid
+                user_id = f"usr_{uuid.uuid4().hex[:8]}"
+                user_data = {
+                    "user_id": user_id,
+                    "name": name,
+                    "phone": phone,
+                    "email": payload.get("email"),
+                    "role": UserRole.CITIZEN,
+                    "ward_id": payload.get("ward_id", "Ward-102"),
+                    "ward_name": payload.get("ward_name"),
+                    "credential_code": payload.get("credential_code") or "PASS-2026",
+                    "created_by": caller_id,
+                    "points": 50,
+                    "coins": 50,
+                    "is_active": True,
+                }
+                doc = UserManager.upsert_user(user_data)
+
+            return Response({
+                "message": f"Account created successfully for {name} ({role.upper()}).",
+                "user": UserProfileSerializer(doc).data,
+            }, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class SuperAdminUserDetailAPIView(APIView):
+    """
+    PUT /api/users/admin/users/<str:user_id>/
+    Edit any user/official profile details.
+
+    DELETE /api/users/admin/users/<str:user_id>/
+    Remove user/official account permanently.
+    """
+
+    def put(self, request, user_id, *args, **kwargs):
+        try:
+            user = UserManager.find_by_id(user_id)
+            if not user:
+                return Response({"detail": f"User '{user_id}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            updated = UserManager.update_user_by_admin(user_id, request.data)
+            return Response({
+                "message": f"Profile for {updated.get('name', user_id)} updated successfully.",
+                "user": UserProfileSerializer(updated).data,
+            }, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return Response(
+                {"detail": f"Update error: {str(exc)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def delete(self, request, user_id, *args, **kwargs):
+        try:
+            user = UserManager.find_by_id(user_id)
+            if not user:
+                return Response({"detail": f"User '{user_id}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            name = user.get("name", "User")
+            role = user.get("role", "citizen")
+            success = UserManager.delete_user_by_admin(user_id)
+            if success:
+                return Response({
+                    "message": f"{role.title()} account '{name}' ({user_id}) has been removed permanently.",
+                }, status=status.HTTP_200_OK)
+            return Response({"detail": "User deletion failed."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            return Response(
+                {"detail": f"Deletion error: {str(exc)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class SuperAdminBlockUserAPIView(APIView):
+    """
+    POST /api/users/admin/users/<str:user_id>/block/
+    Suspend or unblock user account.
+    Mandatory reason required when blocking (illegal activity, fake reports, harassment, spam).
+    """
+
+    def post(self, request, user_id, *args, **kwargs):
+        try:
+            action = request.data.get("action", "block").strip().lower()
+            caller_name = getattr(request.user, "name", "Super Administrator") if hasattr(request, "user") else "Super Administrator"
+
+            if action == "block":
+                reason = request.data.get("reason", "").strip()
+                if not reason:
+                    return Response(
+                        {"detail": "A mandatory specific reason must be provided to suspend/block an account (e.g. spamming fake reports, illegal content, violation of civic rules)."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                blocked_user = UserManager.block_user(user_id, reason=reason, blocked_by=caller_name)
+                if not blocked_user:
+                    return Response({"detail": f"User '{user_id}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+                return Response({
+                    "message": f"Account '{blocked_user.get('name')}' has been suspended. Reason: {reason}.",
+                    "user": UserProfileSerializer(blocked_user).data,
+                }, status=status.HTTP_200_OK)
+
+            elif action == "unblock":
+                unblocked_user = UserManager.unblock_user(user_id, unblocked_by=caller_name)
+                if not unblocked_user:
+                    return Response({"detail": f"User '{user_id}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+                return Response({
+                    "message": f"Account '{unblocked_user.get('name')}' has been successfully unblocked and reinstated.",
+                    "user": UserProfileSerializer(unblocked_user).data,
+                }, status=status.HTTP_200_OK)
+
+            else:
+                return Response(
+                    {"detail": "Invalid action. Must be 'block' or 'unblock'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except Exception as exc:
+            return Response(
+                {"detail": f"Block action error: {str(exc)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { adminApi, issuesApi, volunteerApi, whatsappAdminApi, WhatsAppGatewayStatus } from '../services/api';
+import {
+  adminApi,
+  issuesApi,
+  volunteerApi,
+  whatsappAdminApi,
+  superAdminUsersApi,
+  SuperAdminUserStats,
+  WhatsAppGatewayStatus,
+} from '../services/api';
 import { UserProfile, AdminCredentialsSlip, Issue, VolunteerApplication } from '../types';
 import {
   Shield,
@@ -27,6 +35,16 @@ import {
   QrCode,
   Smartphone,
   Send,
+  Pencil,
+  Trash2,
+  Ban,
+  UserCheck,
+  Search,
+  Filter,
+  AlertTriangle,
+  UserX,
+  X,
+  UserPlus,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -36,6 +54,28 @@ const MUNICIPAL_WARDS = [
   { id: 'Ward-103', name: 'Ward 3 - Cantt Road & Defense Colony', zone: 'East Jalandhar' },
   { id: 'Ward-104', name: 'Ward 4 - Rama Mandi Commercial Hub', zone: 'East Jalandhar' },
   { id: 'Ward-105', name: 'Ward 5 - Phillaur Municipal Core', zone: 'Phillaur Sub-Division' },
+];
+
+const TASK_OPTIONS = [
+  { id: 'pothole', label: 'Pothole & Asphalt Repair' },
+  { id: 'road_damage', label: 'Road Surface & Craters' },
+  { id: 'garbage', label: 'Solid Waste & Sanitation' },
+  { id: 'streetlight', label: 'Street Lighting & Illumination' },
+  { id: 'traffic_signal', label: 'Traffic Signal & Junctions' },
+  { id: 'water_leakage', label: 'Water Supply Pipeline' },
+  { id: 'drainage', label: 'Sewerage & Storm Drainage' },
+  { id: 'sidewalk', label: 'Sidewalks & Kerbs' },
+  { id: 'fallen_tree', label: 'Fallen Trees & Greenery' },
+  { id: 'other', label: 'General Civic Maintenance' },
+];
+
+const BLOCK_REASON_PRESETS = [
+  'Repeated submission of fake/spam civic reports',
+  'Abusive, obscene, or inappropriate image evidence uploaded',
+  'Malicious GPS location spoofing or manipulated telemetry',
+  'Harassment or physical intimidation of municipal field squads',
+  'Commercial advertisement / unauthorized promotion spam',
+  'Violation of Civic Connect community terms & security policies',
 ];
 
 export const SuperAdminPortalPage: React.FC = () => {
@@ -48,18 +88,46 @@ export const SuperAdminPortalPage: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Super Admin Data
-  const [adminsList, setAdminsList] = useState<UserProfile[]>([]);
-  const [allTickets, setAllTickets] = useState<Issue[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Active View Tab: 'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'volunteers' | 'whatsapp'
+  const [activeTab, setActiveTab] = useState<'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'volunteers' | 'whatsapp'>('admins');
 
-  // Form: Super Admin provisions Ward Admin
-  const [newAdminWardId, setNewAdminWardId] = useState<string>('Ward-101');
-  const [newAdminName, setNewAdminName] = useState<string>('');
-  const [newAdminPhone, setNewAdminPhone] = useState<string>('');
-  const [newAdminEmail, setNewAdminEmail] = useState<string>('');
-  const [newAdminDesignation, setNewAdminDesignation] = useState<string>('Ward Municipal Administrator');
+  // Master Users State
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [userStats, setUserStats] = useState<SuperAdminUserStats>({
+    total: 0,
+    admins_count: 0,
+    officers_count: 0,
+    citizens_count: 0,
+    blocked_count: 0,
+  });
+  const [usersLoading, setUsersLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedWard, setSelectedWard] = useState<string>('ALL');
+
+  // Action Modals State
+  const [editUserModal, setEditUserModal] = useState<UserProfile | null>(null);
+  const [blockUserModal, setBlockUserModal] = useState<{ user: UserProfile; reason: string } | null>(null);
+  const [deleteUserModal, setDeleteUserModal] = useState<UserProfile | null>(null);
+  const [isActionSubmitting, setIsActionSubmitting] = useState<boolean>(false);
+
+  // Create User Form State
+  const [createRole, setCreateRole] = useState<'admin' | 'officer' | 'citizen'>('admin');
+  const [createName, setCreateName] = useState<string>('');
+  const [createPhone, setCreatePhone] = useState<string>('');
+  const [createEmail, setCreateEmail] = useState<string>('');
+  const [createWardId, setCreateWardId] = useState<string>('Ward-101');
+  const [createDepartment, setCreateDepartment] = useState<string>('Municipal Corporation Jalandhar');
+  const [createDesignation, setCreateDesignation] = useState<string>('Ward Municipal Administrator');
+  const [createTasks, setCreateTasks] = useState<string[]>(['pothole', 'road_damage']);
+  const [isSubmittingCreate, setIsSubmittingCreate] = useState<boolean>(false);
+
+  // Issued Credentials Slip Modal
+  const [credentialsSlip, setCredentialsSlip] = useState<{
+    targetRole: string;
+    name: string;
+    creds: AdminCredentialsSlip;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Volunteer Oversight States
   const [volunteerApps, setVolunteerApps] = useState<VolunteerApplication[]>([]);
@@ -67,12 +135,46 @@ export const SuperAdminPortalPage: React.FC = () => {
   const [volunteerWardFilter, setVolunteerWardFilter] = useState<string>('ALL');
   const [volunteerStatusFilter, setVolunteerStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [reviewingAppId, setReviewingAppId] = useState<string | null>(null);
-  const [reviewModal, setReviewModal] = useState<{
-    app: VolunteerApplication;
-    action: 'approve' | 'reject';
-    notes: string;
-  } | null>(null);
 
+  // WhatsApp Gateway Management States
+  const [waStatus, setWaStatus] = useState<WhatsAppGatewayStatus | null>(null);
+  const [isWaLoading, setIsWaLoading] = useState<boolean>(false);
+  const [isWaModalOpen, setIsWaModalOpen] = useState<boolean>(false);
+  const [testWaPhone, setTestWaPhone] = useState<string>('');
+  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
+  const [isResettingWa, setIsResettingWa] = useState<boolean>(false);
+
+  // Load all users from backend API
+  const loadUsersData = async () => {
+    setUsersLoading(true);
+    try {
+      const res = await superAdminUsersApi.listUsers({
+        role: 'all',
+        ward_id: selectedWard === 'ALL' ? undefined : selectedWard,
+        search: searchQuery.trim() || undefined,
+      });
+      setAllUsers(res.users);
+      setUserStats(res.stats);
+    } catch (err) {
+      console.warn('Super admin user data fetch notice:', err);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      loadUsersData();
+    }
+  }, [isSuperAdmin, selectedWard]);
+
+  // Handle Search submit / debounce
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadUsersData();
+  };
+
+  // Volunteer applications loader
   const loadVolunteerApplications = async () => {
     setVolunteersLoading(true);
     try {
@@ -89,10 +191,10 @@ export const SuperAdminPortalPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (isSuperAdmin && activeTab === 'volunteers') {
       loadVolunteerApplications();
     }
-  }, [isSuperAdmin, volunteerWardFilter, volunteerStatusFilter]);
+  }, [isSuperAdmin, activeTab, volunteerWardFilter, volunteerStatusFilter]);
 
   const handleReviewVolunteer = async (applicationId: string, action: 'approve' | 'reject', notes: string) => {
     setReviewingAppId(applicationId);
@@ -103,7 +205,6 @@ export const SuperAdminPortalPage: React.FC = () => {
         title: action === 'approve' ? 'Volunteer Approved & Enlisted' : 'Application Declined',
         message: res.message,
       });
-      setReviewModal(null);
       loadVolunteerApplications();
     } catch (err: any) {
       addToast({
@@ -116,381 +217,7 @@ export const SuperAdminPortalPage: React.FC = () => {
     }
   };
 
-  // Issued Credentials Slip Modal
-  const [credentialsSlip, setCredentialsSlip] = useState<{
-    targetRole: 'admin';
-    name: string;
-    creds: AdminCredentialsSlip;
-  } | null>(null);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const admins = await adminApi.getRoster('admin');
-      if (admins && admins.length > 0) {
-        setAdminsList(admins);
-      } else {
-        // Sample fallback
-        setAdminsList([
-          {
-            id: 'adm_1',
-            name: 'Sh. Ramesh Kumar',
-            phone: '9876543210',
-            email: 'ward101.admin@mcjalandhar.in',
-            role: 'admin',
-            ward_id: 'Ward-101',
-            ward_name: 'Ward 1 - Model Town Urban Zone',
-            employee_id: 'PB-MCJ-ADM-W101',
-            credential_code: 'MCJ-W101-SEC4',
-            department: 'Municipal Corporation Jalandhar',
-            designation: 'Ward 1 Municipal Administrator',
-            officers_count: 3,
-            points: 0,
-            level: 1,
-            badges: [],
-            reports_submitted_count: 0,
-            reports_resolved_count: 0,
-            upvotes_given_count: 0,
-          },
-          {
-            id: 'adm_2',
-            name: 'Smt. Sunita Talwar',
-            phone: '9876543211',
-            email: 'ward102.admin@mcjalandhar.in',
-            role: 'admin',
-            ward_id: 'Ward-102',
-            ward_name: 'Ward 2 - Civil Lines Administrative Ward',
-            employee_id: 'PB-MCJ-ADM-W102',
-            credential_code: 'MCJ-W102-SEC9',
-            department: 'Municipal Corporation Jalandhar',
-            designation: 'Ward 2 Municipal Councillor & Admin',
-            officers_count: 4,
-            points: 0,
-            level: 1,
-            badges: [],
-            reports_submitted_count: 0,
-            reports_resolved_count: 0,
-            upvotes_given_count: 0,
-          },
-          {
-            id: 'adm_3',
-            name: 'Sh. Anand Rao',
-            phone: '9876543212',
-            email: 'ward103.admin@mcjalandhar.in',
-            role: 'admin',
-            ward_id: 'Ward-103',
-            ward_name: 'Ward 3 - Cantt Road & Defense Colony',
-            employee_id: 'PB-MCJ-ADM-W103',
-            credential_code: 'MCJ-W103-SEC7',
-            department: 'Municipal Corporation Jalandhar',
-            designation: 'Ward 3 Municipal Administrator',
-            officers_count: 2,
-            points: 0,
-            level: 1,
-            badges: [],
-            reports_submitted_count: 0,
-            reports_resolved_count: 0,
-            upvotes_given_count: 0,
-          },
-          {
-            id: 'adm_4',
-            name: 'Smt. Sunita Patil',
-            phone: '9876543213',
-            email: 'ward104.admin@mcjalandhar.in',
-            role: 'admin',
-            ward_id: 'Ward-104',
-            ward_name: 'Ward 4 - Rama Mandi Commercial Hub',
-            employee_id: 'PB-MCJ-ADM-W104',
-            credential_code: 'MCJ-W104-SEC2',
-            department: 'Municipal Corporation Jalandhar',
-            designation: 'Ward 4 Municipal Administrator',
-            officers_count: 5,
-            points: 0,
-            level: 1,
-            badges: [],
-            reports_submitted_count: 0,
-            reports_resolved_count: 0,
-            upvotes_given_count: 0,
-          },
-          {
-            id: 'adm_5',
-            name: 'Sh. Vijay Reddy',
-            phone: '9876543214',
-            email: 'ward105.admin@mcjalandhar.in',
-            role: 'admin',
-            ward_id: 'Ward-105',
-            ward_name: 'Ward 5 - Phillaur Municipal Core',
-            employee_id: 'PB-MCJ-ADM-W105',
-            credential_code: 'MCJ-W105-SEC5',
-            department: 'Municipal Corporation Jalandhar',
-            designation: 'Ward 5 Municipal Administrator',
-            officers_count: 3,
-            points: 0,
-            level: 1,
-            badges: [],
-            reports_submitted_count: 0,
-            reports_resolved_count: 0,
-            upvotes_given_count: 0,
-          },
-        ]);
-      }
-
-      const tickets = await issuesApi.getAll();
-      setAllTickets(tickets);
-    } catch (err) {
-      console.warn('Super admin data load notice:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user?.role === 'super_admin') {
-      loadData();
-    }
-  }, [user]);
-
-  const handleSuperAdminLogin = async (e?: React.FormEvent, overrideId?: string, overridePin?: string) => {
-    if (e) e.preventDefault();
-    setLoginError(null);
-
-    const ident = overrideId || loginId.trim();
-    const pin = overridePin || loginPasscode.trim();
-
-    if (!ident || !pin) {
-      setLoginError('Please enter Super Admin Employee ID and Security Passcode.');
-      return;
-    }
-
-    setIsLoggingIn(true);
-    try {
-      const res = await adminApi.quickLogin(ident, pin);
-      if (res.user.role !== 'super_admin') {
-        throw new Error('This account does not have Super Admin authority. Use the Ward Admin Portal instead.');
-      }
-      login(res.token, res.user);
-      addToast({
-        type: 'success',
-        title: 'Super Admin Access Granted',
-        message: `Welcome, ${res.user.name}. Root platform administration session authorized.`,
-      });
-      loadData();
-    } catch (err: any) {
-      setLoginError(err.message || 'Invalid Super Admin credentials.');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleProvisionWardAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAdminName || !newAdminPhone) {
-      addToast({
-        type: 'error',
-        title: 'Missing Fields',
-        message: 'Please enter Administrator Name and Mobile Phone.',
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const wardObj = MUNICIPAL_WARDS.find((w) => w.id === newAdminWardId);
-    try {
-      const res = await adminApi.provision({
-        target_role: 'admin',
-        name: newAdminName,
-        phone: newAdminPhone,
-        email: newAdminEmail || undefined,
-        ward_id: newAdminWardId,
-        ward_name: wardObj?.name,
-        department: 'Municipal Corporation Jalandhar',
-        designation: newAdminDesignation,
-        jurisdiction_zone: wardObj?.zone,
-      });
-
-      setCredentialsSlip({
-        targetRole: 'admin',
-        name: newAdminName,
-        creds: res.credentials,
-      });
-
-      addToast({
-        type: 'info',
-        title: 'Ward Admin Credentials Generated',
-        message: `Created credentials for ${newAdminName} in ${wardObj?.name}.`,
-      });
-
-      setNewAdminName('');
-      setNewAdminPhone('');
-      setNewAdminEmail('');
-      loadData();
-    } catch (err: any) {
-      addToast({
-        type: 'error',
-        title: 'Provisioning Failed',
-        message: err.message || 'Could not issue Ward Admin credentials.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCopyText = (text: string, fieldName: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(fieldName);
-    setTimeout(() => setCopiedField(null), 2000);
-    addToast({
-      type: 'info',
-      title: 'Copied to Clipboard',
-      message: `${fieldName} copied: ${text}`,
-    });
-  };
-
-  // If user is not logged in as Super Admin, show Dedicated Super Admin Login Gateway
-  if (user?.role !== 'super_admin') {
-    return (
-      <div className="max-w-lg mx-auto py-10 px-4 sm:px-0">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-900 rounded-full text-xs font-bold mb-3 border border-amber-500/30">
-            <Shield className="w-3.5 h-3.5 text-amber-600" />
-            <span>Root Platform Authority Only</span>
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Civic Connect Super Admin Portal
-          </h1>
-          <p className="text-xs text-slate-600 mt-1">
-            Exclusive administration console for the Civic Connect Central Platform Team.
-          </p>
-        </div>
-
-        {/* Super Admin Login Card */}
-        <div className="bg-white rounded-lg border-2 border-slate-900 p-6 sm:p-7 shadow-md">
-          <div className="mb-5 pb-3 border-b border-slate-200 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-amber-600" />
-                <span>Super Admin Authentication</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Enter root engineering credentials to access platform controls
-              </p>
-            </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-900 text-amber-300">
-              TIER 1 ROOT
-            </span>
-          </div>
-
-          {loginError && (
-            <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-700 leading-relaxed font-medium">
-              {loginError}
-            </div>
-          )}
-
-          <form onSubmit={(e) => handleSuperAdminLogin(e)} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Super Admin Employee ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={loginId}
-                onChange={(e) => setLoginId(e.target.value)}
-                placeholder="e.g. CC-SUPERADMIN-001"
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Security Root Passcode <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                required
-                value={loginPasscode}
-                onChange={(e) => setLoginPasscode(e.target.value)}
-                placeholder="e.g. CC-ROOT-2026"
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-sm font-bold transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
-            >
-              {isLoggingIn ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
-                  <span>Verifying Root Passcode...</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>Authenticate Super Admin Session</span>
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Quick-Fill Super Admin Credentials Button */}
-          <div className="mt-5 pt-4 border-t border-slate-200">
-            <span className="text-xs font-semibold text-slate-600 block mb-2">
-              Official Super Admin Preset:
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setLoginId('CC-SUPERADMIN-001');
-                setLoginPasscode('CC-ROOT-2026');
-                handleSuperAdminLogin(undefined, 'CC-SUPERADMIN-001', 'CC-ROOT-2026');
-              }}
-              className="w-full text-left p-3 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-slate-900 transition flex items-center justify-between group"
-            >
-              <div>
-                <div className="font-bold text-xs text-amber-950 flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-amber-600" />
-                  <span>👑 Civic Connect Team Super Admin</span>
-                </div>
-                <div className="text-[11px] font-mono text-amber-800 mt-0.5">
-                  ID: <strong>CC-SUPERADMIN-001</strong> · PIN: <strong>CC-ROOT-2026</strong>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-amber-900 group-hover:underline flex items-center gap-1">
-                <span>1-Click Sign In</span>
-                <ArrowRight className="w-3 h-3" />
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Separate Portal Routing Links */}
-        <div className="mt-6 text-center space-y-2">
-          <p className="text-xs text-slate-500">
-            Are you a Municipal Corporation Ward Admin?
-          </p>
-          <Link
-            to="/admin-portal"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-800 transition"
-          >
-            <Building2 className="w-3.5 h-3.5 text-cyan-600" />
-            <span>Go to Municipal Ward Admin Portal →</span>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // WhatsApp Gateway Management States
-  const [waStatus, setWaStatus] = useState<WhatsAppGatewayStatus | null>(null);
-  const [isWaLoading, setIsWaLoading] = useState<boolean>(false);
-  const [isWaModalOpen, setIsWaModalOpen] = useState<boolean>(false);
-  const [testWaPhone, setTestWaPhone] = useState<string>('');
-  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
-  const [isResettingWa, setIsResettingWa] = useState<boolean>(false);
-
+  // WhatsApp Status Loader
   const loadWaStatus = async () => {
     setIsWaLoading(true);
     try {
@@ -514,12 +241,12 @@ export const SuperAdminPortalPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (isSuperAdmin && activeTab === 'whatsapp') {
       loadWaStatus();
     }
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, activeTab]);
 
-  // Polling for QR code scan while modal is open
+  // Polling for QR code scan
   useEffect(() => {
     let timer: any = null;
     if (isWaModalOpen && !waStatus?.connected) {
@@ -591,30 +318,368 @@ export const SuperAdminPortalPage: React.FC = () => {
     }
   };
 
+  // Super Admin Login
+  const handleSuperAdminLogin = async (e?: React.FormEvent, customId?: string, customPasscode?: string) => {
+    if (e) e.preventDefault();
+    setLoginError(null);
+    const ident = (customId || loginId).trim();
+    const pin = (customPasscode || loginPasscode).trim();
+
+    if (!ident || !pin) {
+      setLoginError('Enter both Super Admin Employee ID and Root Passcode.');
+      return;
+    }
+
+    setIsLoggingIn(true);
+    try {
+      const res = await adminApi.quickLogin(ident, pin);
+      if (res.user.role !== 'super_admin') {
+        throw new Error('Access denied. This console requires Tier 1 Root Super Admin authorization.');
+      }
+      login(res.token, res.user);
+      addToast({
+        type: 'success',
+        title: 'Super Admin Authorized',
+        message: `Welcome, ${res.user.name}. Full Governance Control Active.`,
+      });
+      loadUsersData();
+    } catch (err: any) {
+      setLoginError(err.message || 'Invalid Super Admin credentials.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  // Super Admin Action: Block User with Mandatory Reason
+  const handleConfirmBlock = async () => {
+    if (!blockUserModal) return;
+    const { user, reason } = blockUserModal;
+    if (!reason.trim()) {
+      addToast({
+        type: 'error',
+        title: 'Mandatory Reason Required',
+        message: 'Please provide a specific documented reason for blocking/suspending this account.',
+      });
+      return;
+    }
+
+    setIsActionSubmitting(true);
+    try {
+      const res = await superAdminUsersApi.blockUser(user.id || user.user_id || '', reason.trim());
+      addToast({
+        type: 'info',
+        title: 'Account Suspended',
+        message: res.message,
+      });
+      setBlockUserModal(null);
+      loadUsersData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Block Failed',
+        message: err.message || 'Could not suspend user.',
+      });
+    } finally {
+      setIsActionSubmitting(false);
+    }
+  };
+
+  // Super Admin Action: Unblock User
+  const handleUnblockUser = async (targetUser: UserProfile) => {
+    if (!window.confirm(`Reinstate and unblock account for ${targetUser.name} (${targetUser.phone})?`)) {
+      return;
+    }
+
+    setIsActionSubmitting(true);
+    try {
+      const res = await superAdminUsersApi.unblockUser(targetUser.id || targetUser.user_id || '');
+      addToast({
+        type: 'success',
+        title: 'Account Reinstated',
+        message: res.message,
+      });
+      loadUsersData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Unblock Failed',
+        message: err.message || 'Could not unblock user.',
+      });
+    } finally {
+      setIsActionSubmitting(false);
+    }
+  };
+
+  // Super Admin Action: Delete User
+  const handleConfirmDelete = async () => {
+    if (!deleteUserModal) return;
+    const targetUser = deleteUserModal;
+    setIsActionSubmitting(true);
+    try {
+      const res = await superAdminUsersApi.deleteUser(targetUser.id || targetUser.user_id || '');
+      addToast({
+        type: 'info',
+        title: 'User Removed',
+        message: res.message,
+      });
+      setDeleteUserModal(null);
+      loadUsersData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Deletion Failed',
+        message: err.message || 'Could not delete user account.',
+      });
+    } finally {
+      setIsActionSubmitting(false);
+    }
+  };
+
+  // Super Admin Action: Save Edit User Profile
+  const handleSaveEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUserModal) return;
+
+    setIsActionSubmitting(true);
+    try {
+      const res = await superAdminUsersApi.updateUser(editUserModal.id || editUserModal.user_id || '', {
+        name: editUserModal.name,
+        phone: editUserModal.phone,
+        email: editUserModal.email,
+        ward_id: editUserModal.ward_id,
+        ward_name: editUserModal.ward_name,
+        department: editUserModal.department,
+        designation: editUserModal.designation,
+        assigned_tasks: editUserModal.assigned_tasks,
+        credential_code: editUserModal.credential_code,
+        role: editUserModal.role,
+      });
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        message: res.message,
+      });
+      setEditUserModal(null);
+      loadUsersData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.message || 'Could not update user details.',
+      });
+    } finally {
+      setIsActionSubmitting(false);
+    }
+  };
+
+  // Super Admin Action: Provision / Create New User or Official
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createName.trim() || !createPhone.trim()) {
+      addToast({ type: 'error', title: 'Fields Required', message: 'Name and Mobile Number are required.' });
+      return;
+    }
+
+    const selectedWardObj = MUNICIPAL_WARDS.find((w) => w.id === createWardId);
+
+    setIsSubmittingCreate(true);
+    try {
+      const res = await superAdminUsersApi.createUser({
+        role: createRole,
+        name: createName.trim(),
+        phone: createPhone.trim(),
+        email: createEmail.trim() || undefined,
+        ward_id: createWardId,
+        ward_name: selectedWardObj?.name,
+        department: createDepartment.trim() || undefined,
+        designation: createDesignation.trim() || undefined,
+        assigned_tasks: createRole === 'officer' ? createTasks : undefined,
+      });
+
+      addToast({
+        type: 'success',
+        title: 'Account Provisioned',
+        message: res.message,
+      });
+
+      if (res.user.credential_code || res.user.employee_id) {
+        setCredentialsSlip({
+          targetRole: createRole,
+          name: res.user.name,
+          creds: {
+            employee_id: res.user.employee_id || '',
+            passcode: res.user.credential_code || '',
+            ward_id: res.user.ward_id,
+            ward_name: res.user.ward_name,
+            assigned_tasks: res.user.assigned_tasks,
+          },
+        });
+      }
+
+      // Reset form
+      setCreateName('');
+      setCreatePhone('');
+      setCreateEmail('');
+      loadUsersData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Creation Failed',
+        message: err.message || 'Could not create account.',
+      });
+    } finally {
+      setIsSubmittingCreate(false);
+    }
+  };
+
+  // Filter users for each active tab
+  const admins = allUsers.filter((u) => u.role === 'admin');
+  const officers = allUsers.filter((u) => u.role === 'officer');
+  const citizens = allUsers.filter((u) => u.role === 'citizen' || u.role === 'volunteer');
+  const blockedUsers = allUsers.filter((u) => u.is_blocked);
+
+  // If not authenticated as Super Admin, display the dedicated login screen
+  if (!isSuperAdmin) {
+    return (
+      <div className="w-full max-w-md my-auto py-8">
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+          >
+            <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+            <span>Return to Citizen Portal</span>
+          </Link>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-300 p-6 sm:p-8 shadow-xs">
+          <div className="text-center mb-6">
+            <div className="inline-flex p-3 rounded-full bg-slate-900 text-amber-400 mb-3 border border-slate-800 shadow-xs">
+              <Shield className="w-7 h-7" />
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              Super Admin Control
+            </h1>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              Tier 1 Root Governance Console for Civic Connect Municipal Authority
+            </p>
+            <span className="inline-block mt-2 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+              FULL SITE GOVERNANCE
+            </span>
+          </div>
+
+          {loginError && (
+            <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-700 leading-relaxed font-medium">
+              {loginError}
+            </div>
+          )}
+
+          <form onSubmit={(e) => handleSuperAdminLogin(e)} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Super Admin Employee ID <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={loginId}
+                onChange={(e) => setLoginId(e.target.value)}
+                placeholder="e.g. CC-SUPERADMIN-001"
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Security Root Passcode <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                required
+                value={loginPasscode}
+                onChange={(e) => setLoginPasscode(e.target.value)}
+                placeholder="e.g. CC-ROOT-2026"
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-sm font-bold transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+            >
+              {isLoggingIn ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+                  <span>Verifying Root Passcode...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  <span>Authenticate Super Admin Session</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Quick-Fill Super Admin Preset */}
+          <div className="mt-5 pt-4 border-t border-slate-200">
+            <span className="text-xs font-semibold text-slate-600 block mb-2">
+              Official Super Admin Preset:
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginId('CC-SUPERADMIN-001');
+                setLoginPasscode('CC-ROOT-2026');
+                handleSuperAdminLogin(undefined, 'CC-SUPERADMIN-001', 'CC-ROOT-2026');
+              }}
+              className="w-full text-left p-3 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-slate-900 transition flex items-center justify-between group"
+            >
+              <div>
+                <div className="font-bold text-xs text-amber-950 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-amber-600" />
+                  <span>👑 Civic Connect Team Super Admin</span>
+                </div>
+                <div className="text-[11px] font-mono text-amber-800 mt-0.5">
+                  ID: <strong>CC-SUPERADMIN-001</strong> · PIN: <strong>CC-ROOT-2026</strong>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-amber-900 group-hover:underline flex items-center gap-1">
+                <span>1-Click Sign In</span>
+                <ArrowRight className="w-3 h-3" />
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Super Admin Authenticated Console
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Super Admin Top Header */}
-      <div className="bg-slate-900 text-white p-4 rounded-lg border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-lg border border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-amber-400" />
             <h1 className="text-lg font-bold tracking-tight text-white">
-              Super Admin Console • Civic Connect Root Authority
+              Super Admin Console • Full Website Governance
             </h1>
           </div>
           <p className="text-xs text-slate-300 mt-0.5 font-mono">
-            Active: <strong className="text-amber-300">{user?.name}</strong> (ID: {user?.employee_id || 'CC-SUPERADMIN-001'}) · Punjab State Municipal Jurisdiction
+            Active: <strong className="text-amber-300">{user?.name}</strong> (ID: {user?.employee_id || 'CC-SUPERADMIN-001'}) · Punjab Municipal Corporation Root Authority
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
             to="/admin-portal"
-            className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-1"
+            className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-1.5"
           >
             <Building2 className="w-3.5 h-3.5 text-cyan-400" />
-            <span>View Ward Admin Portal</span>
+            <span>Ward Admin Portal</span>
           </Link>
 
           <button
@@ -627,7 +692,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                 message: 'Exited Super Admin session.',
               });
             }}
-            className="px-3 py-1.5 rounded bg-red-950 hover:bg-red-900 text-red-200 text-xs font-bold border border-red-800 transition flex items-center gap-1"
+            className="px-3 py-1.5 rounded bg-red-950 hover:bg-red-900 text-red-200 text-xs font-bold border border-red-800 transition flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>
@@ -635,807 +700,1805 @@ export const SuperAdminPortalPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Authority Rule Notice */}
-      <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg text-xs text-amber-900 space-y-1">
-        <div className="font-bold flex items-center gap-1.5 text-amber-950">
-          <ShieldCheck className="w-4 h-4 text-amber-600" />
-          <span>STATUTORY SUPER ADMIN GOVERNANCE RULE:</span>
-        </div>
-        <p className="text-amber-800 leading-relaxed">
-          Super Admins <strong>only add and generate credentials for Municipal Corporation Ward Admins</strong> (1 administrator per ward). Super Admins cannot micromanage field officers directly; each Municipal Ward Admin possesses sovereign authority to provision and assign task specialties to on-site Field Officers for their ward.
-        </p>
-      </div>
-
       {/* KPI Stats Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Municipal Wards</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">5 Wards</div>
-          <span className="text-[11px] text-emerald-700 font-semibold">100% City Coverage</span>
+          <span className="text-xs font-semibold text-slate-500">Total System Accounts</span>
+          <div className="text-2xl font-black text-slate-900 mt-1">{userStats.total || allUsers.length}</div>
+          <span className="text-[11px] text-slate-500 font-medium">Atlas Database Records</span>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Active Ward Admins</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">{adminsList.length} Admins</div>
-          <span className="text-[11px] text-slate-600 font-medium">1 Admin per Ward Assigned</span>
+          <span className="text-xs font-semibold text-slate-500">Ward Administrators</span>
+          <div className="text-2xl font-black text-amber-600 mt-1">{admins.length} Admins</div>
+          <span className="text-[11px] text-slate-500 font-medium">5 Municipal Wards</span>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">Field Squads Deployed</span>
-          <div className="text-2xl font-black text-emerald-700 mt-1">
-            {adminsList.reduce((acc, a) => acc + (a.officers_count || 0), 0) || 17} Officers
-          </div>
-          <span className="text-[11px] text-slate-600 font-medium">Across 5 Department Tasks</span>
+          <span className="text-xs font-semibold text-slate-500">Field Squad Officers</span>
+          <div className="text-2xl font-black text-cyan-600 mt-1">{officers.length} Officers</div>
+          <span className="text-[11px] text-slate-500 font-medium">On-Site Dispatch Force</span>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">City Resolution SLA</span>
-          <div className="text-2xl font-black text-emerald-700 mt-1">91.8%</div>
-          <span className="text-[11px] text-emerald-800 font-medium">19.4h Average Fix Speed</span>
+          <span className="text-xs font-semibold text-slate-500">Registered Citizens</span>
+          <div className="text-2xl font-black text-emerald-600 mt-1">{citizens.length} Citizens</div>
+          <span className="text-[11px] text-slate-500 font-medium">Public Community Users</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg border border-red-200 bg-red-50/40 shadow-xs">
+          <span className="text-xs font-bold text-red-700">Suspended / Blocked</span>
+          <div className="text-2xl font-black text-red-700 mt-1">{blockedUsers.length} Blocked</div>
+          <span className="text-[11px] text-red-600 font-medium">Illegal &amp; Spam Enforcements</span>
         </div>
       </div>
 
-      {/* WhatsApp Gateway & Free OTP Dispatch Console */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-emerald-950/80 rounded text-emerald-400 border border-emerald-800">
-              <MessageSquare className="w-4 h-4" />
-            </div>
+      {/* Control Tabs Navigation */}
+      <div className="bg-white rounded-lg border border-slate-300 shadow-xs p-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('admins')}
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'admins'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Ward Admins</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400/20 text-amber-300 font-mono">
+              {admins.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('officers')}
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'officers'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Field Officers</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-cyan-400/20 text-cyan-300 font-mono">
+              {officers.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('citizens')}
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'citizens'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Citizens / Users</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-400/20 text-emerald-300 font-mono">
+              {citizens.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('blocked')}
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'blocked'
+                ? 'bg-red-900 text-white shadow-xs'
+                : 'text-red-700 hover:text-red-900 hover:bg-red-50'
+            }`}
+          >
+            <Ban className="w-3.5 h-3.5" />
+            <span>Blocked / Spam</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-200 text-red-900 font-mono font-bold">
+              {blockedUsers.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('create')}
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'create'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5 text-amber-400" />
+            <span>+ Add Official / User</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('volunteers')}
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'volunteers'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-blue-400" />
+            <span>Youth Volunteers</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('whatsapp')}
+            className={`px-3 py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'whatsapp'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+            <span>WhatsApp Gateway</span>
+            <span className={`w-2 h-2 rounded-full ${waStatus?.connected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 1. WARD ADMINS LIST (FULL CONTROL)                             */}
+      {/* ============================================================== */}
+      {activeTab === 'admins' && (
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-sm sm:text-base">
-                  WhatsApp Gateway &amp; Zero-Cost OTP Dispatch
-                </h2>
-                {waStatus?.connected ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    ● PAIRED &amp; ACTIVE
-                  </span>
-                ) : waStatus?.gateway_online ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    ● PAIRING REQUIRED
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/40">
-                    ● GATEWAY OFFLINE
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400">
-                Self-hosted Baileys WebSocket gateway delivering instant citizen OTPs over WhatsApp for ₹0.00.
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-amber-600" />
+                <span>Municipal Ward Administrators Governance</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Full authority to view, edit, update, delete, or suspend Ward Admins.
               </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={loadWaStatus}
-              disabled={isWaLoading}
-              className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
-              title="Refresh Gateway Connection Status"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isWaLoading ? 'animate-spin text-emerald-400' : ''}`} />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-5 sm:p-6 space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {/* Status Card 1: Connection Health */}
-            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
-              <span className="text-slate-500 font-semibold block">Gateway Daemon</span>
-              <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${waStatus?.gateway_online ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                <span>{waStatus?.gateway_online ? 'Service Online (Port 5005)' : 'Service Offline'}</span>
-              </div>
-              <span className="text-[11px] text-slate-500 block">
-                Local WebSocket Daemon
-              </span>
-            </div>
-
-            {/* Status Card 2: Paired Device Number */}
-            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
-              <span className="text-slate-500 font-semibold block">Active WhatsApp Device</span>
-              <div className="text-sm font-bold text-slate-900 font-mono">
-                {waStatus?.connected ? (
-                  <span className="text-emerald-700">+{waStatus.phone?.split('@')[0]}</span>
-                ) : (
-                  <span className="text-slate-500 italic">No Device Linked</span>
-                )}
-              </div>
-              <span className="text-[11px] text-slate-500 block">
-                {waStatus?.connected ? 'Ready to deliver OTPs' : 'Scan QR to activate device'}
-              </span>
-            </div>
-
-            {/* Status Card 3: Billing Rate */}
-            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
-              <span className="text-slate-500 font-semibold block">OTP Delivery Cost</span>
-              <div className="text-sm font-bold text-emerald-700 font-mono">
-                ₹0.00 / message
-              </div>
-              <span className="text-[11px] text-slate-500 block">
-                Zero Meta/Twilio API fees
-              </span>
-            </div>
-          </div>
-
-          {/* Action Row: Link QR, Test OTP & Unlink */}
-          <div className="pt-2 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  loadWaStatus();
-                  setIsWaModalOpen(true);
-                }}
-                className="px-3.5 py-2 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs"
+                onClick={loadUsersData}
+                disabled={usersLoading}
+                className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
+                title="Refresh Admins"
               >
-                <QrCode className="w-3.5 h-3.5" />
-                <span>{waStatus?.connected ? 'View WhatsApp Pairing' : 'Pair WhatsApp (Scan QR)'}</span>
+                <RefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />
               </button>
-
-              {waStatus?.connected && (
-                <button
-                  type="button"
-                  disabled={isResettingWa}
-                  onClick={handleResetWaSession}
-                  className="px-3 py-2 rounded bg-white hover:bg-red-50 text-red-700 font-semibold text-xs border border-red-300 transition flex items-center gap-1 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isResettingWa ? 'animate-spin' : ''}`} />
-                  <span>Unlink / Switch Device</span>
-                </button>
-              )}
             </div>
+          </div>
 
-            {/* Quick Test OTP Dispatch Form */}
-            <form onSubmit={handleSendTestWaOtp} className="flex items-center gap-2">
-              <input
-                type="tel"
-                value={testWaPhone}
-                onChange={(e) => setTestWaPhone(e.target.value)}
-                placeholder="Test Mobile (e.g. 9876543210)"
-                className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-900 font-mono w-48 focus:outline-none focus:border-slate-900"
-              />
-              <button
-                type="submit"
-                disabled={isSendingTest || !waStatus?.connected}
-                className="px-3 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center gap-1 shadow-xs disabled:opacity-50 shrink-0"
-              >
-                <Send className="w-3 h-3 text-emerald-400" />
-                <span>{isSendingTest ? 'Sending...' : 'Send Test OTP'}</span>
-              </button>
-            </form>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="px-4 py-3">Ward Jurisdiction</th>
+                  <th className="px-4 py-3">Administrator Contact</th>
+                  <th className="px-4 py-3">Employee ID &amp; PIN</th>
+                  <th className="px-4 py-3 text-center">Field Squad</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-right">Actions (Full Control)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {admins.map((admin) => (
+                  <tr key={admin.id || admin.employee_id} className="hover:bg-slate-50/80 transition">
+                    <td className="px-4 py-3.5">
+                      <span className="font-bold text-slate-900 block">{admin.ward_name || admin.ward_id}</span>
+                      <span className="text-[11px] text-slate-500 font-mono">{admin.ward_id}</span>
+                    </td>
+
+                    <td className="px-4 py-3.5">
+                      <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                        <BadgeCheck className="w-3.5 h-3.5 text-cyan-600" />
+                        <span>{admin.name}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono">
+                        +91 {admin.phone} {admin.email ? `· ${admin.email}` : ''}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {admin.designation || 'Ward Municipal Administrator'}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3.5 space-y-1">
+                      <div className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold inline-block">
+                        {admin.employee_id || 'N/A'}
+                      </div>
+                      {admin.credential_code && (
+                        <div className="font-mono text-[11px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-900 font-bold block w-fit">
+                          PIN: {admin.credential_code}
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3.5 text-center">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
+                        {admin.officers_count || 0} Officers
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3.5 text-center">
+                      {admin.is_blocked ? (
+                        <div>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                            ● SUSPENDED
+                          </span>
+                          {admin.block_reason && (
+                            <p className="text-[10px] text-red-700 mt-0.5 max-w-xs truncate" title={admin.block_reason}>
+                              Reason: {admin.block_reason}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                          ● ACTIVE
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          to="/admin-portal"
+                          className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-[11px] border border-slate-200 transition inline-flex items-center gap-1"
+                          title="Open Ward Console"
+                        >
+                          <span>Console</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditUserModal(admin)}
+                          className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition"
+                          title="Edit Ward Admin Profile"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        {admin.is_blocked ? (
+                          <button
+                            type="button"
+                            onClick={() => handleUnblockUser(admin)}
+                            className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 transition"
+                            title="Unblock & Reinstate Admin"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setBlockUserModal({ user: admin, reason: '' })}
+                            className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                            title="Block / Suspend Admin with Reason"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteUserModal(admin)}
+                          className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                          title="Delete Ward Admin Account"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Provisioning Engine: Super Admin creates Ward Admin */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-slate-800 rounded text-amber-400 border border-slate-700">
-              <KeyRound className="w-4 h-4" />
-            </div>
+      {/* ============================================================== */}
+      {/* 2. FIELD OFFICERS LIST (FULL CONTROL ACROSS ALL WARDS)         */}
+      {/* ============================================================== */}
+      {activeTab === 'officers' && (
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="font-bold text-sm sm:text-base">
-                Municipal Corporation Ward Admin Provisioning Engine
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-cyan-600" />
+                <span>City-Wide On-Site Field Officers &amp; Squads</span>
               </h2>
-              <p className="text-xs text-slate-400">
-                Generate official administrative credentials and assign municipal ward jurisdiction.
+              <p className="text-xs text-slate-500">
+                Super Admin cross-ward control: View, edit, update, assign tasks, delete, or suspend any Field Officer.
               </p>
             </div>
-          </div>
-          <span className="hidden sm:inline-block px-2.5 py-1 rounded bg-amber-400/20 text-amber-300 text-xs font-mono font-bold border border-amber-400/30">
-            1 Admin per Ward
-          </span>
-        </div>
 
-        <form onSubmit={handleProvisionWardAdmin} className="p-5 sm:p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Select Municipal Ward Assignment <span className="text-red-500">*</span>
-              </label>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Ward Filter */}
               <select
-                value={newAdminWardId}
-                onChange={(e) => setNewAdminWardId(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                value={selectedWard}
+                onChange={(e) => setSelectedWard(e.target.value)}
+                className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 font-medium focus:outline-none focus:border-slate-900"
               >
+                <option value="ALL">All Municipal Wards</option>
                 {MUNICIPAL_WARDS.map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name} ({w.zone})
+                    {w.id} - {w.name.split('-')[1]?.trim() || w.name}
                   </option>
                 ))}
               </select>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ward Administrator Full Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={newAdminName}
-                onChange={(e) => setNewAdminName(e.target.value)}
-                placeholder="e.g. Smt. Sunita Talwar"
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
-              />
+              <button
+                type="button"
+                onClick={loadUsersData}
+                disabled={usersLoading}
+                className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
+                title="Refresh Officers"
+              >
+                <RefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Official Mobile Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="tel"
-                required
-                value={newAdminPhone}
-                onChange={(e) => setNewAdminPhone(e.target.value)}
-                placeholder="e.g. 9876543210"
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 font-mono focus:outline-none focus:border-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Government Email Address
-              </label>
-              <input
-                type="email"
-                value={newAdminEmail}
-                onChange={(e) => setNewAdminEmail(e.target.value)}
-                placeholder="e.g. ward102.admin@mcjalandhar.in"
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Administrative Designation
-              </label>
-              <input
-                type="text"
-                value={newAdminDesignation}
-                onChange={(e) => setNewAdminDesignation(e.target.value)}
-                placeholder="e.g. Ward Municipal Administrator"
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2 flex justify-end">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition flex items-center gap-2 shadow-xs disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                  <span>Generating Secure Ward Admin Credentials...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Issue Ward Admin Official Credentials</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Ward Governance Matrix */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="font-bold text-sm sm:text-base text-slate-900">
-              City-Wide Municipal Ward Governance Matrix
-            </h3>
-            <p className="text-xs text-slate-500">
-              Every municipal ward has exactly one assigned Ward Admin who authorizes on-site field officers.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={loadData}
-            className="self-start sm:self-auto p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
-            title="Refresh Roster"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
-            <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
-              <tr>
-                <th className="px-4 py-3">Ward Jurisdiction</th>
-                <th className="px-4 py-3">Designated Administrator</th>
-                <th className="px-4 py-3">Employee ID</th>
-                <th className="px-4 py-3">Security Code</th>
-                <th className="px-4 py-3 text-center">Field Squads</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {adminsList.map((admin) => (
-                <tr key={admin.id || admin.employee_id} className="hover:bg-slate-50 transition">
-                  <td className="px-4 py-3.5">
-                    <span className="font-bold text-slate-900 block">{admin.ward_name || admin.ward_id}</span>
-                    <span className="text-[11px] text-slate-500 font-mono">{admin.ward_id}</span>
-                  </td>
-
-                  <td className="px-4 py-3.5">
-                    <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                      <BadgeCheck className="w-3.5 h-3.5 text-cyan-600" />
-                      <span>{admin.name}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 font-mono">
-                      {admin.phone} {admin.email ? `· ${admin.email}` : ''}
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      {admin.designation || 'Ward Municipal Administrator'}
-                    </div>
-                  </td>
-
-                  <td className="px-4 py-3.5">
-                    <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold">
-                      {admin.employee_id || 'N/A'}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-3.5">
-                    <span className="font-mono text-[11px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-900 font-bold">
-                      {admin.credential_code || 'MCJ-SEC-AUTH'}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-3.5 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      {admin.officers_count || 0} Officers
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-3.5 text-right">
-                    <Link
-                      to="/admin-portal"
-                      className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-[11px] border border-slate-200 transition inline-flex items-center gap-1"
-                    >
-                      <span>Open Ward Console</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="px-4 py-3">Officer Name &amp; Contact</th>
+                  <th className="px-4 py-3">Ward &amp; Department</th>
+                  <th className="px-4 py-3">Assigned Tasks</th>
+                  <th className="px-4 py-3">Employee ID &amp; PIN</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-right">Actions (Full Control)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {officers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-xs text-slate-500">
+                      No field officers found matching the selected filter.
+                    </td>
+                  </tr>
+                ) : (
+                  officers.map((officer) => (
+                    <tr key={officer.id || officer.employee_id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-4 py-3.5">
+                        <div className="font-semibold text-slate-900">
+                          {officer.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono">
+                          +91 {officer.phone} {officer.email ? `· ${officer.email}` : ''}
+                        </div>
+                        <div className="text-[10px] text-cyan-700 font-medium">
+                          {officer.designation || 'Field Inspector'}
+                        </div>
+                      </td>
 
-      {/* City-Wide Youth Volunteer Corps Verification & Oversight */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-sm sm:text-base text-slate-900">
-                City-Wide Youth Volunteer Corps Verification &amp; Oversight
-              </h3>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-bold border border-blue-200">
-                {volunteerApps.filter((a) => a.status === 'PENDING').length} Pending
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Super Admin cross-ward queue: Authorize youth volunteers (NSS, NCC, NYKS, Community) with +100 initiation points and 1.25x multipliers.
-            </p>
-          </div>
+                      <td className="px-4 py-3.5">
+                        <span className="font-bold text-slate-800 block">{officer.ward_id || 'Ward-102'}</span>
+                        <span className="text-[11px] text-slate-500">{officer.department || 'Operations'}</span>
+                      </td>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Ward Selector */}
-            <select
-              value={volunteerWardFilter}
-              onChange={(e) => setVolunteerWardFilter(e.target.value)}
-              className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 font-medium focus:outline-none focus:border-slate-900"
-            >
-              <option value="ALL">All Municipal Wards</option>
-              {MUNICIPAL_WARDS.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.id} - {w.name.split('-')[1]?.trim() || w.name}
-                </option>
-              ))}
-            </select>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {officer.assigned_tasks && officer.assigned_tasks.length > 0 ? (
+                            officer.assigned_tasks.map((t) => (
+                              <span
+                                key={t}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 border border-slate-200 text-slate-800"
+                              >
+                                {t}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-slate-400">All General Tasks</span>
+                          )}
+                        </div>
+                      </td>
 
-            {/* Status Filter */}
-            <div className="flex rounded border border-slate-300 overflow-hidden text-xs">
-              {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setVolunteerStatusFilter(st)}
-                  className={`px-2.5 py-1.5 font-semibold transition ${
-                    volunteerStatusFilter === st
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {st === 'ALL' ? 'All' : st === 'PENDING' ? 'Pending' : st === 'APPROVED' ? 'Approved' : 'Rejected'}
-                </button>
-              ))}
-            </div>
+                      <td className="px-4 py-3.5 space-y-1">
+                        <div className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-bold inline-block">
+                          {officer.employee_id || 'N/A'}
+                        </div>
+                        {officer.credential_code && (
+                          <div className="font-mono text-[11px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-900 font-bold block w-fit">
+                            PIN: {officer.credential_code}
+                          </div>
+                        )}
+                      </td>
 
-            <button
-              type="button"
-              onClick={loadVolunteerApplications}
-              className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
-              title="Refresh Volunteers"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+                      <td className="px-4 py-3.5 text-center">
+                        {officer.is_blocked ? (
+                          <div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                              ● SUSPENDED
+                            </span>
+                            {officer.block_reason && (
+                              <p className="text-[10px] text-red-700 mt-0.5 max-w-xs truncate" title={officer.block_reason}>
+                                Reason: {officer.block_reason}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                            ● ACTIVE
+                          </span>
+                        )}
+                      </td>
 
-        {volunteersLoading ? (
-          <div className="p-8 text-center text-xs text-slate-500">
-            <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2" />
-            Loading volunteer records across municipal jurisdictions...
-          </div>
-        ) : volunteerApps.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-500">
-            No volunteer applications found matching the selected ward and status criteria.
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-200">
-            {volunteerApps.map((app) => (
-              <div key={app.id || app.application_id} className="p-4 hover:bg-slate-50/70 transition flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-slate-900 text-sm">{app.name}</span>
-                    <span className="font-mono text-[11px] text-slate-500">{app.phone}</span>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditUserModal(officer)}
+                            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition"
+                            title="Edit Officer Profile & Tasks"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
 
-                    {/* Scheme Badge */}
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border ${
-                      app.scheme === 'NCC'
-                        ? 'bg-red-50 text-red-800 border-red-200'
-                        : app.scheme === 'NSS'
-                        ? 'bg-blue-50 text-blue-800 border-blue-200'
-                        : app.scheme === 'NYKS'
-                        ? 'bg-amber-50 text-amber-800 border-amber-200'
-                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    }`}>
-                      {app.scheme} Sentinel
-                    </span>
+                          {officer.is_blocked ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUnblockUser(officer)}
+                              className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 transition"
+                              title="Unblock & Reinstate Officer"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setBlockUserModal({ user: officer, reason: '' })}
+                              className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                              title="Block / Suspend Officer with Reason"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
-                    {/* Ward Badge */}
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
-                      {app.ward_name || app.ward_id}
-                    </span>
-
-                    {/* Status Badge */}
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                      app.status === 'APPROVED'
-                        ? 'bg-emerald-100 text-emerald-900'
-                        : app.status === 'REJECTED'
-                        ? 'bg-red-100 text-red-900'
-                        : 'bg-amber-100 text-amber-900'
-                    }`}>
-                      {app.status}
-                    </span>
-                  </div>
-
-                  <div className="text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                    {app.institution && (
-                      <span>
-                        Institution: <strong className="text-slate-800">{app.institution}</strong>
-                      </span>
-                    )}
-                    {app.cadet_or_enrollment_id && (
-                      <span className="font-mono">
-                        Enrolment: <strong className="text-slate-800">{app.cadet_or_enrollment_id}</strong>
-                      </span>
-                    )}
-                    {app.interests && app.interests.length > 0 && (
-                      <span>
-                        Focus: <span className="text-slate-800">{app.interests.map(i => i.replace('_', ' ')).join(', ')}</span>
-                      </span>
-                    )}
-                    <span className="text-slate-400 font-mono">
-                      Applied: {app.applied_at ? new Date(app.applied_at).toLocaleDateString() : 'Recent'}
-                    </span>
-                  </div>
-
-                  {app.review_notes && (
-                    <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-200 max-w-2xl font-mono">
-                      Review Note: {app.review_notes}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions for Pending */}
-                {app.status === 'PENDING' && (
-                  <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
-                    <button
-                      type="button"
-                      disabled={reviewingAppId === app.application_id}
-                      onClick={() => setReviewModal({ app, action: 'approve', notes: 'Credentials and institutional enrollment verified by Super Admin.' })}
-                      className="px-3.5 py-2 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Approve &amp; Enlist (+100 Pts)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={reviewingAppId === app.application_id}
-                      onClick={() => setReviewModal({ app, action: 'reject', notes: 'Application could not be validated.' })}
-                      className="px-3 py-2 rounded bg-white hover:bg-red-50 text-red-700 font-semibold text-xs border border-red-300 transition flex items-center gap-1 disabled:opacity-50"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      <span>Reject</span>
-                    </button>
-                  </div>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteUserModal(officer)}
+                            className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                            title="Delete Field Officer Account"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Volunteer Review Confirmation Modal */}
-      {reviewModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border-2 border-slate-900 max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <h3 className="font-bold text-slate-900 text-base">
-                {reviewModal.action === 'approve' ? 'Authorize Civic Volunteer (Super Admin)' : 'Decline Volunteer Application'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setReviewModal(null)}
-                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="text-xs text-slate-600 space-y-2">
-              <p>
-                Applicant: <strong>{reviewModal.app.name}</strong> ({reviewModal.app.scheme})
-              </p>
-              <p>
-                Phone: <span className="font-mono font-bold text-slate-900">{reviewModal.app.phone}</span>
-              </p>
-              <p>
-                Ward Jurisdiction: <strong className="text-slate-900">{reviewModal.app.ward_name || reviewModal.app.ward_id}</strong>
-              </p>
-              {reviewModal.action === 'approve' ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-900 text-xs leading-relaxed">
-                  <strong>Induction Action:</strong> Approving will promote this citizen to the official <strong>{reviewModal.app.scheme} Volunteer</strong> role in <strong>{reviewModal.app.ward_name || reviewModal.app.ward_id}</strong> and immediately grant <strong>+100 welcome reputation points &amp; coins</strong>.
-                </div>
-              ) : (
-                <div className="p-3 bg-red-50 border border-red-200 rounded text-red-900 text-xs leading-relaxed">
-                  <strong>Decline Notice:</strong> The applicant's profile will remain as a standard citizen.
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Administrative Verification Note
-              </label>
-              <textarea
-                rows={2}
-                value={reviewModal.notes}
-                onChange={(e) => setReviewModal({ ...reviewModal, notes: e.target.value })}
-                className="w-full p-2.5 text-xs bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setReviewModal(null)}
-                className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-300 rounded hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={reviewingAppId === reviewModal.app.application_id}
-                onClick={() => handleReviewVolunteer(reviewModal.app.application_id, reviewModal.action, reviewModal.notes)}
-                className={`px-4 py-2 text-xs font-bold rounded text-white transition ${
-                  reviewModal.action === 'approve'
-                    ? 'bg-emerald-700 hover:bg-emerald-800'
-                    : 'bg-red-700 hover:bg-red-800'
-                }`}
-              >
-                {reviewingAppId === reviewModal.app.application_id
-                  ? 'Processing...'
-                  : reviewModal.action === 'approve'
-                  ? 'Confirm & Authorize Volunteer'
-                  : 'Confirm Rejection'}
-              </button>
-            </div>
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* WhatsApp Pairing QR Code Modal */}
-      {isWaModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border-2 border-slate-900 max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-emerald-600" />
-                <h3 className="font-bold text-slate-900 text-base">
-                  Link WhatsApp for Free OTP Dispatch
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsWaModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
-              >
-                ✕
-              </button>
+      {/* ============================================================== */}
+      {/* 3. CITIZENS / USERS LIST (FULL CONTROL)                        */}
+      {/* ============================================================== */}
+      {activeTab === 'citizens' && (
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-600" />
+                <span>Registered Citizens &amp; Public Users Directory</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Super Admin control: Inspect citizen accounts, view activity metrics, edit profiles, or suspend bad actors for spam/illegal behavior.
+              </p>
             </div>
 
-            {waStatus?.connected ? (
-              <div className="text-center py-4 space-y-3">
-                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-700">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">WhatsApp Gateway is Active</h4>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Paired phone: <strong className="text-slate-800 font-mono">+{waStatus.phone?.split('@')[0]}</strong>
-                  </p>
-                </div>
-                <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-200">
-                  Citizen OTPs are automatically delivered over WhatsApp at ₹0.00 cost.
+            <div className="flex flex-wrap items-center gap-2">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search name, phone, email..."
+                  className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-900 font-medium w-48 focus:outline-none focus:border-slate-900"
+                />
+                <button
+                  type="submit"
+                  className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition flex items-center gap-1 shadow-xs"
+                >
+                  <Search className="w-3 h-3" />
+                  <span>Search</span>
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={loadUsersData}
+                disabled={usersLoading}
+                className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
+                title="Refresh Citizens"
+              >
+                <RefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="px-4 py-3">Citizen Name &amp; Contact</th>
+                  <th className="px-4 py-3">Assigned Ward</th>
+                  <th className="px-4 py-3 text-center">Reputation Points</th>
+                  <th className="px-4 py-3 text-center">Civic Coins</th>
+                  <th className="px-4 py-3 text-center">Reports Filed</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-right">Actions (Full Control)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {citizens.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-xs text-slate-500">
+                      No citizen accounts found matching search criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  citizens.map((cit) => (
+                    <tr key={cit.id || cit.user_id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-4 py-3.5">
+                        <span className="font-semibold text-slate-900 block">{cit.name}</span>
+                        <span className="font-mono text-[11px] text-slate-500">+91 {cit.phone}</span>
+                        {cit.email && <span className="text-[10px] text-slate-400 block">{cit.email}</span>}
+                      </td>
+
+                      <td className="px-4 py-3.5">
+                        <span className="font-medium text-slate-800 block">{cit.ward_name || cit.ward_id || 'Ward-102'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{cit.ward_id}</span>
+                      </td>
+
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          {cit.points || 0} pts
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          🪙 {cit.coins ?? cit.points ?? 50}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="font-semibold text-slate-700">
+                          {cit.reports_submitted_count || 0}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3.5 text-center">
+                        {cit.is_blocked ? (
+                          <div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                              ● BLOCKED
+                            </span>
+                            {cit.block_reason && (
+                              <p className="text-[10px] text-red-700 mt-0.5 max-w-xs truncate" title={cit.block_reason}>
+                                Reason: {cit.block_reason}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                            ● ACTIVE
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditUserModal(cit)}
+                            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition"
+                            title="Edit Citizen Profile"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+
+                          {cit.is_blocked ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUnblockUser(cit)}
+                              className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 transition"
+                              title="Unblock & Reinstate Citizen"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setBlockUserModal({ user: cit, reason: '' })}
+                              className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                              title="Block Citizen for Spam/Illegal Activities with Reason"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setDeleteUserModal(cit)}
+                            className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                            title="Delete Citizen Account"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 4. BLOCKED & SUSPENDED ACCOUNTS (WITH MANDATORY REASONS)       */}
+      {/* ============================================================== */}
+      {activeTab === 'blocked' && (
+        <div className="bg-white rounded-lg border border-red-300 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-red-200 bg-red-50 flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-sm sm:text-base text-red-950 flex items-center gap-2">
+                <Ban className="w-4 h-4 text-red-700" />
+                <span>Suspended / Blocked Accounts Register (Spam &amp; Violations)</span>
+              </h2>
+              <p className="text-xs text-red-800">
+                Every suspended user account is documented with a statutory reason. Blocked accounts cannot request OTP, log in, or submit civic reports.
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-red-200 text-red-900 border border-red-300">
+              {blockedUsers.length} Suspended
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="px-4 py-3">Account Identity &amp; Role</th>
+                  <th className="px-4 py-3">Contact Mobile</th>
+                  <th className="px-4 py-3">Jurisdiction Ward</th>
+                  <th className="px-4 py-3">Documented Suspension Reason</th>
+                  <th className="px-4 py-3">Suspended By</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {blockedUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-xs text-slate-500">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                      No suspended or blocked accounts in the database. Platform is healthy.
+                    </td>
+                  </tr>
+                ) : (
+                  blockedUsers.map((u) => (
+                    <tr key={u.id || u.user_id} className="hover:bg-red-50/40 transition">
+                      <td className="px-4 py-3.5">
+                        <span className="font-bold text-slate-900 block">{u.name}</span>
+                        <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-800">
+                          {u.role}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3.5 font-mono text-[11px] text-slate-800">
+                        +91 {u.phone}
+                      </td>
+
+                      <td className="px-4 py-3.5 text-slate-600">
+                        {u.ward_name || u.ward_id || 'Ward-102'}
+                      </td>
+
+                      <td className="px-4 py-3.5">
+                        <div className="p-2 rounded bg-red-50 border border-red-200 text-red-900 font-medium text-xs leading-relaxed max-w-md">
+                          {u.block_reason || 'Documented violation of civic platform rules'}
+                        </div>
+                        {u.blocked_at && (
+                          <span className="text-[10px] text-slate-400 block mt-1 font-mono">
+                            Suspended on: {new Date(u.blocked_at).toLocaleString()}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3.5 text-slate-500 text-[11px]">
+                        {u.blocked_by || 'Super Administrator'}
+                      </td>
+
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleUnblockUser(u)}
+                            className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-xs font-bold transition flex items-center gap-1 shadow-xs"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Unblock</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDeleteUserModal(u)}
+                            className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                            title="Delete Account Permanently"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 5. ADD / PROVISION NEW OFFICIAL OR USER                        */}
+      {/* ============================================================== */}
+      {activeTab === 'create' && (
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-slate-800 rounded text-amber-400 border border-slate-700">
+                <UserPlus className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="font-bold text-sm sm:text-base">
+                  Provision New Account (Ward Admin, Field Officer, or Citizen)
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Super Admin direct provisioning with automated credential codes and role authorization.
                 </p>
               </div>
-            ) : waStatus?.qr_image ? (
-              <div className="text-center space-y-4">
-                <p className="text-xs text-slate-600">
-                  Scan this QR code with WhatsApp on your phone to link your number:
-                </p>
+            </div>
+          </div>
 
-                <div className="inline-block p-2 bg-slate-50 rounded-lg border-2 border-slate-900 shadow-sm">
-                  <img
-                    src={waStatus.qr_image}
-                    alt="WhatsApp QR Code"
-                    className="w-56 h-56 mx-auto block"
+          <form onSubmit={handleCreateUser} className="p-5 sm:p-6 space-y-4">
+            {/* Role Switcher */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Select Account Role to Provision <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateRole('admin');
+                    setCreateDesignation('Ward Municipal Administrator');
+                    setCreateDepartment('Municipal Corporation Jalandhar');
+                  }}
+                  className={`p-3 rounded-lg border text-xs font-bold transition text-left ${
+                    createRole === 'admin'
+                      ? 'border-amber-500 bg-amber-50/50 text-slate-900 ring-1 ring-amber-500'
+                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 text-amber-600 mb-1" />
+                  <span className="block font-bold">Ward Administrator</span>
+                  <span className="text-[10px] text-slate-500 font-normal">1 Admin per Ward</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateRole('officer');
+                    setCreateDesignation('Junior Engineer (JE)');
+                    setCreateDepartment('Municipal Field Operations');
+                  }}
+                  className={`p-3 rounded-lg border text-xs font-bold transition text-left ${
+                    createRole === 'officer'
+                      ? 'border-cyan-500 bg-cyan-50/50 text-slate-900 ring-1 ring-cyan-500'
+                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 text-cyan-600 mb-1" />
+                  <span className="block font-bold">Field Officer</span>
+                  <span className="text-[10px] text-slate-500 font-normal">On-Site Dispatch Squad</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateRole('citizen');
+                    setCreateDesignation('');
+                    setCreateDepartment('');
+                  }}
+                  className={`p-3 rounded-lg border text-xs font-bold transition text-left ${
+                    createRole === 'citizen'
+                      ? 'border-emerald-500 bg-emerald-50/50 text-slate-900 ring-1 ring-emerald-500'
+                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Users className="w-4 h-4 text-emerald-600 mb-1" />
+                  <span className="block font-bold">Citizen User</span>
+                  <span className="text-[10px] text-slate-500 font-normal">Public Reporting Account</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="e.g. Er. Rohit Verma"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Official Mobile Phone <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={createPhone}
+                  onChange={(e) => setCreatePhone(e.target.value)}
+                  placeholder="e.g. 9876512345"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 font-mono focus:outline-none focus:border-slate-900"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Government / Contact Email Address
+                </label>
+                <input
+                  type="email"
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  placeholder="e.g. official@mcjalandhar.in"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Municipal Ward Jurisdiction <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={createWardId}
+                  onChange={(e) => setCreateWardId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                >
+                  {MUNICIPAL_WARDS.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.zone})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {createRole !== 'citizen' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Department Unit
+                  </label>
+                  <input
+                    type="text"
+                    value={createDepartment}
+                    onChange={(e) => setCreateDepartment(e.target.value)}
+                    placeholder="e.g. Roads & Infrastructure Division"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
                   />
                 </div>
 
-                <div className="text-left bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-700 space-y-1">
-                  <span className="font-bold block text-slate-900 mb-1">How to scan:</span>
-                  <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-slate-600">
-                    <li>Open <strong>WhatsApp</strong> on your mobile phone</li>
-                    <li>Go to <strong>Settings</strong> or <strong>Menu (⋮)</strong> &gt; <strong>Linked Devices</strong></li>
-                    <li>Tap <strong>Link a Device</strong> and point camera here</li>
-                  </ol>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Designation / Title
+                  </label>
+                  <input
+                    type="text"
+                    value={createDesignation}
+                    onChange={(e) => setCreateDesignation(e.target.value)}
+                    placeholder="e.g. Junior Engineer (JE)"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                  />
                 </div>
-
-                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-mono">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-                  <span>Waiting for scan... auto-refreshing</span>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 space-y-2">
-                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400" />
-                <p className="text-xs text-slate-500">
-                  {waStatus?.gateway_online
-                    ? 'Generating new WhatsApp pairing QR code...'
-                    : 'WhatsApp Gateway service is offline. Please start it on port 5005.'}
-                </p>
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+            {/* Task Specialties for Field Officers */}
+            {createRole === 'officer' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Assigned Maintenance Tasks &amp; Specialties:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {TASK_OPTIONS.map((t) => {
+                    const isChecked = createTasks.includes(t.id);
+                    return (
+                      <button
+                        type="button"
+                        key={t.id}
+                        onClick={() => {
+                          if (isChecked) {
+                            setCreateTasks(createTasks.filter((x) => x !== t.id));
+                          } else {
+                            setCreateTasks([...createTasks, t.id]);
+                          }
+                        }}
+                        className={`p-2 rounded border text-left text-xs transition flex items-center gap-1.5 ${
+                          isChecked
+                            ? 'border-cyan-500 bg-cyan-50 text-cyan-950 font-semibold'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="rounded text-cyan-600 focus:ring-cyan-500"
+                        />
+                        <span>{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-3 flex justify-end">
               <button
-                type="button"
-                onClick={loadWaStatus}
-                className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-300 rounded hover:bg-slate-50 flex items-center gap-1"
+                type="submit"
+                disabled={isSubmittingCreate}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition flex items-center gap-2 shadow-xs disabled:opacity-50"
               >
-                <RefreshCw className="w-3 h-3" />
-                <span>Refresh</span>
+                {isSubmittingCreate ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                    <span>Provisioning &amp; Generating Passcode...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Provision {createRole === 'admin' ? 'Ward Admin' : createRole === 'officer' ? 'Field Officer' : 'Citizen'} Account</span>
+                  </>
+                )}
               </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 6. YOUTH VOLUNTEERS QUEUE                                      */}
+      {/* ============================================================== */}
+      {activeTab === 'volunteers' && (
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-sm sm:text-base text-slate-900">
+                  City-Wide Youth Volunteer Corps Verification &amp; Oversight
+                </h3>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-bold border border-blue-200">
+                  {volunteerApps.filter((a) => a.status === 'PENDING').length} Pending
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Super Admin cross-ward queue: Authorize youth volunteers (NSS, NCC, NYKS, Community) with +100 initiation points and 1.25x multipliers.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={volunteerWardFilter}
+                onChange={(e) => setVolunteerWardFilter(e.target.value)}
+                className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 font-medium focus:outline-none focus:border-slate-900"
+              >
+                <option value="ALL">All Municipal Wards</option>
+                {MUNICIPAL_WARDS.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.id} - {w.name.split('-')[1]?.trim() || w.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex rounded border border-slate-300 overflow-hidden text-xs">
+                {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setVolunteerStatusFilter(st)}
+                    className={`px-2.5 py-1.5 font-semibold transition ${
+                      volunteerStatusFilter === st
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {st === 'ALL' ? 'All' : st === 'PENDING' ? 'Pending' : st === 'APPROVED' ? 'Approved' : 'Rejected'}
+                  </button>
+                ))}
+              </div>
 
               <button
                 type="button"
-                onClick={() => setIsWaModalOpen(false)}
-                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition"
+                onClick={loadVolunteerApplications}
+                className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
+                title="Refresh Volunteers"
               >
-                Close
+                <RefreshCw className="w-4 h-4" />
               </button>
+            </div>
+          </div>
+
+          {volunteersLoading ? (
+            <div className="p-8 text-center text-xs text-slate-500">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2" />
+              Loading volunteer records across municipal jurisdictions...
+            </div>
+          ) : volunteerApps.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500">
+              No volunteer applications found matching the selected ward and status criteria.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-200">
+              {volunteerApps.map((app) => (
+                <div key={app.id || app.application_id} className="p-4 hover:bg-slate-50/70 transition flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-900 text-sm">{app.name}</span>
+                      <span className="font-mono text-[11px] text-slate-500">+91 {app.phone}</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 font-mono">
+                        {app.scheme}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                        app.status === 'APPROVED'
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                          : app.status === 'REJECTED'
+                          ? 'bg-red-50 text-red-800 border border-red-300'
+                          : 'bg-amber-50 text-amber-900 border border-amber-300'
+                      }`}>
+                        {app.status}
+                      </span>
+                    </div>
+
+                    <div className="text-slate-600 text-[11px]">
+                      <span>Ward: <strong>{app.ward_name || app.ward_id}</strong></span>
+                      {app.institution && <span> · College/Org: <strong>{app.institution}</strong></span>}
+                      {app.cadet_or_enrollment_id && <span> · ID/Roll: <strong className="font-mono">{app.cadet_or_enrollment_id}</strong></span>}
+                    </div>
+
+                    {app.statement && (
+                      <p className="text-slate-500 italic max-w-2xl bg-slate-50 p-2 rounded border border-slate-200 text-[11px]">
+                        "{app.statement}"
+                      </p>
+                    )}
+                  </div>
+
+                  {app.status === 'PENDING' && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={reviewingAppId === app.application_id}
+                        onClick={() => handleReviewVolunteer(app.application_id, 'approve', 'Approved by Super Admin')}
+                        className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold text-xs transition flex items-center gap-1 shadow-xs disabled:opacity-50"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Enlist (+100 pts)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={reviewingAppId === app.application_id}
+                        onClick={() => handleReviewVolunteer(app.application_id, 'reject', 'Declined by Super Admin')}
+                        className="px-3 py-1.5 bg-white hover:bg-red-50 text-red-700 rounded font-semibold text-xs border border-red-300 transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        <span>Decline</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 7. WHATSAPP GATEWAY & FREE OTP DISPATCH CONSOLE                 */}
+      {/* ============================================================== */}
+      {activeTab === 'whatsapp' && (
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-emerald-950/80 rounded text-emerald-400 border border-emerald-800">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-bold text-sm sm:text-base">
+                    WhatsApp Gateway &amp; Zero-Cost OTP Dispatch
+                  </h2>
+                  {waStatus?.connected ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      ● PAIRED &amp; ACTIVE
+                    </span>
+                  ) : waStatus?.gateway_online ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      ● PAIRING REQUIRED
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/40">
+                      ● GATEWAY OFFLINE
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400">
+                  Self-hosted Baileys WebSocket gateway delivering instant citizen OTPs over WhatsApp for ₹0.00.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={loadWaStatus}
+                disabled={isWaLoading}
+                className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+                title="Refresh Gateway Connection Status"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isWaLoading ? 'animate-spin text-emerald-400' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+                <span className="text-slate-500 font-semibold block">Gateway Daemon</span>
+                <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${waStatus?.gateway_online ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                  <span>{waStatus?.gateway_online ? 'Service Online (Port 5005)' : 'Service Offline'}</span>
+                </div>
+                <span className="text-[11px] text-slate-500 block">
+                  Local WebSocket Daemon
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+                <span className="text-slate-500 font-semibold block">Active WhatsApp Device</span>
+                <div className="text-sm font-bold text-slate-900 font-mono">
+                  {waStatus?.connected ? (
+                    <span className="text-emerald-700">+{waStatus.phone?.split('@')[0]}</span>
+                  ) : (
+                    <span className="text-slate-500 italic">No Device Linked</span>
+                  )}
+                </div>
+                <span className="text-[11px] text-slate-500 block">
+                  {waStatus?.connected ? 'Ready to deliver OTPs' : 'Scan QR to activate device'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+                <span className="text-slate-500 font-semibold block">OTP Delivery Cost</span>
+                <div className="text-sm font-bold text-emerald-700 font-mono">
+                  ₹0.00 / message
+                </div>
+                <span className="text-[11px] text-slate-500 block">
+                  Zero Meta/Twilio API fees
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadWaStatus();
+                    setIsWaModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>{waStatus?.connected ? 'View WhatsApp Pairing' : 'Pair WhatsApp (Scan QR)'}</span>
+                </button>
+
+                {waStatus?.connected && (
+                  <button
+                    type="button"
+                    disabled={isResettingWa}
+                    onClick={handleResetWaSession}
+                    className="px-3 py-2 rounded bg-white hover:bg-red-50 text-red-700 font-semibold text-xs border border-red-300 transition flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isResettingWa ? 'animate-spin' : ''}`} />
+                    <span>Unlink / Switch Device</span>
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleSendTestWaOtp} className="flex items-center gap-2">
+                <input
+                  type="tel"
+                  value={testWaPhone}
+                  onChange={(e) => setTestWaPhone(e.target.value)}
+                  placeholder="Test Mobile (e.g. 9876543210)"
+                  className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-900 font-mono w-48 focus:outline-none focus:border-slate-900"
+                />
+                <button
+                  type="submit"
+                  disabled={isSendingTest || !waStatus?.connected}
+                  className="px-3 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center gap-1 shadow-xs disabled:opacity-50 shrink-0"
+                >
+                  <Send className="w-3 h-3 text-emerald-400" />
+                  <span>{isSendingTest ? 'Sending...' : 'Send Test OTP'}</span>
+                </button>
+              </form>
             </div>
           </div>
         </div>
       )}
 
-      {/* Credential Slip Modal */}
-      {credentialsSlip && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border-2 border-slate-900 max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+      {/* ============================================================== */}
+      {/* MODAL 1: BLOCK / SUSPEND USER WITH MANDATORY REASON            */}
+      {/* ============================================================== */}
+      {blockUserModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-red-300 shadow-xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 sm:p-5 bg-red-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-amber-600" />
-                <h3 className="font-bold text-slate-900 text-base">
-                  Official Ward Admin Credentials Slip
+                <Ban className="w-5 h-5 text-red-300" />
+                <h3 className="font-bold text-base">
+                  Suspend &amp; Block User Account
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBlockUserModal(null)}
+                className="text-white/70 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-950 space-y-1">
+                <div className="font-bold text-sm">
+                  Target: {blockUserModal.user.name} ({blockUserModal.user.role?.toUpperCase()})
+                </div>
+                <div className="font-mono text-xs text-red-800">
+                  Mobile: +91 {blockUserModal.user.phone} {blockUserModal.user.email ? `· ${blockUserModal.user.email}` : ''}
+                </div>
+                <p className="text-[11px] text-red-700 pt-1">
+                  Suspended accounts are locked out immediately. They cannot request OTPs, log in, or file reports.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Mandatory Documented Suspension Reason <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={blockUserModal.reason}
+                  onChange={(e) =>
+                    setBlockUserModal({ ...blockUserModal, reason: e.target.value })
+                  }
+                  placeholder="State the exact violation or grounds for suspension (e.g. repeated false reports, abusive media, harassment, spam)..."
+                  className="w-full p-2.5 text-xs bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 leading-relaxed font-medium"
+                />
+              </div>
+
+              <div>
+                <span className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
+                  Quick Grounds / Preset Violations:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {BLOCK_REASON_PRESETS.map((preset) => (
+                    <button
+                      type="button"
+                      key={preset}
+                      onClick={() =>
+                        setBlockUserModal({ ...blockUserModal, reason: preset })
+                      }
+                      className="px-2 py-1 bg-slate-100 hover:bg-red-50 hover:border-red-300 border border-slate-200 rounded text-[11px] text-slate-800 text-left transition"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBlockUserModal(null)}
+                  className="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isActionSubmitting || !blockUserModal.reason.trim()}
+                  onClick={handleConfirmBlock}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded font-bold text-xs transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  {isActionSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Suspending Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>Confirm &amp; Suspend Account</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 2: EDIT USER / OFFICIAL PROFILE                          */}
+      {/* ============================================================== */}
+      {editUserModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-slate-300 shadow-xl max-w-xl w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-cyan-400" />
+                <h3 className="font-bold text-base">
+                  Edit Account Profile • {editUserModal.name}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditUserModal(null)}
+                className="text-white/70 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditUser} className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editUserModal.name}
+                    onChange={(e) =>
+                      setEditUserModal({ ...editUserModal, name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mobile Phone <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editUserModal.phone}
+                    onChange={(e) =>
+                      setEditUserModal({ ...editUserModal, phone: e.target.value })
+                    }
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 font-mono focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={editUserModal.email || ''}
+                    onChange={(e) =>
+                      setEditUserModal({ ...editUserModal, email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Municipal Ward Assignment
+                  </label>
+                  <select
+                    value={editUserModal.ward_id || 'Ward-102'}
+                    onChange={(e) => {
+                      const w = MUNICIPAL_WARDS.find((item) => item.id === e.target.value);
+                      setEditUserModal({
+                        ...editUserModal,
+                        ward_id: e.target.value,
+                        ward_name: w?.name,
+                      });
+                    }}
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                  >
+                    {MUNICIPAL_WARDS.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {editUserModal.role !== 'citizen' && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Department
+                      </label>
+                      <input
+                        type="text"
+                        value={editUserModal.department || ''}
+                        onChange={(e) =>
+                          setEditUserModal({ ...editUserModal, department: e.target.value })
+                        }
+                        className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Designation / Official Title
+                      </label>
+                      <input
+                        type="text"
+                        value={editUserModal.designation || ''}
+                        onChange={(e) =>
+                          setEditUserModal({ ...editUserModal, designation: e.target.value })
+                        }
+                        className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:border-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Security Passcode / Generated PIN
+                    </label>
+                    <input
+                      type="text"
+                      value={editUserModal.credential_code || ''}
+                      onChange={(e) =>
+                        setEditUserModal({ ...editUserModal, credential_code: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Task checkboxes for field officers */}
+              {editUserModal.role === 'officer' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Assigned Maintenance Specialties:
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {TASK_OPTIONS.map((t) => {
+                      const isChecked = (editUserModal.assigned_tasks || []).includes(t.id);
+                      return (
+                        <button
+                          type="button"
+                          key={t.id}
+                          onClick={() => {
+                            const cur = editUserModal.assigned_tasks || [];
+                            const updated = isChecked
+                              ? cur.filter((x) => x !== t.id)
+                              : [...cur, t.id];
+                            setEditUserModal({ ...editUserModal, assigned_tasks: updated });
+                          }}
+                          className={`p-2 rounded border text-left text-xs transition flex items-center gap-1.5 ${
+                            isChecked
+                              ? 'border-cyan-500 bg-cyan-50 text-cyan-950 font-semibold'
+                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="rounded text-cyan-600 focus:ring-cyan-500"
+                          />
+                          <span>{t.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditUserModal(null)}
+                  className="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isActionSubmitting}
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded font-bold text-xs transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  {isActionSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Save Profile Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 3: DELETE USER CONFIRMATION                              */}
+      {/* ============================================================== */}
+      {deleteUserModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-red-300 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 sm:p-5 bg-red-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-200" />
+                <h3 className="font-bold text-base">
+                  Permanently Delete Account
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteUserModal(null)}
+                className="text-white/70 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-950">
+                <p className="font-bold text-sm">
+                  Are you certain you want to delete {deleteUserModal.name}?
+                </p>
+                <p className="font-mono text-xs text-red-800 mt-1">
+                  Role: {deleteUserModal.role?.toUpperCase()} · Mobile: +91 {deleteUserModal.phone}
+                </p>
+                <p className="text-[11px] text-red-700 mt-2 leading-relaxed">
+                  ⚠️ This action is irreversible. The account record will be removed from the database permanently.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteUserModal(null)}
+                  className="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isActionSubmitting}
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded font-bold text-xs transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  {isActionSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Deleting Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Confirm Permanent Deletion</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 4: PROVISIONED CREDENTIALS SLIP                          */}
+      {/* ============================================================== */}
+      {credentialsSlip && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-slate-300 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-amber-400" />
+                <h3 className="font-bold text-base">
+                  Official Security Slip Generated
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setCredentialsSlip(null)}
-                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
+                className="text-white/70 hover:text-white"
               >
-                ×
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600">
-              Provide these official login credentials to the designated Municipal Corporation Ward Administrator:
-            </p>
-
-            <div className="bg-slate-50 p-3.5 rounded border border-slate-300 space-y-2 text-xs font-mono">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Administrator:</span>
-                <strong className="text-slate-900">{credentialsSlip.name}</strong>
+            <div className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="text-center pb-2">
+                <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold block">
+                  Official Account Provisioned
+                </span>
+                <h4 className="text-lg font-black text-slate-900 mt-0.5">
+                  {credentialsSlip.name}
+                </h4>
+                <span className="inline-block mt-1 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                  {credentialsSlip.targetRole.toUpperCase()} · {credentialsSlip.creds.ward_name || credentialsSlip.creds.ward_id}
+                </span>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Ward:</span>
-                <strong className="text-slate-900">{credentialsSlip.creds.ward_name || credentialsSlip.creds.ward_id}</strong>
-              </div>
+              <div className="space-y-2.5 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-semibold">Employee ID:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {credentialsSlip.creds.employee_id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(credentialsSlip.creds.employee_id);
+                        setCopiedField('id');
+                        setTimeout(() => setCopiedField(null), 1500);
+                      }}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-600"
+                      title="Copy Employee ID"
+                    >
+                      {copiedField === 'id' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-between pt-1 border-t border-slate-200">
-                <span className="text-slate-500">Employee ID:</span>
-                <div className="flex items-center gap-1.5">
-                  <strong className="text-slate-900 text-sm font-bold bg-white px-2 py-0.5 rounded border border-slate-200">
-                    {credentialsSlip.creds.employee_id}
-                  </strong>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(credentialsSlip.creds.employee_id, 'Employee ID')}
-                    className="p-1 rounded hover:bg-slate-200 text-slate-600 transition"
-                  >
-                    {copiedField === 'Employee ID' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-semibold">Security Passcode:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-300">
+                      {credentialsSlip.creds.passcode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(credentialsSlip.creds.passcode);
+                        setCopiedField('code');
+                        setTimeout(() => setCopiedField(null), 1500);
+                      }}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-600"
+                      title="Copy Security Passcode"
+                    >
+                      {copiedField === 'code' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Passcode / PIN:</span>
-                <div className="flex items-center gap-1.5">
-                  <strong className="text-amber-800 text-sm font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    {credentialsSlip.creds.passcode}
-                  </strong>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(credentialsSlip.creds.passcode, 'Passcode')}
-                    className="p-1 rounded hover:bg-slate-200 text-slate-600 transition"
-                  >
-                    {copiedField === 'Passcode' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setCredentialsSlip(null)}
+                  className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition shadow-xs"
+                >
+                  Done &amp; Dismiss
+                </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="flex justify-end pt-2">
+      {/* ============================================================== */}
+      {/* MODAL 5: WHATSAPP QR PAIRING MODAL                             */}
+      {/* ============================================================== */}
+      {isWaModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-slate-300 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-bold text-base">
+                  Scan QR with Official WhatsApp
+                </h3>
+              </div>
               <button
                 type="button"
-                onClick={() => setCredentialsSlip(null)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition"
+                onClick={() => setIsWaModalOpen(false)}
+                className="text-white/70 hover:text-white"
               >
-                Close Slip
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 text-center space-y-4">
+              {waStatus?.connected ? (
+                <div className="space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-base">
+                    Device Successfully Linked!
+                  </h4>
+                  <p className="text-xs text-slate-600 font-mono">
+                    +{waStatus.phone?.split('@')[0]} is delivering zero-cost WhatsApp OTPs.
+                  </p>
+                </div>
+              ) : waStatus?.qr_image ? (
+                <div className="space-y-3">
+                  <img
+                    src={waStatus.qr_image}
+                    alt="WhatsApp Pairing QR Code"
+                    className="w-56 h-56 mx-auto border border-slate-300 rounded-lg p-2 bg-white shadow-xs"
+                  />
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Open WhatsApp on your municipal phone &gt; <strong>Linked Devices</strong> &gt; <strong>Link a Device</strong> and point your camera here.
+                  </p>
+                </div>
+              ) : (
+                <div className="py-8 text-center space-y-3">
+                  <RefreshCw className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+                  <p className="text-xs text-slate-600">
+                    Generating fresh QR pairing code from local gateway...
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsWaModalOpen(false)}
+                className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition shadow-xs"
+              >
+                Close Window
               </button>
             </div>
           </div>

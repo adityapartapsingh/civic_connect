@@ -124,6 +124,11 @@ export interface UserProfile {
   reports_submitted_count: number;
   reports_resolved_count: number;
   upvotes_given_count: number;
+  is_active?: boolean;
+  is_blocked?: boolean;
+  block_reason?: string;
+  blocked_at?: string;
+  blocked_by?: string;
 }
 
 export interface AdminProvisionPayload {

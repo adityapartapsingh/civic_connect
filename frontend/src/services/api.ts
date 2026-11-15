@@ -1039,3 +1039,116 @@ export const whatsappAdminApi = {
     return response.data;
   },
 };
+
+export interface SuperAdminUserStats {
+  total: number;
+  admins_count: number;
+  officers_count: number;
+  citizens_count: number;
+  blocked_count: number;
+}
+
+export const superAdminUsersApi = {
+  listUsers: async (params?: {
+    role?: string;
+    ward_id?: string;
+    search?: string;
+    is_blocked?: boolean;
+  }): Promise<{ users: UserProfile[]; stats: SuperAdminUserStats }> => {
+    try {
+      const response = await apiClient.get('/users/admin/users/', { params });
+      return {
+        users: (response.data?.users || []).map(adaptUserProfile),
+        stats: response.data?.stats || {
+          total: 0,
+          admins_count: 0,
+          officers_count: 0,
+          citizens_count: 0,
+          blocked_count: 0,
+        },
+      };
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to list users.');
+    }
+  },
+
+  createUser: async (payload: {
+    role: string;
+    name: string;
+    phone: string;
+    email?: string;
+    ward_id?: string;
+    ward_name?: string;
+    department?: string;
+    designation?: string;
+    assigned_tasks?: string[];
+    credential_code?: string;
+    employee_id?: string;
+  }): Promise<{ message: string; user: UserProfile }> => {
+    try {
+      const response = await apiClient.post('/users/admin/users/', payload);
+      return {
+        message: response.data.message,
+        user: adaptUserProfile(response.data.user),
+      };
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to create user account.');
+    }
+  },
+
+  updateUser: async (userId: string, payload: Partial<UserProfile>): Promise<{ message: string; user: UserProfile }> => {
+    try {
+      const response = await apiClient.put(`/users/admin/users/${userId}/`, payload);
+      return {
+        message: response.data.message,
+        user: adaptUserProfile(response.data.user),
+      };
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to update user profile.');
+    }
+  },
+
+  deleteUser: async (userId: string): Promise<{ message: string }> => {
+    try {
+      const response = await apiClient.delete(`/users/admin/users/${userId}/`);
+      return response.data;
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to remove user account.');
+    }
+  },
+
+  blockUser: async (userId: string, reason: string): Promise<{ message: string; user: UserProfile }> => {
+    try {
+      const response = await apiClient.post(`/users/admin/users/${userId}/block/`, {
+        action: 'block',
+        reason,
+      });
+      return {
+        message: response.data.message,
+        user: adaptUserProfile(response.data.user),
+      };
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to suspend account.');
+    }
+  },
+
+  unblockUser: async (userId: string): Promise<{ message: string; user: UserProfile }> => {
+    try {
+      const response = await apiClient.post(`/users/admin/users/${userId}/block/`, {
+        action: 'unblock',
+      });
+      return {
+        message: response.data.message,
+        user: adaptUserProfile(response.data.user),
+      };
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to reinstate account.');
+    }
+  },
+};

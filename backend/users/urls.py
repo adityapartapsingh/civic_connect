@@ -19,6 +19,9 @@ from users.views import (
     WhatsAppAdminStatusAPIView,
     WhatsAppAdminResetAPIView,
     WhatsAppAdminTestAPIView,
+    SuperAdminUsersAPIView,
+    SuperAdminUserDetailAPIView,
+    SuperAdminBlockUserAPIView,
 )
 
 urlpatterns = [
@@ -37,6 +40,9 @@ urlpatterns = [
     path("admin/roster/", AdminRosterAPIView.as_view(), name="admin-roster"),
     path("admin/quick-login/", AdminQuickLoginAPIView.as_view(), name="admin-quick-login"),
     path("admin/revoke/", AdminRevokeAPIView.as_view(), name="admin-revoke"),
+    path("admin/users/", SuperAdminUsersAPIView.as_view(), name="superadmin-users-list-create"),
+    path("admin/users/<str:user_id>/", SuperAdminUserDetailAPIView.as_view(), name="superadmin-user-detail"),
+    path("admin/users/<str:user_id>/block/", SuperAdminBlockUserAPIView.as_view(), name="superadmin-user-block"),
     path("admin/volunteers/", VolunteerApplicationsAdminAPIView.as_view(), name="admin-volunteers-list"),
     path("admin/volunteers/<str:application_id>/review/", VolunteerApplicationReviewAPIView.as_view(), name="admin-volunteer-review"),
     path("admin/whatsapp/status/", WhatsAppAdminStatusAPIView.as_view(), name="admin-whatsapp-status"),

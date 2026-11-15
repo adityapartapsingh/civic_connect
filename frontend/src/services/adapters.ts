@@ -320,5 +320,10 @@ export function adaptUserProfile(doc: any): import('../types').UserProfile {
     reports_submitted_count: doc.reports_submitted_count ?? 0,
     reports_resolved_count: doc.reports_resolved_count ?? 0,
     upvotes_given_count: doc.upvotes_given_count ?? 0,
+    is_active: doc.is_active !== false,
+    is_blocked: Boolean(doc.is_blocked),
+    block_reason: doc.block_reason || undefined,
+    blocked_at: doc.blocked_at || undefined,
+    blocked_by: doc.blocked_by || undefined,
   };
 }

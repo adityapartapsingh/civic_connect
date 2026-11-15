@@ -604,5 +604,115 @@ class UserTests(TestCase):
         self.assertEqual(citizen_as_staff_res.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn("registered as a Citizen account", citizen_as_staff_res.data["detail"])
 
+    def test_super_admin_full_control_crud_and_blocking(self):
+        """
+        Verify that Super Admin has full control to:
+        1. List all users (admins, officers, citizens) with stats and filtering.
+        2. Create Ward Admin, Field Officer, and Citizen.
+        3. Edit/Update any user's profile.
+        4. Block a user with mandatory documented reason (spam/illegal).
+        5. Verify blocked users cannot request OTP, verify OTP, or login.
+        6. Unblock user and restore access.
+        7. Delete user account permanently.
+        """
+        from users.models import UserManager
+
+        # 1. Super Admin creates a Field Officer for Ward-103
+        create_off_res = self.client.post("/api/users/admin/users/", {
+            "role": "officer",
+            "name": "Er. Rohit Verma",
+            "phone": "9876512345",
+            "ward_id": "Ward-103",
+            "ward_name": "Ward 3 - Cantt Road",
+            "department": "Electrical Division",
+            "designation": "Junior Engineer",
+            "assigned_tasks": ["streetlight", "traffic_signal"],
+        }, format="json")
+        self.assertEqual(create_off_res.status_code, status.HTTP_201_CREATED)
+        officer_data = create_off_res.data["user"]
+        officer_uid = officer_data["id"] or officer_data["user_id"]
+        self.assertEqual(officer_data["role"], "officer")
+        self.assertEqual(officer_data["ward_id"], "Ward-103")
+
+        # 2. Super Admin creates a Citizen
+        create_cit_res = self.client.post("/api/users/admin/users/", {
+            "role": "citizen",
+            "name": "Tarun Sharma",
+            "phone": "9876554321",
+            "email": "tarun@example.com",
+            "ward_id": "Ward-101",
+        }, format="json")
+        self.assertEqual(create_cit_res.status_code, status.HTTP_201_CREATED)
+        citizen_data = create_cit_res.data["user"]
+        citizen_uid = citizen_data["id"] or citizen_data["user_id"]
+        self.assertEqual(citizen_data["role"], "citizen")
+
+        # 3. List all users and verify stats
+        list_res = self.client.get("/api/users/admin/users/?role=all")
+        self.assertEqual(list_res.status_code, status.HTTP_200_OK)
+        self.assertIn("users", list_res.data)
+        self.assertIn("stats", list_res.data)
+        self.assertGreaterEqual(list_res.data["stats"]["total"], 2)
+
+        # 4. Super Admin updates the Field Officer
+        update_res = self.client.put(f"/api/users/admin/users/{officer_uid}/", {
+            "name": "Er. Rohit Verma (Senior JE)",
+            "designation": "Senior Junior Engineer",
+            "assigned_tasks": ["streetlight", "traffic_signal", "road_damage"],
+        }, format="json")
+        self.assertEqual(update_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_res.data["user"]["name"], "Er. Rohit Verma (Senior JE)")
+        self.assertEqual(update_res.data["user"]["designation"], "Senior Junior Engineer")
+
+        # 5. Super Admin blocks the citizen without a reason -> Must fail with 400
+        fail_block_res = self.client.post(f"/api/users/admin/users/{citizen_uid}/block/", {
+            "action": "block",
+            "reason": "",
+        }, format="json")
+        self.assertEqual(fail_block_res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("mandatory specific reason", fail_block_res.data["detail"])
+
+        # 6. Super Admin blocks the citizen with proper reason (spamming fake reports)
+        block_res = self.client.post(f"/api/users/admin/users/{citizen_uid}/block/", {
+            "action": "block",
+            "reason": "Repeated submission of fake/spam civic reports and abusive content",
+        }, format="json")
+        self.assertEqual(block_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(block_res.data["user"]["is_blocked"])
+        self.assertEqual(block_res.data["user"]["block_reason"], "Repeated submission of fake/spam civic reports and abusive content")
+
+        # 7. Blocked citizen attempts OTP request -> Rejected with 403 and specific reason!
+        blocked_otp_res = self.client.post("/api/users/send-otp/", {
+            "phone": "9876554321",
+            "role": "citizen",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(blocked_otp_res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Repeated submission of fake/spam civic reports", blocked_otp_res.data["detail"])
+
+        # 8. Super Admin unblocks the citizen
+        unblock_res = self.client.post(f"/api/users/admin/users/{citizen_uid}/block/", {
+            "action": "unblock",
+        }, format="json")
+        self.assertEqual(unblock_res.status_code, status.HTTP_200_OK)
+        self.assertFalse(unblock_res.data["user"]["is_blocked"])
+
+        # Citizen can now request OTP normally
+        reinstated_otp_res = self.client.post("/api/users/send-otp/", {
+            "phone": "9876554321",
+            "role": "citizen",
+            "mode": "signin",
+        }, format="json")
+        self.assertEqual(reinstated_otp_res.status_code, status.HTTP_200_OK)
+
+        # 9. Super Admin deletes the created Field Officer
+        del_res = self.client.delete(f"/api/users/admin/users/{officer_uid}/")
+        self.assertEqual(del_res.status_code, status.HTTP_200_OK)
+        self.assertIn("removed permanently", del_res.data["message"])
+
+        # Verify officer is gone from DB
+        self.assertIsNone(UserManager.find_by_id(officer_uid))
+
+
 
 

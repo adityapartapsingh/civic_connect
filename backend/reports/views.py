@@ -175,6 +175,22 @@ class ReportListCreateAPIView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # Enforce account suspension / spam block
+        from users.models import UserManager
+        auth_user_id = str(getattr(request.user, "user_id", "") or "").strip()
+        auth_phone = getattr(request.user, "phone", None)
+        user_record = None
+        if auth_user_id and auth_user_id != "None":
+            user_record = UserManager.find_by_id(auth_user_id)
+        if not user_record and auth_phone:
+            user_record = UserManager.find_by_phone(auth_phone)
+        if user_record and user_record.get("is_blocked"):
+            block_reason = user_record.get("block_reason") or "Violation of platform policies (illegal activity or spam)"
+            return Response(
+                {"detail": f"Your account has been suspended by administration. Reason: {block_reason}. You are blocked from submitting civic reports."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = ReportCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -43,6 +43,10 @@ class UserProfileSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
     is_active = serializers.BooleanField(default=True, read_only=True)
+    is_blocked = serializers.BooleanField(default=False, required=False)
+    block_reason = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    blocked_at = serializers.DateTimeField(required=False, allow_null=True)
+    blocked_by = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     def get_coins(self, obj):
         if isinstance(obj, dict):
