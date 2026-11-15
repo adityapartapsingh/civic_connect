@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Issue } from '../types';
 import { issuesApi } from '../services/api';
 import { calculateDistanceMeters } from '../utils/helpers';
@@ -7,24 +7,31 @@ export interface NearbyIssueItem extends Issue {
   distanceMeters: number;
 }
 
+const DEFAULT_FALLBACK_LAT = 31.3260;
+const DEFAULT_FALLBACK_LNG = 75.5762;
+
 export function useNearbyReports(
   userLat?: number,
   userLng?: number,
-  radiusMeters = 500
+  radiusMeters?: number
 ) {
   const [issues, setIssues] = useState<NearbyIssueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Cached raw issues to allow instant in-memory distance recalculation when GPS locks
+  const rawIssuesRef = useRef<Issue[]>([]);
+
+  const lat = userLat ?? DEFAULT_FALLBACK_LAT;
+  const lng = userLng ?? DEFAULT_FALLBACK_LNG;
+
   const fetchNearby = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const lat = userLat ?? 31.3260;
-      const lng = userLng ?? 75.5762;
-
-      // Query real MongoDB 2dsphere geospatial API
-      const rawIssues = await issuesApi.getNearby(lat, lng, radiusMeters);
+      // Query city-wide reports (50km radius) so all city map issues are accessible
+      const rawIssues = await issuesApi.getNearby(lat, lng, 50000, undefined, undefined, true);
+      rawIssuesRef.current = rawIssues;
 
       const itemsWithDistance: NearbyIssueItem[] = rawIssues.map((issue) => {
         const dist = calculateDistanceMeters(
@@ -39,23 +46,39 @@ export function useNearbyReports(
         };
       });
 
-      // Sort by closest distance first
-      const nearby = itemsWithDistance
-        .filter((i) => i.distanceMeters <= radiusMeters)
-        .sort((a, b) => a.distanceMeters - b.distanceMeters);
+      // Sort closest first
+      itemsWithDistance.sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-      setIssues(nearby);
+      setIssues(itemsWithDistance);
     } catch (err: unknown) {
       const errorObj = err as Error;
-      setError(errorObj.message || 'Failed to fetch nearby issues');
+      setError(errorObj.message || 'Failed to fetch civic issues');
     } finally {
       setIsLoading(false);
     }
-  }, [userLat, userLng, radiusMeters]);
+  }, [lat, lng]);
 
+  // Initial instant fetch on component mount
   useEffect(() => {
     fetchNearby();
   }, [fetchNearby]);
+
+  // When live GPS updates, recalculate distances in-memory instantly without network lag
+  useEffect(() => {
+    if (rawIssuesRef.current.length > 0 && userLat && userLng) {
+      const updated = rawIssuesRef.current.map((issue) => ({
+        ...issue,
+        distanceMeters: calculateDistanceMeters(
+          userLat,
+          userLng,
+          issue.location.latitude,
+          issue.location.longitude
+        ),
+      }));
+      updated.sort((a, b) => a.distanceMeters - b.distanceMeters);
+      setIssues(updated);
+    }
+  }, [userLat, userLng]);
 
   const handleUpvote = async (issueId: string) => {
     try {

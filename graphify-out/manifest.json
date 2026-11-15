@@ -216,9 +216,9 @@
     "semantic_hash": "5cbb43f3b07a26368a88d060e7ca1c78"
   },
   "backend/reports/models.py": {
-    "mtime": 1794771078.9126558,
-    "seen": 1794771204.8155684,
-    "ast_hash": "5c64df496a7f6c34aa6069ac14644194",
+    "mtime": 1794772611.6984167,
+    "seen": 1794772938.6991394,
+    "ast_hash": "3463db16c3183b942fabcc708c5d01c3",
     "semantic_hash": ""
   },
   "backend/reports/serializers.py": {
@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "backend/reports/views.py": {
-    "mtime": 1794771098.265351,
-    "seen": 1794771204.8155746,
-    "ast_hash": "496333344e36769855bc422de6b7224a",
+    "mtime": 1794772616.379709,
+    "seen": 1794772938.6991453,
+    "ast_hash": "8cefb188fa023ab8922323e539db2b01",
     "semantic_hash": ""
   },
   "backend/users/__init__.py": {
@@ -516,9 +516,9 @@
     "semantic_hash": "7d5020c047b04e301228fffd08e86563"
   },
   "frontend/src/hooks/useNearbyReports.ts": {
-    "mtime": 1792519753.5172927,
-    "seen": 1792520215.6728926,
-    "ast_hash": "dd032ec121e4cf3619070b89038e56c1",
+    "mtime": 1794772647.4439232,
+    "seen": 1794772938.6992188,
+    "ast_hash": "0fe262780adeed3198023baa6537b528",
     "semantic_hash": ""
   },
   "frontend/src/main.tsx": {
@@ -540,9 +540,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/HomePage.tsx": {
-    "mtime": 1794764700.9727461,
-    "seen": 1794764789.309667,
-    "ast_hash": "fa2eef878d77a3021423ab436438eb7a",
+    "mtime": 1794772796.2512047,
+    "seen": 1794772938.699225,
+    "ast_hash": "875eab611b154507ada96e8129981ca4",
     "semantic_hash": ""
   },
   "frontend/src/pages/LoginPage.tsx": {
@@ -552,9 +552,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/MapPage.tsx": {
-    "mtime": 1793739224.5423753,
-    "seen": 1793779805.0317214,
-    "ast_hash": "87e0f9a60defe97ca65d2a2da4e64d12",
+    "mtime": 1794772689.550694,
+    "seen": 1794772938.6992278,
+    "ast_hash": "e3d5cace470d45676e5759eaba06ca21",
     "semantic_hash": ""
   },
   "frontend/src/pages/ProfilePage.tsx": {
@@ -582,9 +582,9 @@
     "semantic_hash": ""
   },
   "frontend/src/services/api.ts": {
-    "mtime": 1794767036.6163676,
-    "seen": 1794767418.7096448,
-    "ast_hash": "9d955065b7643bdd50e6ffe590a15d60",
+    "mtime": 1794772623.63545,
+    "seen": 1794772938.6992397,
+    "ast_hash": "69cae1d7a807b89260858c9792294f15",
     "semantic_hash": ""
   },
   "frontend/src/store/authStore.ts": {

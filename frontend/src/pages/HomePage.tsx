@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useNearbyReports } from '../hooks/useNearbyReports';
 import { Issue, ReportFilterParams } from '../types';
@@ -8,7 +8,6 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { IssueMap } from '../components/map/IssueMap';
 import { CardSkeleton } from '../components/common/LoadingSpinner';
 import { FilterBar } from '../components/common/FilterBar';
-import { Pagination } from '../components/common/Pagination';
 import { issuesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
@@ -24,18 +23,34 @@ import {
   FileText,
   Map as MapIcon,
   SlidersHorizontal,
+  Compass,
+  ArrowDown,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { coords, address, accuracy, isLoading: geoLoading, refreshLocation } = useGeolocation();
-  const [radiusMeters, setRadiusMeters] = useState<number>(500);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [showMap, setShowMap] = useState<boolean>(false);
-  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const { coords, address, isLoading: geoLoading, refreshLocation } = useGeolocation();
+
+  // Proximity scope: 'auto' (500m -> 2km -> city-wide) or specific distance
+  const [proximityRadius, setProximityRadius] = useState<'auto' | 500 | 2000 | 5000 | 'all'>('auto');
+
+  // Status Tab: 'all' | 'active' | 'resolved'
+  const [statusTab, setStatusTab] = useState<'all' | 'active' | 'resolved'>('all');
+
+  // Main View Tab: 'feed' | 'my_reports'
   const [activeTab, setActiveTab] = useState<'feed' | 'my_reports'>(() => {
     return searchParams.get('tab') === 'my_reports' ? 'my_reports' : 'feed';
   });
+
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showMap, setShowMap] = useState<boolean>(false);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+
+  // Instagram-style continuous stream pagination
+  const [visibleCount, setVisibleCount] = useState<number>(6);
+  const scrollSentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -46,34 +61,34 @@ export const HomePage: React.FC = () => {
     }
   }, [searchParams]);
 
-  // User-Controlled Priority & Date Filters
+  // User-Controlled Filters Drawer
   const [filters, setFilters] = useState<ReportFilterParams>({
+    status: 'all',
     priority: 'all',
     date_range: 'all',
     sort_by: 'newest',
-    page: 1,
-    page_size: 6,
   });
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
+    if (filters.status && filters.status !== 'all') count++;
     if (filters.priority && filters.priority !== 'all') count++;
     if (filters.date_range && filters.date_range !== 'all') count++;
     if (filters.sort_by && filters.sort_by !== 'newest') count++;
     return count;
   }, [filters]);
 
+  // City-wide issues with immediate load and live distance ranking
   const { issues, isLoading, handleUpvote, refetch } = useNearbyReports(
     coords?.latitude,
-    coords?.longitude,
-    radiusMeters
+    coords?.longitude
   );
 
   const { user, addPoints, deductPoints } = useAuthStore();
   const { addToast } = useToastStore();
   const [upvotingIds, setUpvotingIds] = useState<Record<string, boolean>>({});
 
-  // Dedicated state for authenticated user's reports (unrestricted by 500m nearby GPS boundary)
+  // User's own submitted reports
   const [myReports, setMyReports] = useState<Issue[]>([]);
   const [isFetchingMyReports, setIsFetchingMyReports] = useState(false);
 
@@ -121,13 +136,28 @@ export const HomePage: React.FC = () => {
   }, [user, fetchMyReports]);
 
   const handleFilterChange = (updated: Partial<ReportFilterParams>) => {
-    setFilters((prev) => ({ ...prev, ...updated, page: updated.page !== undefined ? updated.page : 1 }));
+    setFilters((prev) => ({ ...prev, ...updated }));
+    setVisibleCount(6);
   };
 
-  // Filter & sort logic
+  // Metrics for the tab counts
+  const activeCount = useMemo(() => {
+    return issues.filter((i) => i.status !== 'resolved' && i.status !== 'closed').length;
+  }, [issues]);
+
+  const resolvedCount = useMemo(() => {
+    return issues.filter((i) => i.status === 'resolved' || i.status === 'closed').length;
+  }, [issues]);
+
+  const pendingConfirmationsCount = useMemo(() => {
+    return issues.filter((i) => i.status === 'resolved' && !i.citizen_feedback).length;
+  }, [issues]);
+
+  // Filter & sort logic across the entire city dataset
   const processedIssues = useMemo(() => {
     let list: Issue[] = [];
 
+    // 1. Tab Selector (Feed vs My Reports)
     if (activeTab === 'my_reports') {
       const map = new Map<string, Issue>();
       myReports.forEach((item) => map.set(item.id, item));
@@ -139,14 +169,37 @@ export const HomePage: React.FC = () => {
       list = [...issues];
     }
 
+    // 2. Status Filter Tab (All vs Active vs Resolved)
+    if (statusTab === 'active') {
+      list = list.filter((i) => i.status !== 'resolved' && i.status !== 'closed');
+    } else if (statusTab === 'resolved') {
+      list = list.filter((i) => i.status === 'resolved' || i.status === 'closed');
+    }
+
+    // 3. Status filter from Drawer if set
+    if (filters.status && filters.status !== 'all') {
+      list = list.filter((i) => i.status === filters.status);
+    }
+
+    // 4. Proximity Radius Scope
+    if (proximityRadius !== 'auto' && proximityRadius !== 'all') {
+      list = list.filter((i) => {
+        const dist = (i as any).distanceMeters;
+        return dist === undefined || dist <= proximityRadius;
+      });
+    }
+
+    // 5. Category Filter
     if (selectedCategory !== 'all') {
       list = list.filter((i) => i.category === selectedCategory);
     }
 
+    // 6. Priority Filter
     if (filters.priority && filters.priority !== 'all') {
       list = list.filter((i) => i.priority === filters.priority);
     }
 
+    // 7. Date Range Filter
     if (filters.date_range && filters.date_range !== 'all') {
       const now = Date.now();
       const days = filters.date_range === 'today' ? 1 : filters.date_range === '7d' ? 7 : 30;
@@ -154,6 +207,7 @@ export const HomePage: React.FC = () => {
       list = list.filter((i) => new Date(i.created_at).getTime() >= cutoff);
     }
 
+    // 8. Sorting
     if (filters.sort_by === 'priority') {
       const pOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
       list.sort((a, b) => (pOrder[b.priority] || 0) - (pOrder[a.priority] || 0));
@@ -162,21 +216,54 @@ export const HomePage: React.FC = () => {
     } else if (filters.sort_by === 'oldest') {
       list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     } else {
-      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Default: Nearest first (Instagram-style proximity expansion), then newest
+      list.sort((a, b) => {
+        const distA = (a as any).distanceMeters ?? 999999;
+        const distB = (b as any).distanceMeters ?? 999999;
+        if (Math.abs(distA - distB) > 150) {
+          return distA - distB;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
     }
 
     return list;
-  }, [issues, myReports, activeTab, selectedCategory, filters, isUserReport]);
+  }, [issues, myReports, activeTab, statusTab, proximityRadius, selectedCategory, filters, isUserReport]);
 
-  // Pagination calculation
-  const totalItems = processedIssues.length;
-  const pageSize = filters.page_size || 6;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const currentPage = Math.min(filters.page || 1, totalPages);
-  const paginatedIssues = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return processedIssues.slice(start, start + pageSize);
-  }, [processedIssues, currentPage, pageSize]);
+  // Instagram-style progressive slice
+  const displayedIssues = useMemo(() => {
+    return processedIssues.slice(0, visibleCount);
+  }, [processedIssues, visibleCount]);
+
+  const hasMore = visibleCount < processedIssues.length;
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 6, processedIssues.length));
+  };
+
+  // Infinite scroll intersection observer (Instagram-style auto loading as you scroll)
+  useEffect(() => {
+    if (!hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + 6, processedIssues.length));
+        }
+      },
+      { rootMargin: '200px', threshold: 0.1 }
+    );
+
+    const currentSentinel = scrollSentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [hasMore, processedIssues.length]);
 
   const onUpvoteClick = async (e: React.MouseEvent, issueId: string) => {
     e.preventDefault();
@@ -185,7 +272,7 @@ export const HomePage: React.FC = () => {
       addToast({
         type: 'info',
         title: 'Sign In Required',
-        message: 'Please sign in with your mobile number to endorse or upvote community issues.',
+        message: 'Please sign in with your mobile number to endorse community issues.',
       });
       return;
     }
@@ -264,68 +351,70 @@ export const HomePage: React.FC = () => {
     }
   };
 
-  const pendingConfirmationsCount = issues.filter(
-    (i) => i.status === 'resolved' && !i.citizen_feedback
-  ).length;
-
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200">
+      {/* Top Header Card */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Civic Issues & Grievance Feed
-            </h1>
-            <p className="text-sm text-slate-600 mt-1">
-              Active community reports and repair statuses in your area
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                Civic Issues &amp; Grievance Feed
+              </h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                LIVE CITY FEED
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Real-time municipal reports, repair progress, and citizen confirmations across all wards.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-slate-500" />
-            <span className="font-semibold text-slate-900 bg-slate-100 px-3 py-1.5 rounded border border-slate-200">
-              {address ? address.split(',').slice(0, 2).join(',') : 'Current Location'}
+          <div className="flex items-center gap-2 text-xs">
+            <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
+            <span className="font-semibold text-slate-900 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200 font-mono">
+              {address ? address.split(',').slice(0, 2).join(',') : 'Jalandhar Municipal Zone'}
             </span>
           </div>
         </div>
 
         {/* 3-Column Performance Metric Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 pt-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 pt-3 text-xs">
           <div className="sm:pr-4 py-2 sm:py-0">
-            <span className="text-slate-500 font-medium">SLA Compliance</span>
-            <div className="text-xl font-bold text-slate-900 mt-0.5">94.2%</div>
-            <span className="text-xs text-slate-500">Resolved under 48 hours</span>
+            <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">SLA Compliance</span>
+            <div className="text-xl font-black text-slate-900 font-mono mt-0.5">94.2%</div>
+            <span className="text-[11px] text-slate-500">Resolved under statutory 48h SLA</span>
           </div>
 
           <div className="sm:px-4 py-2 sm:py-0">
-            <span className="text-slate-500 font-medium">Active Issues</span>
-            <div className="text-xl font-bold text-slate-900 mt-0.5">{issues.length} Reported</div>
-            <span className="text-xs text-slate-500">Within {formatDistanceString(radiusMeters)} radius</span>
+            <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Total City Reports</span>
+            <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{issues.length} Issues</div>
+            <span className="text-[11px] text-slate-500">{activeCount} in progress · {resolvedCount} resolved</span>
           </div>
 
           <div className="sm:pl-4 py-2 sm:py-0">
-            <span className="text-slate-500 font-medium">Pending Citizen Review</span>
-            <div className="text-xl font-bold text-emerald-700 mt-0.5">
-              {pendingConfirmationsCount}
+            <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Citizen Validations</span>
+            <div className="text-xl font-black text-emerald-600 font-mono mt-0.5">
+              {pendingConfirmationsCount} Pending
             </div>
-            <span className="text-xs text-slate-500">Repairs waiting confirmation</span>
+            <span className="text-[11px] text-slate-500">Repairs awaiting on-site verification</span>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs & View Controls */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200">
-        <div className="flex items-center space-x-4 sm:space-x-6">
+      {/* Navigation Tabs (All vs Active vs Resolved vs My Reports) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-2">
+        <div className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto scrollbar-none pb-1">
           <button
             type="button"
             onClick={() => {
               setActiveTab('feed');
-              handleFilterChange({ page: 1 });
+              setStatusTab('all');
+              setVisibleCount(6);
             }}
-            className={`pb-3 text-sm font-semibold transition-colors border-b-2 -mb-px ${
-              activeTab === 'feed'
-                ? 'border-slate-900 text-slate-900'
+            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
+              activeTab === 'feed' && statusTab === 'all'
+                ? 'border-slate-900 text-slate-900 font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -335,13 +424,46 @@ export const HomePage: React.FC = () => {
           <button
             type="button"
             onClick={() => {
+              setActiveTab('feed');
+              setStatusTab('active');
+              setVisibleCount(6);
+            }}
+            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
+              activeTab === 'feed' && statusTab === 'active'
+                ? 'border-amber-600 text-amber-700 font-bold'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Active Repairs ({activeCount})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('feed');
+              setStatusTab('resolved');
+              setVisibleCount(6);
+            }}
+            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'feed' && statusTab === 'resolved'
+                ? 'border-emerald-600 text-emerald-700 font-bold'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Resolved ({resolvedCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
               setActiveTab('my_reports');
-              handleFilterChange({ page: 1 });
+              setVisibleCount(6);
               fetchMyReports();
             }}
-            className={`pb-3 text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === 'my_reports'
-                ? 'border-slate-900 text-slate-900'
+                ? 'border-slate-900 text-slate-900 font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -359,12 +481,12 @@ export const HomePage: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5 pb-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
           {/* Filters Toggle Button */}
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`text-xs font-semibold px-2.5 py-1.5 rounded-md border transition flex items-center gap-1.5 ${
+            className={`text-xs font-semibold px-2.5 py-1.5 rounded-md border transition flex items-center gap-1.5 cursor-pointer ${
               showFilters || activeFiltersCount > 0
                 ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -386,45 +508,123 @@ export const HomePage: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowMap(!showMap)}
-            className={`text-xs font-semibold px-2.5 py-1.5 rounded-md border transition flex items-center gap-1.5 ${
+            className={`text-xs font-semibold px-2.5 py-1.5 rounded-md border transition flex items-center gap-1.5 cursor-pointer ${
               showMap
                 ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >
             <MapIcon className="w-3.5 h-3.5" />
-            <span>{showMap ? 'Hide Map' : 'Map'}</span>
+            <span>{showMap ? 'Hide Map' : 'City Map'}</span>
           </button>
         </div>
       </div>
 
-      {/* Optional Map View */}
+      {/* Proximity Radius Selector (Auto Proximity vs Explicit Radius) */}
+      <div className="flex items-center gap-1.5 flex-wrap text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+        <span className="text-slate-500 font-semibold mr-1 flex items-center gap-1">
+          <Compass className="w-3.5 h-3.5 text-slate-700" />
+          <span>Proximity Scope:</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            setProximityRadius('auto');
+            setVisibleCount(6);
+          }}
+          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
+            proximityRadius === 'auto'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+          }`}
+        >
+          📍 Nearest First (500m → City-Wide Stream)
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setProximityRadius(500);
+            setVisibleCount(6);
+          }}
+          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
+            proximityRadius === 500
+              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+          }`}
+        >
+          Within 500m
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setProximityRadius(2000);
+            setVisibleCount(6);
+          }}
+          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
+            proximityRadius === 2000
+              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+          }`}
+        >
+          Within 2 km
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setProximityRadius(5000);
+            setVisibleCount(6);
+          }}
+          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
+            proximityRadius === 5000
+              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+          }`}
+        >
+          Within 5 km
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setProximityRadius('all');
+            setVisibleCount(6);
+          }}
+          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
+            proximityRadius === 'all'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+          }`}
+        >
+          All City Wards
+        </button>
+      </div>
+
+      {/* Optional Interactive Map View */}
       {showMap && (
-        <div className="w-full h-72 sm:h-80 rounded-lg overflow-hidden border border-slate-300 shadow-xs mb-2">
+        <div className="w-full h-72 sm:h-84 rounded-xl overflow-hidden border border-slate-200 shadow-xs mb-2">
           <IssueMap
             issues={processedIssues}
             userLocation={coords}
-            center={coords ? [coords.latitude, coords.longitude] : undefined}
-            zoom={15}
+            center={coords ? [coords.latitude, coords.longitude] : [31.3260, 75.5762]}
+            zoom={14}
           />
         </div>
       )}
 
-      {/* Horizontal Scrollable Category Bar (Single Clean Row) */}
+      {/* Horizontal Scrollable Category Bar */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
           type="button"
           onClick={() => {
             setSelectedCategory('all');
-            handleFilterChange({ page: 1 });
+            setVisibleCount(6);
           }}
-          className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition border whitespace-nowrap ${
+          className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer ${
             selectedCategory === 'all'
               ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
           }`}
         >
-          All
+          All Categories
         </button>
 
         {CATEGORIES.map((cat) => (
@@ -433,12 +633,12 @@ export const HomePage: React.FC = () => {
             type="button"
             onClick={() => {
               setSelectedCategory(cat.id);
-              handleFilterChange({ page: 1 });
+              setVisibleCount(6);
             }}
-            className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition border whitespace-nowrap ${
+            className={`shrink-0 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition border whitespace-nowrap cursor-pointer ${
               selectedCategory === cat.id
                 ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
             }`}
           >
             {cat.label}
@@ -448,24 +648,23 @@ export const HomePage: React.FC = () => {
 
       {/* Collapsible Advanced Filters Drawer */}
       {showFilters && (
-        <div className="bg-white rounded-lg p-3 sm:p-4 border border-slate-200 shadow-xs space-y-2.5">
+        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs space-y-2.5">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
               Advanced Filters
             </span>
             {activeFiltersCount > 0 && (
               <button
                 type="button"
                 onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
+                  setFilters({
+                    status: 'all',
                     priority: 'all',
                     date_range: 'all',
                     sort_by: 'newest',
-                    page: 1,
-                  }))
+                  })
                 }
-                className="text-xs text-red-600 hover:text-red-700 font-semibold transition"
+                className="text-xs text-red-600 hover:text-red-700 font-semibold transition cursor-pointer"
               >
                 Reset All Filters
               </button>
@@ -474,15 +673,27 @@ export const HomePage: React.FC = () => {
           <FilterBar
             filters={filters}
             onChange={handleFilterChange}
-            showStatusFilter={false}
+            showStatusFilter={true}
           />
         </div>
       )}
 
-      {/* Active Filter Chips Strip (Shown only when drawer is closed to indicate active filters) */}
+      {/* Active Filter Chips Strip */}
       {!showFilters && activeFiltersCount > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap text-xs bg-slate-100/70 p-2 rounded-md border border-slate-200">
           <span className="text-slate-500 font-medium">Filters active:</span>
+          {filters.status && filters.status !== 'all' && (
+            <span className="inline-flex items-center gap-1 bg-white border border-slate-300 text-slate-800 px-2 py-0.5 rounded text-xs font-semibold">
+              Status: {filters.status}
+              <button
+                type="button"
+                onClick={() => handleFilterChange({ status: 'all' })}
+                className="text-slate-400 hover:text-slate-700 ml-0.5"
+              >
+                ×
+              </button>
+            </span>
+          )}
           {filters.priority && filters.priority !== 'all' && (
             <span className="inline-flex items-center gap-1 bg-white border border-slate-300 text-slate-800 px-2 py-0.5 rounded text-xs font-semibold">
               Priority: {filters.priority}
@@ -490,7 +701,6 @@ export const HomePage: React.FC = () => {
                 type="button"
                 onClick={() => handleFilterChange({ priority: 'all' })}
                 className="text-slate-400 hover:text-slate-700 ml-0.5"
-                aria-label="Remove priority filter"
               >
                 ×
               </button>
@@ -503,7 +713,6 @@ export const HomePage: React.FC = () => {
                 type="button"
                 onClick={() => handleFilterChange({ date_range: 'all' })}
                 className="text-slate-400 hover:text-slate-700 ml-0.5"
-                aria-label="Remove date filter"
               >
                 ×
               </button>
@@ -516,7 +725,6 @@ export const HomePage: React.FC = () => {
                 type="button"
                 onClick={() => handleFilterChange({ sort_by: 'newest' })}
                 className="text-slate-400 hover:text-slate-700 ml-0.5"
-                aria-label="Remove sort filter"
               >
                 ×
               </button>
@@ -525,144 +733,148 @@ export const HomePage: React.FC = () => {
           <button
             type="button"
             onClick={() =>
-              setFilters((prev) => ({
-                ...prev,
+              setFilters({
+                status: 'all',
                 priority: 'all',
                 date_range: 'all',
                 sort_by: 'newest',
-                page: 1,
-              }))
+              })
             }
-            className="text-xs text-slate-600 hover:text-red-600 underline font-semibold ml-auto"
+            className="text-xs text-slate-600 hover:text-red-600 underline font-semibold ml-auto cursor-pointer"
           >
             Clear all
           </button>
         </div>
       )}
 
-      {/* Incident List */}
-      <div className="space-y-3">
+      {/* Main Progressive Feed List (Instagram-Style Infinite Flow) */}
+      <div className="space-y-4">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardSkeleton />
+            <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
           </div>
-        ) : paginatedIssues.length === 0 ? (
-          <div className="bg-white rounded-lg p-8 border border-slate-200 text-center">
-            <div className="w-10 h-10 rounded bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-2">
+        ) : displayedIssues.length === 0 ? (
+          <div className="bg-white rounded-xl p-8 border border-slate-200 text-center shadow-xs">
+            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-2">
               <MapPin className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">No records match the current filter</h3>
+            <h3 className="font-bold text-slate-800 text-sm">No civic reports match this filter</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-3">
-              Adjust priority, date range, or category filter to inspect other civic reports.
+              Expand your proximity scope or reset filters to view all issues across Jalandhar wards.
             </p>
             <button
               type="button"
               onClick={() => {
                 setSelectedCategory('all');
-                setFilters({ priority: 'all', date_range: 'all', sort_by: 'newest', page: 1, page_size: 6 });
+                setStatusTab('all');
+                setProximityRadius('auto');
+                setFilters({ status: 'all', priority: 'all', date_range: 'all', sort_by: 'newest' });
               }}
-              className="text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
+              className="text-xs font-semibold px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-800 cursor-pointer shadow-xs"
             >
-              Reset Filters
+              Show All City Reports
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {paginatedIssues.map((issue) => {
-              const sla = getSlaInfo(issue.sla_deadline, issue.status === 'resolved');
+            {displayedIssues.map((issue) => {
+              const sla = getSlaInfo(issue.sla_deadline, issue.status === 'resolved' || issue.status === 'closed');
               const isResolvedAwaitingFeedback = issue.status === 'resolved' && !issue.citizen_feedback;
 
               return (
                 <div
                   key={issue.id}
-                  className="bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors p-5 flex flex-col justify-between"
+                  className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-4 sm:p-5 flex flex-col justify-between shadow-xs"
                 >
                   <div>
-                    {/* Top Case Header */}
+                    {/* Top Case Meta */}
                     <div className="flex items-center justify-between gap-2 pb-2.5 mb-3 border-b border-slate-100">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                           {issue.tracking_id}
                         </span>
                         <StatusBadge status={issue.status} size="sm" />
-                        <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                           issue.priority === 'urgent'
-                            ? 'bg-red-100 text-red-800'
+                            ? 'bg-red-50 text-red-700 border border-red-200'
                             : issue.priority === 'high'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-slate-100 text-slate-600'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'bg-slate-100 text-slate-700'
                         }`}>
                           {issue.priority}
                         </span>
                       </div>
 
-                      {/* SLA Indicator */}
-                      <div className="text-xs text-slate-600 font-medium">
+                      {/* SLA Countdown Badge */}
+                      <div className="text-xs text-slate-500 font-mono font-medium">
                         {sla.formattedText}
                       </div>
                     </div>
 
-                    {/* Content Body */}
+                    {/* Content Card Body */}
                     <div className="flex items-start gap-3.5 mb-3">
                       {issue.photo_url ? (
                         <img
                           src={issue.photo_url}
                           alt={issue.title}
-                          className="w-20 h-20 rounded-md object-cover border border-slate-200 shrink-0"
+                          className="w-20 h-20 rounded-lg object-cover border border-slate-200 shrink-0"
                         />
                       ) : (
-                        <div className="w-20 h-20 rounded-md bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
+                        <div className="w-20 h-20 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 border border-slate-200">
                           <MapPin className="w-6 h-6" />
                         </div>
                       )}
 
                       <div className="min-w-0 flex-1">
                         <Link to={`/tickets/${issue.id}`} className="hover:text-slate-900 transition-colors">
-                          <h3 className="font-bold text-base text-slate-900 line-clamp-1">
+                          <h3 className="font-bold text-sm sm:text-base text-slate-900 line-clamp-1">
                             {issue.title}
                           </h3>
                         </Link>
-                        <p className="text-sm text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                        <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
                           {issue.description}
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-sm text-slate-500 mb-3">
+                    {/* Location & Proximity Distance String */}
+                    <div className="text-xs text-slate-500 mb-2 flex items-center gap-1 font-mono">
                       {(issue as any).distanceMeters !== undefined && (
                         <>
-                          <span className="font-medium text-slate-700">
+                          <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                             {formatDistanceString((issue as any).distanceMeters)} away
                           </span>
-                          <span className="text-slate-300 mx-1.5">•</span>
+                          <span className="text-slate-300">•</span>
                         </>
                       )}
-                      <span>{issue.location.address || issue.location.landmark || 'Incident Location'}</span>
+                      <span className="truncate">{issue.location.address || issue.location.landmark || 'Incident Location'}</span>
                     </div>
 
-                    {/* Citizen Resolution Confirmation Box */}
+                    {/* Citizen Resolution Confirmation Callout if marked resolved */}
                     {isResolvedAwaitingFeedback && (
-                      <div className="mt-3 p-3.5 rounded-md bg-emerald-50 border border-emerald-200 text-sm">
+                      <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs">
                         <div className="flex items-center gap-1.5 font-bold text-emerald-900 mb-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                          <span>Field Crew Marked Resolved</span>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span>Field Squad Completed Repair</span>
                         </div>
-                        <p className="text-xs text-emerald-800 mb-3">
-                          Did this repair solve the hazard? Verify on-site to complete resolution.
+                        <p className="text-[11px] text-emerald-800 mb-2.5">
+                          Did this repair solve the civic hazard? Confirm on-site to award field officer points.
                         </p>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={(e) => handleConfirmResolution(e, issue.id)}
-                            className="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-900 text-white font-semibold text-xs transition flex items-center gap-1.5"
+                            className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                           >
                             <Check className="w-3.5 h-3.5" />
                             <span>Confirm Fixed (+30 pts)</span>
                           </button>
                           <Link
                             to={`/tickets/${issue.id}/confirm`}
-                            className="px-3 py-1.5 rounded border border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-medium text-xs transition"
+                            className="px-3 py-1.5 rounded-md border border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-semibold text-xs transition"
                           >
                             Inspect / Dispute
                           </Link>
@@ -671,8 +883,8 @@ export const HomePage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Card Footer */}
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-sm">
+                  {/* Card Bottom Bar */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     {(() => {
                       const isOwn = Boolean(
                         user && (
@@ -687,12 +899,12 @@ export const HomePage: React.FC = () => {
                           type="button"
                           disabled={isOwn || isBusy}
                           onClick={(e) => onUpvoteClick(e, issue.id)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium text-xs transition border ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs transition border cursor-pointer ${
                             isOwn
                               ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-80'
                               : issue.has_upvoted
                               ? 'bg-slate-900 text-white border-slate-900 shadow-xs hover:bg-slate-800'
-                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                           }`}
                           title={
                             isOwn
@@ -718,9 +930,10 @@ export const HomePage: React.FC = () => {
 
                     <Link
                       to={`/tickets/${issue.id}`}
-                      className="font-semibold text-slate-900 hover:text-brand-600 flex items-center gap-1 text-xs"
+                      className="font-bold text-slate-900 hover:text-slate-700 flex items-center gap-1 text-xs"
                     >
-                      Inspect Case <ArrowRight className="w-4 h-4" />
+                      <span>Inspect Details</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
                 </div>
@@ -729,16 +942,30 @@ export const HomePage: React.FC = () => {
           </div>
         )}
 
-        {/* Bottom Pagination */}
-        <Pagination
-          page={currentPage}
-          totalPages={totalPages}
-          total={totalItems}
-          pageSize={pageSize}
-          onPageChange={(p) => handleFilterChange({ page: p })}
-          onPageSizeChange={(s) => handleFilterChange({ page_size: s, page: 1 })}
-          className="mt-3"
-        />
+        {/* Sentinel element for infinite scroll observer */}
+        <div ref={scrollSentinelRef} className="h-4" />
+
+        {/* Load More Button (Instagram-Style Flow) */}
+        {!isLoading && hasMore && (
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs inline-flex items-center gap-2 cursor-pointer"
+            >
+              <span>Load More Community Reports ({processedIssues.length - visibleCount} remaining)</span>
+              <ArrowDown className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* End of Feed Marker */}
+        {!isLoading && displayedIssues.length > 0 && !hasMore && (
+          <div className="pt-6 pb-2 text-center text-xs text-slate-500 font-mono flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>You're completely caught up! Viewing all {processedIssues.length} reports across Jalandhar.</span>
+          </div>
+        )}
       </div>
     </div>
   );

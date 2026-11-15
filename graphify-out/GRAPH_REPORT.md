@@ -1,17 +1,17 @@
 # Graph Report - civic connect  (2026-11-16)
 
 ## Corpus Check
-- 138 files · ~104,334 words
+- 138 files · ~105,473 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 27 file(s) not represented in the graph (top: .xml 10, (none) 7, .example 3)
 
 ## Summary
-- 1121 nodes · 2808 edges · 75 communities (39 shown, 36 thin omitted)
+- 1121 nodes · 2805 edges · 75 communities (39 shown, 36 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 153 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7e3e1f7f`
+- Built from commit: `777d1c55`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -56,8 +56,8 @@
 - run_report_verification_pipeline
 - RewardsPage.tsx
 - reports/views.py
-- ReportPage.tsx
-- LoginPage.tsx
+- ProfilePage.tsx
+- react
 - ai_vision.py
 - IsSuperAdmin
 - main.tsx
@@ -118,8 +118,8 @@ Cohesion: 0.15
 Nodes (4): is_mock_mode(), route_category_to_department(), route_location_to_ward(), WardTests
 
 ### Community 6 - "useToastStore"
-Cohesion: 0.16
-Nodes (17): Modal(), ModalProps, Toast(), Layout(), MobileNav(), badgeIcons, DEFAULT_CIVIC_BADGES, ProfilePage() (+9 more)
+Cohesion: 0.11
+Nodes (24): Toast(), PointsBadge(), Layout(), MobileNav(), LoginPage(), MUNICIPAL_WARDS, CIVIC_INTEREST_AREAS, MUNICIPAL_WARDS (+16 more)
 
 ### Community 7 - "whatsapp.py"
 Cohesion: 0.24
@@ -134,8 +134,8 @@ Cohesion: 0.21
 Nodes (21): Button(), ButtonProps, StatusBadge(), PhotoGeoTag, StatusUpdater(), StatusUpdaterProps, NearbyCheck(), NearbyCheckProps (+13 more)
 
 ### Community 10 - "react"
-Cohesion: 0.20
-Nodes (14): FilterBar(), FilterBarProps, CardSkeleton(), LoadingSpinnerProps, Pagination(), PaginationProps, TicketList(), PointsBadge() (+6 more)
+Cohesion: 0.22
+Nodes (11): FilterBar(), FilterBarProps, CardSkeleton(), LoadingSpinnerProps, Pagination(), PaginationProps, TicketList(), TicketListProps (+3 more)
 
 ### Community 11 - "compilerOptions"
 Cohesion: 0.10
@@ -174,16 +174,16 @@ Cohesion: 0.25
 Nodes (8): scripts, build, cap:build, cap:open, cap:run, cap:sync, dev, preview
 
 ### Community 20 - "index.ts"
-Cohesion: 0.07
-Nodes (45): StatusBadgeProps, Leaderboard(), MUNICIPAL_WARDS, TASK_SPECIALTIES, BLOCK_REASON_PRESETS, MUNICIPAL_WARDS, SuperAdminPortalPage(), TASK_OPTIONS (+37 more)
+Cohesion: 0.08
+Nodes (39): StatusBadgeProps, Leaderboard(), MUNICIPAL_WARDS, TASK_SPECIALTIES, BLOCK_REASON_PRESETS, MUNICIPAL_WARDS, SuperAdminPortalPage(), TASK_OPTIONS (+31 more)
 
 ### Community 33 - "get_collection"
 Cohesion: 0.12
 Nodes (3): get_collection(), generate_ticket_id(), is_valid_ticket_id()
 
 ### Community 34 - "IssueMap.tsx"
-Cohesion: 0.15
-Nodes (19): TicketListProps, HeatmapLayer(), HeatmapLayerProps, HeatmapToggle(), HeatmapToggleProps, createCustomPin(), IssueMap(), IssueMapProps (+11 more)
+Cohesion: 0.16
+Nodes (18): HeatmapLayer(), HeatmapLayerProps, HeatmapToggle(), HeatmapToggleProps, createCustomPin(), IssueMap(), IssueMapProps, RecenterMap() (+10 more)
 
 ### Community 35 - "authentication.py"
 Cohesion: 0.20
@@ -229,21 +229,21 @@ Nodes (16): CITIZEN_REWARDS_CATALOG, COMMUNITY_DISTRICT_CITIZENS, COMMUNITY_INDI
 Cohesion: 0.15
 Nodes (15): ReportConfirmSerializer, ReportDetailSerializer, ReportDisputeSerializer, ReportEvidenceCreateSerializer, ReportMapPinSerializer, ReportUpvoteCreateSerializer, MapReportsAPIView, NearbyReportsAPIView (+7 more)
 
-### Community 52 - "ReportPage.tsx"
-Cohesion: 0.17
-Nodes (16): CameraCapture(), CameraCaptureProps, CategoryPicker(), CategoryPickerProps, iconMap, CapturedMedia, useCamera(), ReportPage() (+8 more)
+### Community 52 - "ProfilePage.tsx"
+Cohesion: 0.14
+Nodes (16): Modal(), ModalProps, CategoryPickerProps, iconMap, badgeIcons, DEFAULT_CIVIC_BADGES, ProfilePage(), AIAnalysisResult (+8 more)
 
-### Community 53 - "LoginPage.tsx"
-Cohesion: 0.24
-Nodes (7): LoginPage(), MUNICIPAL_WARDS, authApi, COMMON_WEAK_PASSWORDS, PasswordStrengthResult, PhoneValidationResult, validateIndianPhone()
+### Community 53 - "react"
+Cohesion: 0.29
+Nodes (11): CameraCapture(), CameraCaptureProps, CategoryPicker(), CapturedMedia, useCamera(), useNearbyReports(), ReportPage(), analyzeIssueImage() (+3 more)
 
 ### Community 57 - "users/views.py"
 Cohesion: 0.11
 Nodes (19): UserRole, OTPManager, AdminProvisionAPIView, AdminRevokeAPIView, AdminRosterAPIView, ChangePasswordAPIView, DeleteAccountAPIView, PasswordLoginAPIView (+11 more)
 
 ### Community 60 - "App.tsx"
-Cohesion: 0.14
-Nodes (16): AdminPortalPage, App(), ConfirmResolutionPage, DashboardPage, MapPage, PublicUpdatePage, RewardsPage, RouteLoadingFallback() (+8 more)
+Cohesion: 0.15
+Nodes (15): AdminPortalPage, App(), ConfirmResolutionPage, DashboardPage, MapPage, PublicUpdatePage, RewardsPage, RouteLoadingFallback() (+7 more)
 
 ### Community 61 - "llm_verifier.py"
 Cohesion: 0.15
@@ -266,7 +266,7 @@ Nodes (3): configure_cloudinary(), delete_media(), is_cloudinary_configured()
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `UserManager` connect `UserManager` to `.upsert_user`, `get_collection`, `UserProfileSerializer`, `authentication.py`, `validate_indian_phone`, `reports/models.py`, `ReportManager`, `GamificationManager`, `users/models.py`, `UserTests`, `run_report_verification_pipeline`, `reports/views.py`, `users/views.py`?**
-  _High betweenness centrality (0.062) - this node is a cross-community bridge._
+  _High betweenness centrality (0.063) - this node is a cross-community bridge._
 - **Are the 23 inferred relationships involving `UserManager` (e.g. with `merge_duplicate_into_timeline()` and `GamificationManager`) actually correct?**
   _`UserManager` has 23 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `@capacitor/android`, `@capacitor/app`, `@capacitor/camera` to the rest of the system?**
@@ -274,7 +274,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `.upsert_user` be split into smaller, more focused modules?**
   _Cohesion score 0.12413793103448276 - nodes in this community are weakly interconnected._
 - **Why does `get_collection()` connect `get_collection` to `.upsert_user`, `UserProfileSerializer`, `validate_indian_phone`, `get_db`, `services.py`, `WardTests`, `reports/models.py`, `reports/serializers.py`, `verify_location_integrity`, `GamificationManager`, `notifications/views.py`, `users/models.py`, `serialize_docs`, `UserTests`, `reports/views.py`, `users/views.py`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
 - **Are the 17 inferred relationships involving `UserProfileSerializer` (e.g. with `BadgeTier` and `UserRole`) actually correct?**
   _`UserProfileSerializer` has 17 INFERRED edges - model-reasoned connections that need verification._
 - **Should `validate_indian_phone` be split into smaller, more focused modules?**

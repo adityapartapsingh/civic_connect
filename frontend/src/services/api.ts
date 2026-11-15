@@ -432,15 +432,17 @@ export const issuesApi = {
   getNearby: async (
     lat: number,
     lng: number,
-    radiusMeters = 500,
+    radiusMeters = 50000,
     category?: string,
-    status?: string
+    status?: string,
+    includeResolved = true
   ): Promise<Issue[]> => {
     try {
       const params: Record<string, any> = {
         lat,
         lng,
         radius: radiusMeters,
+        include_resolved: includeResolved,
       };
       if (category && category !== 'all') params.category = category;
       if (status && status !== 'all') params.status = frontendStatusToBackend(status);

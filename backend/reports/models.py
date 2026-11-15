@@ -378,9 +378,11 @@ class ReportManager:
         cls,
         lat: float,
         lng: float,
-        radius_meters: float = 5000.0,
+        radius_meters: float = 50000.0,
         category: Optional[str] = None,
-        limit: int = 50,
+        status: Optional[str] = None,
+        include_resolved: bool = True,
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """Query reports ordered by distance using MongoDB $near or Haversine fallback."""
         lat_f, lng_f = validate_coordinates(lat, lng)
@@ -388,7 +390,12 @@ class ReportManager:
         filter_dict: Dict[str, Any] = {
             "status": {"$ne": ReportStatus.REJECTED},
         }
-        if category:
+        if status and status != "all":
+            filter_dict["status"] = status.upper().strip()
+        elif not include_resolved:
+            filter_dict["status"] = {"$nin": [ReportStatus.REJECTED, ReportStatus.RESOLVED, ReportStatus.CLOSED]}
+
+        if category and category != "all":
             filter_dict["category"] = category.lower().strip()
 
         results: List[Dict[str, Any]] = []

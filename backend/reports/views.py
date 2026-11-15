@@ -292,17 +292,21 @@ class NearbyReportsAPIView(APIView):
             )
 
         try:
-            radius = float(request.query_params.get("radius", 5000))
+            radius = float(request.query_params.get("radius", 50000))
         except ValueError:
-            radius = 5000.0
+            radius = 50000.0
 
         category = request.query_params.get("category")
+        status_param = request.query_params.get("status")
+        include_resolved = request.query_params.get("include_resolved", "true").lower() in ("true", "1")
 
         results = ReportManager.query_nearby(
             lat=float(lat),
             lng=float(lng),
             radius_meters=radius,
             category=category,
+            status=status_param,
+            include_resolved=include_resolved,
         )
 
         return Response(
