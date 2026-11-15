@@ -33,31 +33,27 @@ const MUNICIPAL_WARDS = [
 const VOLUNTEER_SCHEMES = [
   {
     id: 'NSS',
-    name: 'NSS (National Service Scheme)',
-    badge: 'Ministry of Youth Affairs',
-    description: 'University and collegiate student volunteers engaged in community health, sanitation drives, and civic audits.',
-    multiplier: '1.25x Point Multiplier',
+    name: 'NSS',
+    badge: 'College / Uni',
+    multiplier: '1.25x Points',
   },
   {
     id: 'NCC',
-    name: 'NCC (National Cadet Corps)',
-    badge: 'Cadet Taskforce',
-    description: 'Disciplined youth cadets assisting in public traffic safety, crowd monitoring, and civil emergency readiness.',
-    multiplier: '1.25x Point Multiplier',
+    name: 'NCC',
+    badge: 'Cadet Wing',
+    multiplier: '1.25x Points',
   },
   {
     id: 'NYKS',
-    name: 'NYKS (Nehru Yuva Kendra Sangathan)',
-    badge: 'National Youth Cadre',
-    description: 'Grassroots rural and urban neighborhood youth spearheading water conservation and public asset protection.',
-    multiplier: '1.25x Point Multiplier',
+    name: 'NYKS',
+    badge: 'Youth Cadre',
+    multiplier: '1.25x Points',
   },
   {
     id: 'COMMUNITY',
-    name: 'Community & Resident Volunteer',
-    badge: 'Civic Watchdog',
-    description: 'Citizen activists, Resident Welfare Association members, and local ward watchdogs championing neighborhood repairs.',
-    multiplier: 'Standard 1.0x Civic Multiplier',
+    name: 'Community',
+    badge: 'Resident',
+    multiplier: '1.0x Points',
   },
 ];
 
@@ -212,77 +208,77 @@ export const VolunteersPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Page Title & Mission Statement (Swiss Civic Standard) */}
-      <header className="bg-white rounded-[6px] border border-[#E2E8F0] p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.1),0_1px_2px_-1px_rgba(0,0,0,0.1)]">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Page Title & Concise Header */}
+      <header className="bg-white rounded-lg border border-slate-200 p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-xs font-semibold uppercase px-2 py-0.5 rounded-[4px] bg-[#2563EB]/10 text-[#2563EB] border border-[#2563EB]/20">
-                Official Municipal Civic Cadre
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                Civic Cadre
               </span>
-              <span className="text-xs text-[#64748B]">• Administrative Ward Verification Mandatory</span>
+              <span className="text-xs text-slate-500">• Ward Verified</span>
             </div>
-            <h1 className="text-[28px] font-semibold text-[#0F172A] leading-[1.2] tracking-[-0.02em]">
-              Civic Youth &amp; Community Volunteer Corps
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Civic Volunteer Corps
             </h1>
-            <p className="text-sm font-normal text-[#475569] leading-[1.5] mt-2 max-w-[70ch]">
-              Enlist as an authorized civic sentinel under national youth programs (NSS, NCC, NYKS) or Ward Community Taskforces. All volunteers undergo formal administrative verification by Municipal Ward Authorities before dispatch authorization.
+            <p className="text-xs sm:text-sm text-slate-600 mt-0.5 max-w-2xl">
+              Enlist under NSS, NCC, NYKS, or Community taskforces to verify municipal repairs in your ward.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 self-start md:self-auto shrink-0 font-mono text-xs text-[#0F172A]">
-            <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[6px] text-center">
-              <div className="text-base font-bold text-[#2563EB] tabular-nums">1.25x</div>
-              <div className="text-[11px] text-[#64748B]">NSS/NCC Bonus</div>
+          <div className="flex items-center gap-2.5 font-mono text-xs shrink-0">
+            <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md text-center">
+              <div className="text-sm font-bold text-blue-700">1.25x</div>
+              <div className="text-[10px] text-blue-800">Bonus Points</div>
             </div>
-            <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[6px] text-center">
-              <div className="text-base font-bold text-[#16A34A] tabular-nums">+100 PTS</div>
-              <div className="text-[11px] text-[#64748B]">Induction Award</div>
+            <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-md text-center">
+              <div className="text-sm font-bold text-emerald-700">+100 PTS</div>
+              <div className="text-[10px] text-emerald-800">Upon Approval</div>
             </div>
           </div>
         </div>
       </header>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#E2E8F0]">
+      <div className="flex items-center gap-4 sm:gap-6 border-b border-slate-200 overflow-x-auto scrollbar-none flex-nowrap">
         <button
           type="button"
           onClick={() => setActiveTab('register')}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-2 ${
+          className={`pb-2.5 sm:pb-3 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 shrink-0 cursor-pointer ${
             activeTab === 'register'
-              ? 'border-[#0F172A] text-[#0F172A]'
-              : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+              ? 'border-slate-900 text-slate-900 font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <FileText className="w-4 h-4" />
-          <span>Register as Volunteer</span>
+          <span>Apply to Volunteer</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('status')}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-2 ${
+          className={`pb-2.5 sm:pb-3 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 shrink-0 cursor-pointer ${
             activeTab === 'status'
-              ? 'border-[#0F172A] text-[#0F172A]'
-              : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+              ? 'border-slate-900 text-slate-900 font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <Clock className="w-4 h-4" />
-          <span>Check Application Status</span>
+          <span>Check Status</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('directory')}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-2 ${
+          className={`pb-2.5 sm:pb-3 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 shrink-0 cursor-pointer ${
             activeTab === 'directory'
-              ? 'border-[#0F172A] text-[#0F172A]'
-              : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+              ? 'border-slate-900 text-slate-900 font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Active Volunteers Directory</span>
+          <span>Active Volunteers</span>
         </button>
       </div>
 
@@ -290,62 +286,65 @@ export const VolunteersPage: React.FC = () => {
       {/* TAB 1: VOLUNTEER REGISTRATION FORM                             */}
       {/* ============================================================== */}
       {activeTab === 'register' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Registration Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmitApplication} className="bg-white rounded-[6px] border border-[#E2E8F0] p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.1),0_1px_2px_-1px_rgba(0,0,0,0.1)] space-y-6">
+            <form onSubmit={handleSubmitApplication} className="bg-white rounded-lg border border-slate-200 p-4 sm:p-6 shadow-xs space-y-5">
               <div>
-                <h2 className="text-[20px] font-semibold text-[#0F172A] leading-[1.3] tracking-[-0.01em]">
-                  Volunteer Application Form
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                  Volunteer Application
                 </h2>
-                <p className="text-xs text-[#64748B] mt-1">
-                  Submitted data will be verified against institutional rosters by the designated Municipal Ward Administrator.
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Verified by the Ward Administrator before authorization.
                 </p>
               </div>
 
               {/* Section 1: Scheme Selection */}
-              <div className="space-y-3">
-                <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
-                  Select Affiliated Scheme / Corps <span className="text-[#DC2626]">*</span>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  1. Affiliated Scheme <span className="text-rose-600">*</span>
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {VOLUNTEER_SCHEMES.map((s) => (
-                    <div
-                      key={s.id}
-                      onClick={() => setScheme(s.id)}
-                      className={`p-3.5 rounded-[6px] border cursor-pointer transition-colors ${
-                        scheme === s.id
-                          ? 'border-[#0F172A] bg-[#F8FAFC] shadow-xs'
-                          : 'border-[#E2E8F0] bg-white hover:border-[#94A3B8]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-sm text-[#0F172A]">{s.id}</span>
-                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[#E2E8F0] text-[#0F172A]">
-                          {s.badge}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#64748B] leading-relaxed mb-2">
-                        {s.description}
-                      </p>
-                      <div className="text-[11px] font-mono font-bold text-[#2563EB]">
-                        {s.multiplier}
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {VOLUNTEER_SCHEMES.map((s) => {
+                    const isSelected = scheme === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setScheme(s.id)}
+                        className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-400 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm">{s.name}</span>
+                          <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${
+                            isSelected ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {s.badge}
+                          </span>
+                        </div>
+                        <div className={`text-[11px] font-mono mt-1 ${isSelected ? 'text-emerald-400 font-bold' : 'text-blue-600 font-semibold'}`}>
+                          {s.multiplier}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Section 2: Personal & Contact Information */}
-              <div className="space-y-4 pt-4 border-t border-[#E2E8F0]">
-                <h3 className="text-base font-medium text-[#1E293B]">
-                  Applicant Verification Information
-                </h3>
+              <div className="pt-3 border-t border-slate-200">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  2. Personal Details
+                </label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider mb-1.5">
-                      Full Legal Name <span className="text-[#DC2626]">*</span>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Full Legal Name <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -353,45 +352,32 @@ export const VolunteersPage: React.FC = () => {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Jaswinder Singh"
-                      className="w-full h-10 px-3.5 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-[6px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-colors"
+                      className="w-full h-9 px-3 text-xs bg-white border border-slate-300 rounded-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider mb-1.5">
-                      Registered Mobile Number <span className="text-[#DC2626]">*</span>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Mobile Number <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="tel"
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="10-digit mobile (e.g. 9814012345)"
-                      className="w-full h-10 px-3.5 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-[6px] text-[#0F172A] placeholder:text-[#94A3B8] font-mono tabular-nums focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-colors"
+                      placeholder="10-digit mobile"
+                      className="w-full h-9 px-3 text-xs bg-white border border-slate-300 rounded-md text-slate-900 placeholder:text-slate-400 font-mono focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider mb-1.5">
-                      Email Address <span className="text-[#64748B] font-normal">(Optional)</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. j.singh@college.edu"
-                      className="w-full h-10 px-3.5 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-[6px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider mb-1.5">
-                      Assigned Municipal Ward <span className="text-[#DC2626]">*</span>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Assigned Ward <span className="text-rose-600">*</span>
                     </label>
                     <select
                       value={wardId}
                       onChange={(e) => setWardId(e.target.value)}
-                      className="w-full h-10 px-3.5 py-2 text-sm bg-white border border-[#E2E8F0] rounded-[6px] text-[#0F172A] focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-colors"
+                      className="w-full h-9 px-2 text-xs bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                     >
                       {MUNICIPAL_WARDS.map((w) => (
                         <option key={w.id} value={w.id}>
@@ -403,163 +389,132 @@ export const VolunteersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section 3: Institutional Details */}
-              <div className="space-y-4 pt-4 border-t border-[#E2E8F0]">
-                <h3 className="text-base font-medium text-[#1E293B]">
-                  Scheme Affiliation &amp; Institutional Credentials
-                </h3>
+              {/* Section 3: Institutional Details (Shown for student schemes) */}
+              {scheme !== 'COMMUNITY' && (
+                <div className="pt-3 border-t border-slate-200">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    3. Institutional Credentials
+                  </label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider mb-1.5">
-                      Institution / College / Organization Name
-                    </label>
-                    <input
-                      type="text"
-                      value={institution}
-                      onChange={(e) => setInstitution(e.target.value)}
-                      placeholder="e.g. DAV College / Lyallpur Khalsa College"
-                      className="w-full h-10 px-3.5 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-[6px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-colors"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        College / Institution
+                      </label>
+                      <input
+                        type="text"
+                        value={institution}
+                        onChange={(e) => setInstitution(e.target.value)}
+                        placeholder="e.g. DAV College"
+                        className="w-full h-9 px-3 text-xs bg-white border border-slate-300 rounded-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider mb-1.5">
-                      Cadet Number / Volunteer Roll ID
-                    </label>
-                    <input
-                      type="text"
-                      value={cadetId}
-                      onChange={(e) => setCadetId(e.target.value)}
-                      placeholder="e.g. PB/24/SD/10892"
-                      className="w-full h-10 px-3.5 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-[6px] text-[#0F172A] placeholder:text-[#94A3B8] font-mono focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-colors"
-                    />
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Cadet / Enrollment ID
+                      </label>
+                      <input
+                        type="text"
+                        value={cadetId}
+                        onChange={(e) => setCadetId(e.target.value)}
+                        placeholder="e.g. PB/24/SD/10892"
+                        className="w-full h-9 px-3 text-xs bg-white border border-slate-300 rounded-md text-slate-900 placeholder:text-slate-400 font-mono focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Section 4: Focus Areas */}
-              <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
-                <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
-                  Civic Deployment Focus Areas
+              <div className="pt-3 border-t border-slate-200">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  {scheme !== 'COMMUNITY' ? '4' : '3'}. Deployment Focus Areas
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="flex flex-wrap gap-1.5">
                   {CIVIC_INTEREST_AREAS.map((item) => {
                     const isChecked = selectedInterests.includes(item.id);
                     return (
-                      <label
+                      <button
                         key={item.id}
-                        className={`flex items-center gap-2.5 p-2.5 rounded-[4px] border cursor-pointer text-xs font-medium transition-colors ${
+                        type="button"
+                        onClick={() => handleInterestToggle(item.id)}
+                        className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition cursor-pointer border ${
                           isChecked
-                            ? 'bg-[#F8FAFC] border-[#0F172A] text-[#0F172A]'
-                            : 'bg-white border-[#E2E8F0] text-[#475569] hover:border-[#94A3B8]'
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleInterestToggle(item.id)}
-                          className="w-4 h-4 rounded border-slate-300 text-[#2563EB] focus:ring-slate-900"
-                        />
-                        <span>{item.label}</span>
-                      </label>
+                        {isChecked ? '✓ ' : '+ '}
+                        {item.label}
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Section 5: Statement of Intent */}
-              <div className="space-y-2 pt-4 border-t border-[#E2E8F0]">
-                <label className="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
-                  Brief Statement of Purpose / Past Civic Participation
-                </label>
-                <textarea
-                  rows={3}
-                  value={statement}
-                  onChange={(e) => setStatement(e.target.value)}
-                  placeholder="Outline prior community volunteer experience or reasons for serving in this ward..."
-                  className="w-full p-3 text-sm bg-white border border-[#E2E8F0] rounded-[6px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-colors"
-                />
-              </div>
-
-              {/* Verification Protocol Notice */}
-              <div className="p-3.5 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[6px] text-xs text-[#DC2626] flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <strong>Municipal Governance Rule:</strong> Volunteer status confers official dispatch confirmation privileges and a 1.25x point multiplier. All submissions are cross-verified by the Ward Administrator. Submitting falsified cadet or college credentials will lead to permanent platform deactivation.
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end">
+              {/* Submit Action */}
+              <div className="pt-3 flex items-center justify-between border-t border-slate-200">
+                <span className="text-[11px] text-slate-500">
+                  Verification takes 24–48h.
+                </span>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="h-10 px-5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white border border-[#1D4ED8] rounded-[6px] text-sm font-semibold transition-colors shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] flex items-center gap-2"
+                  className="h-9 px-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>{isSubmitting ? 'Transmitting Application...' : 'Submit Application for Admin Approval'}</span>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isSubmitting ? 'Submitting...' : 'Submit Application'}</span>
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Sidebar: Scheme Details & Induction Benefits */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-[6px] border border-[#E2E8F0] p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.1),0_1px_2px_-1px_rgba(0,0,0,0.1)] space-y-4">
-              <h3 className="text-base font-semibold text-[#0F172A]">
-                Volunteer Induction Protocol
+          {/* Sidebar: How It Works & Status Link */}
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                How It Works
               </h3>
 
-              <div className="space-y-3 text-xs text-[#475569] leading-relaxed">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] font-mono font-bold text-[#0F172A] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="space-y-2.5 text-xs text-slate-600">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 font-bold font-mono text-[11px] flex items-center justify-center shrink-0">
                     1
                   </div>
                   <div>
-                    <strong className="text-[#0F172A]">Application Intake:</strong> Form is cataloged in the designated Ward Administrator's verification ledger.
+                    <strong className="text-slate-900">Submit Details:</strong> Form forwarded to Ward Admin
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] font-mono font-bold text-[#0F172A] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 font-bold font-mono text-[11px] flex items-center justify-center shrink-0">
                     2
                   </div>
                   <div>
-                    <strong className="text-[#0F172A]">Institutional Roster Audit:</strong> Ward Administrator verifies student enrollment ID or community reference.
+                    <strong className="text-slate-900">Admin Audit:</strong> Quick institutional roster check
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] font-mono font-bold text-[#0F172A] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold font-mono text-[11px] flex items-center justify-center shrink-0">
                     3
                   </div>
                   <div>
-                    <strong className="text-[#0F172A]">Official Authorization:</strong> Account promoted to Volunteer with +100 initiation points and spendable civic coins.
+                    <strong className="text-emerald-800">Authorized:</strong> +100 PTS &amp; 1.25x Multiplier
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-[#E2E8F0]">
-                <div className="text-xs font-semibold text-[#0F172A] mb-1">
-                  Already registered?
-                </div>
+              <div className="pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setActiveTab('status')}
-                  className="text-xs text-[#2563EB] hover:underline font-medium flex items-center gap-1"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  Track your pending review status →
+                  Check pending status →
                 </button>
               </div>
-            </div>
-
-            <div className="bg-[#F8FAFC] rounded-[6px] border border-[#E2E8F0] p-4 text-xs space-y-2">
-              <div className="font-semibold text-[#0F172A]">
-                🏛️ Municipal Corporation Jalandhar
-              </div>
-              <p className="text-[#64748B] leading-relaxed">
-                Youth volunteers operate directly in collaboration with on-site Municipal Field Engineers (Junior Engineers and Sanitation Inspectors).
-              </p>
             </div>
           </div>
         </div>
