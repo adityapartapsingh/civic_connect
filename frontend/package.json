@@ -10,7 +10,9 @@
     "cap:build": "npm run build && npx cap sync",
     "cap:sync": "npx cap sync",
     "cap:open": "npx cap open android",
-    "cap:run": "npx cap run android"
+    "cap:run": "npx cap run android",
+    "skills:install": "npx skills experimental_install -y --copy",
+    "skills:list": "npx skills list"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",

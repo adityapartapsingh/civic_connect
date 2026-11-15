@@ -35,7 +35,10 @@ Thumbs.db
 
 # Agents & Knowledge Graph
 .agent/
-.agents/
+.agents/*
+!.agents/rules/
+!.agents/skills/
+!.agents/workflows/
 graphify-out/
 graphyout/
 
