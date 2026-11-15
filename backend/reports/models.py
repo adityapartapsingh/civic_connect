@@ -320,6 +320,9 @@ class ReportManager:
         role: str = "officer",
         notes: str = "",
         resolution_photo: Optional[str] = None,
+        assigned_officer: Optional[str] = None,
+        assigned_officer_id: Optional[str] = None,
+        materials_used: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Update report status and log transition history."""
         col = cls.get_collection()
@@ -346,6 +349,12 @@ class ReportManager:
             update_set["resolution_photo"] = resolution_photo
         if new_status == ReportStatus.RESOLVED:
             update_set["resolved_at"] = now
+        if assigned_officer:
+            update_set["assigned_officer"] = assigned_officer
+        if assigned_officer_id:
+            update_set["assigned_officer_id"] = assigned_officer_id
+        if materials_used:
+            update_set["materials_used"] = materials_used
 
         doc = col.find_one_and_update(
             query,

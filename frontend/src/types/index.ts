@@ -73,6 +73,8 @@ export interface Issue {
   };
   assigned_department?: string;
   assigned_officer?: string;
+  assigned_officer_id?: string;
+  materials_used?: string;
   resolution_notes?: string;
   resolution_photo?: string;
   citizen_feedback?: 'confirmed' | 'disputed' | null;
@@ -190,10 +192,12 @@ export interface CreateReportPayload {
 export interface StatusUpdatePayload {
   status: IssueStatus;
   notes?: string;
+  materials_used?: string;
   resolution_photo_blob?: Blob;
   resolution_photo_data_url?: string;
   assigned_department?: string;
   assigned_officer?: string;
+  assigned_officer_id?: string;
 }
 
 export interface VerificationPayload {

@@ -1,11 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Issue, StatusUpdatePayload } from '../types';
 import { issuesApi } from '../services/api';
-import { TicketList } from '../components/dashboard/TicketList';
 import { StatusUpdater } from '../components/dashboard/StatusUpdater';
-import { Modal } from '../components/common/Modal';
 import { useAuthStore } from '../store/authStore';
-import { RefreshCw, ArrowRight, ShieldCheck, Wrench, Building2, CheckCircle2, MapPin, Tag } from 'lucide-react';
+import { useToastStore } from '../store/toastStore';
+import { getSlaInfo, formatRelativeDate } from '../utils/helpers';
+import {
+  Wrench,
+  Navigation,
+  Camera,
+  RefreshCw,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  MapPin,
+  Flame,
+  ArrowRight,
+  ExternalLink,
+  Shield,
+  Filter,
+  X,
+  Building2,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
@@ -13,10 +29,12 @@ export const DashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Issue | null>(null);
   const [isUpdaterOpen, setIsUpdaterOpen] = useState(false);
-  const { isOfficer, user, setRole } = useAuthStore();
+  const [filterTab, setFilterTab] = useState<'all' | 'in_progress' | 'resolved' | 'breached'>('all');
+  const [scope, setScope] = useState<'specialty' | 'ward'>('specialty');
+  const [selectedPhotoPreview, setSelectedPhotoPreview] = useState<string | null>(null);
 
-  // Task & Ward Scope: 'specialty' (assigned tasks in ward), 'ward' (all in ward), 'all' (all city)
-  const [scope, setScope] = useState<'specialty' | 'ward' | 'all'>('specialty');
+  const { isOfficer, user } = useAuthStore();
+  const { addToast } = useToastStore();
 
   const loadTickets = async () => {
     setIsLoading(true);
@@ -24,7 +42,12 @@ export const DashboardPage: React.FC = () => {
       const data = await issuesApi.getAll();
       setTickets(data);
     } catch (err) {
-      console.error('Failed to load dashboard tickets', err);
+      console.error('Failed to load work orders', err);
+      addToast({
+        type: 'error',
+        title: 'Network Sync Error',
+        message: 'Could not fetch latest municipal work orders.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -41,18 +64,33 @@ export const DashboardPage: React.FC = () => {
 
   const handleStatusUpdate = async (payload: StatusUpdatePayload) => {
     if (!selectedTicket) return;
-    const updated = await issuesApi.updateStatus(selectedTicket.id, payload);
-    setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-    setIsUpdaterOpen(false);
+    try {
+      const updated = await issuesApi.updateStatus(selectedTicket.id, payload);
+      setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      setIsUpdaterOpen(false);
+      addToast({
+        type: 'success',
+        title: 'Work Order Updated',
+        message: `Order ${updated.tracking_id} updated to ${payload.status.toUpperCase()}.`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Update Error',
+        message: err.message || 'Could not update work order status.',
+      });
+    }
   };
 
-  // Scope Filtering based on Role Assigned by Ward Admin
+  // Scope Filtering based on Officer's Assigned Ward & Tasks
   const officerWard = user?.ward_id;
   const officerTasks = user?.assigned_tasks || [];
 
   const specialtyTickets = useMemo(() => {
     if (officerTasks.length === 0) {
-      return officerWard ? tickets.filter((t) => t.ward_id === officerWard || t.location?.ward === officerWard) : tickets;
+      return officerWard
+        ? tickets.filter((t) => t.ward_id === officerWard || t.location?.ward === officerWard)
+        : tickets;
     }
     return tickets.filter((t) => {
       const matchCat = officerTasks.includes(t.category);
@@ -66,273 +104,433 @@ export const DashboardPage: React.FC = () => {
     return tickets.filter((t) => t.ward_id === officerWard || t.location?.ward === officerWard);
   }, [tickets, officerWard]);
 
-  const displayedTickets = useMemo(() => {
-    if (!isOfficer) return tickets;
-    if (scope === 'specialty') return specialtyTickets;
-    if (scope === 'ward') return wardTickets;
-    return tickets;
-  }, [scope, isOfficer, specialtyTickets, wardTickets, tickets]);
+  const scopedTickets = useMemo(() => {
+    if (scope === 'specialty' && officerTasks.length > 0) return specialtyTickets;
+    return wardTickets.length > 0 ? wardTickets : tickets;
+  }, [scope, officerTasks, specialtyTickets, wardTickets, tickets]);
+
+  // Tab Filtering (All vs In Progress vs Completed vs Breached)
+  const displayedOrders = useMemo(() => {
+    switch (filterTab) {
+      case 'in_progress':
+        return scopedTickets.filter((t) => t.status === 'in_progress' || t.status === 'acknowledged');
+      case 'resolved':
+        return scopedTickets.filter((t) => t.status === 'resolved' || t.status === 'closed');
+      case 'breached':
+        return scopedTickets.filter((t) => {
+          const sla = getSlaInfo(t.sla_deadline, t.status === 'resolved' || t.status === 'closed');
+          return (sla.isBreached || t.sla_breached) && t.status !== 'resolved' && t.status !== 'closed';
+        });
+      default:
+        return scopedTickets;
+    }
+  }, [scopedTickets, filterTab]);
 
   // Operational Metrics
-  const totalTickets = displayedTickets.length;
-  const resolvedCount = displayedTickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length;
-  const breachedCount = displayedTickets.filter((t) => t.sla_breached && t.status !== 'resolved').length;
-  const inFieldCount = displayedTickets.filter((t) => t.status === 'in_progress' || t.status === 'acknowledged').length;
+  const totalCount = scopedTickets.length;
+  const inProgressCount = scopedTickets.filter((t) => t.status === 'in_progress' || t.status === 'acknowledged').length;
+  const resolvedCount = scopedTickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length;
+  const breachedCount = scopedTickets.filter((t) => {
+    const sla = getSlaInfo(t.sla_deadline, t.status === 'resolved' || t.status === 'closed');
+    return (sla.isBreached || t.sla_breached) && t.status !== 'resolved' && t.status !== 'closed';
+  }).length;
 
   return (
-    <div className="space-y-5">
-      {/* Ward Admin Redirect Banner (if user is Ward Admin) */}
-      {user?.role === 'admin' && (
-        <div className="bg-cyan-50 border border-cyan-200 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-cyan-900 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <Building2 className="w-5 h-5 text-cyan-600 shrink-0" />
-            <div>
-              <span className="font-bold text-sm text-cyan-950 block">
-                Ward Administrator Session Active ({user.name} · {user.ward_name || user.ward_id})
-              </span>
-              <p className="text-[11px] text-cyan-800 mt-0.5">
-                You have sovereign authority assigned by the Super Admin to provision Field Officers and manage ward squads.
-              </p>
-            </div>
-          </div>
-          <Link
-            to="/admin-portal"
-            className="px-3.5 py-2 bg-cyan-700 hover:bg-cyan-800 text-white rounded font-bold transition whitespace-nowrap self-start sm:self-auto shadow-xs flex items-center gap-1.5"
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Open Ward Admin Console →</span>
-          </Link>
-        </div>
-      )}
-
-      {/* Field Officer Specialty Assignment Banner (Assigned by Ward Admin) */}
-      {isOfficer && (
-        <div className="bg-white border-l-4 border-l-amber-600 border border-slate-300 p-4 rounded flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs shadow-xs">
-          <div className="space-y-1.5">
+    <div className="space-y-5 pb-12">
+      {/* Officer Header & Deployment Context Banner */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 sm:p-5 text-white shadow-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1">
-                <Wrench className="w-3.5 h-3.5 text-amber-600" />
-                Specialty Role Assigned by Ward Admin:
+              <span className="px-2.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[11px] font-bold tracking-wider uppercase">
+                {user?.employee_id || 'PB-MCJ-FIELD-SQUAD'}
               </span>
-              <span className="font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-300 font-bold text-slate-800 flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-amber-600" />
-                {user?.ward_name || user?.ward_id || 'Ward 2'}
+              <span className="text-xs font-mono text-zinc-400">
+                {user?.ward_name || user?.ward_id || 'Ward 2 - Civil Lines Zone'}
               </span>
             </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-slate-600 font-medium">Assigned Tasks ({user?.created_by ? `Authorized by ${user.created_by}` : 'Municipal Squad'}):</span>
-              {officerTasks.length > 0 ? (
-                officerTasks.map((task) => (
-                  <span key={task} className="px-2 py-0.5 rounded bg-slate-900 text-white font-mono text-[10px] font-bold">
-                    {task.toUpperCase().replace('_', ' ')}
-                  </span>
-                ))
-              ) : (
-                <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-mono text-[10px] font-bold">
-                  GENERAL FIELD MAINTENANCE
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Performance & Rewards Stats */}
-          <div className="flex items-center gap-4 shrink-0 bg-slate-50 p-2.5 rounded border border-slate-300">
-            <div className="text-right">
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Problems Resolved</span>
-              <span className="text-base font-black text-slate-900">{user?.reports_resolved_count ?? 0}</span>
-            </div>
-            <div className="w-px h-8 bg-amber-200" />
-            <div className="text-right">
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Officer Reward Tier</span>
-              <span className="text-base font-black text-amber-700">{user?.badge || 'Bronze'} ({user?.points ?? 0} pts)</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Officer Header (Administrative Human Styling) */}
-      <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="text-xs text-slate-500 font-mono mb-1">
-              Municipal Operations Hub • {user?.ward_name || user?.ward_id || 'Ward 2 - Civil Lines'}
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Field Officer Dispatch &amp; Work Queue
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-zinc-100 flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-amber-400 shrink-0" />
+              <span>Field Squad Dispatch &amp; Work Orders</span>
             </h1>
-            <p className="text-xs text-slate-600 mt-0.5">
-              Statutory SLA monitoring, crew assignments, and resolution audits.
+            <p className="text-xs text-zinc-400">
+              Assigned Field Officer: <strong className="text-zinc-200">{user?.name || 'On-Duty Officer'}</strong> · {user?.designation || 'Junior Engineer'} · {user?.department || 'Civil Infrastructure Cell'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-3 self-start md:self-auto shrink-0">
             <button
+              type="button"
               onClick={loadTickets}
-              className="p-1.5 rounded border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
-              title="Refresh Queue"
+              disabled={isLoading}
+              className="p-2.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition"
+              title="Refresh Work Orders"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
             </button>
 
-            {!isOfficer ? (
-              <button
-                onClick={() => setRole('officer')}
-                className="px-3 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition"
+            {user?.role === 'admin' && (
+              <Link
+                to="/admin-portal"
+                className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-xs font-bold rounded border border-amber-500/40 transition flex items-center gap-1.5"
               >
-                Switch to Officer Mode
-              </button>
-            ) : (
-              <div className="flex items-center gap-1.5 text-xs">
-                {user?.employee_id && (
-                  <span className="font-mono text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-2 py-1 rounded">
-                    {user.employee_id}
-                  </span>
-                )}
-                <span className="font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded">
-                  {user?.designation ? `${user.designation} · ` : ''}{user?.department || 'Field Operations'}
-                </span>
-              </div>
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Switch to Ward Console</span>
+              </Link>
             )}
           </div>
         </div>
 
-        {/* Task Scope Filter Selector (Specialty vs Ward vs All) */}
-        {isOfficer && (
-          <div className="mt-4 pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-slate-600 mr-1">Queue Scope:</span>
-
-            <button
-              type="button"
-              onClick={() => setScope('specialty')}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 border ${
-                scope === 'specialty'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <span>★ My Assigned Specialty Tasks</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${scope === 'specialty' ? 'bg-slate-800 text-cyan-300' : 'bg-slate-100 text-slate-700'}`}>
-                {specialtyTickets.length}
+        {/* Assigned Task Domain Tags */}
+        <div className="mt-4 pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-zinc-400 font-semibold uppercase text-[10px] tracking-wider">
+              Assigned Squad Specialty:
+            </span>
+            {officerTasks.length > 0 ? (
+              officerTasks.map((t) => (
+                <span
+                  key={t}
+                  className="px-2.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-amber-300 font-mono text-[11px] font-bold uppercase"
+                >
+                  {t.replace(/_/g, ' ')}
+                </span>
+              ))
+            ) : (
+              <span className="px-2.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300 font-mono text-[11px]">
+                ALL FIELD INFRASTRUCTURE
               </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setScope('ward')}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 border ${
-                scope === 'ward'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <span>🏛️ All {user?.ward_id || 'Ward'} Issues</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${scope === 'ward' ? 'bg-slate-800 text-cyan-300' : 'bg-slate-100 text-slate-700'}`}>
-                {wardTickets.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setScope('all')}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 border ${
-                scope === 'all'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <span>All City Grievances</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${scope === 'all' ? 'bg-slate-800 text-cyan-300' : 'bg-slate-100 text-slate-700'}`}>
-                {tickets.length}
-              </span>
-            </button>
+            )}
           </div>
+
+          {/* Scope Toggle Button */}
+          {officerTasks.length > 0 && (
+            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setScope('specialty')}
+                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                  scope === 'specialty'
+                    ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                ★ My Specialty ({specialtyTickets.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope('ward')}
+                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                  scope === 'ward'
+                    ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                🏛️ All Ward ({wardTickets.length})
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Rugged Field KPI Counter Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          type="button"
+          onClick={() => setFilterTab('all')}
+          className={`p-4 rounded-lg border text-left transition ${
+            filterTab === 'all'
+              ? 'bg-zinc-800 border-amber-500 text-white shadow-sm ring-1 ring-amber-500'
+              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+          }`}
+        >
+          <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+            Total Work Orders
+          </span>
+          <div className="text-2xl font-black text-zinc-100 font-mono mt-1">{totalCount}</div>
+          <span className="text-[11px] text-zinc-500">Active in queue</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterTab('in_progress')}
+          className={`p-4 rounded-lg border text-left transition ${
+            filterTab === 'in_progress'
+              ? 'bg-zinc-800 border-amber-500 text-white shadow-sm ring-1 ring-amber-500'
+              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+          }`}
+        >
+          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block flex items-center gap-1">
+            <Flame className="w-3 h-3" />
+            In Progress
+          </span>
+          <div className="text-2xl font-black text-amber-400 font-mono mt-1">{inProgressCount}</div>
+          <span className="text-[11px] text-zinc-500">Squad on-site</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterTab('resolved')}
+          className={`p-4 rounded-lg border text-left transition ${
+            filterTab === 'resolved'
+              ? 'bg-zinc-800 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500'
+              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+          }`}
+        >
+          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" />
+            Completed
+          </span>
+          <div className="text-2xl font-black text-emerald-400 font-mono mt-1">{resolvedCount}</div>
+          <span className="text-[11px] text-zinc-500">Verified resolved</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterTab('breached')}
+          className={`p-4 rounded-lg border text-left transition ${
+            filterTab === 'breached'
+              ? 'bg-zinc-800 border-red-500 text-white shadow-sm ring-1 ring-red-500'
+              : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+          }`}
+        >
+          <span className="text-[10px] uppercase font-bold tracking-wider text-red-400 block flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            SLA Breached
+          </span>
+          <div className="text-2xl font-black text-red-400 font-mono mt-1">{breachedCount}</div>
+          <span className="text-[11px] text-zinc-500">Exceeded 48h limit</span>
+        </button>
+      </div>
+
+      {/* Work Orders List Feed */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between text-xs font-mono text-zinc-400 px-1">
+          <span>
+            SHOWING <strong className="text-zinc-200">{displayedOrders.length}</strong> WORK ORDERS ({filterTab.toUpperCase()})
+          </span>
+          <span>HIGH-CONTRAST FIELD MODE</span>
+        </div>
+
+        {displayedOrders.length === 0 ? (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-10 text-center text-zinc-400 space-y-2">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+            <h3 className="text-sm font-bold text-zinc-200">No Orders in this Queue</h3>
+            <p className="text-xs text-zinc-500">
+              All assigned municipal work orders for this filter have been addressed.
+            </p>
+          </div>
+        ) : (
+          displayedOrders.map((ticket) => {
+            const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
+            const sla = getSlaInfo(ticket.sla_deadline, isResolved);
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${ticket.location.latitude},${ticket.location.longitude}`;
+
+            return (
+              <div
+                key={ticket.id}
+                className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 sm:p-5 text-white hover:border-zinc-700 transition space-y-4 shadow-sm"
+              >
+                {/* Order Top Bar: Tracking ID + Category + SLA Radar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-black bg-zinc-950 border border-zinc-700 text-amber-400 px-2.5 py-1 rounded">
+                      {ticket.tracking_id}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 font-mono text-[10px] uppercase font-bold border border-zinc-700">
+                      {ticket.category.replace(/_/g, ' ')}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase font-mono ${
+                        ticket.priority === 'urgent'
+                          ? 'bg-red-950 text-red-300 border border-red-700'
+                          : ticket.priority === 'high'
+                          ? 'bg-amber-950 text-amber-300 border border-amber-700'
+                          : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                      }`}
+                    >
+                      {ticket.priority} PRIORITY
+                    </span>
+                    <span className="text-[11px] text-zinc-500 font-mono">
+                      • {formatRelativeDate(ticket.created_at)}
+                    </span>
+                  </div>
+
+                  {/* SLA Radar Badge */}
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded font-mono text-xs font-bold border self-start sm:self-auto ${
+                      isResolved
+                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60'
+                        : sla.isBreached
+                        ? 'bg-red-950 text-red-300 border-red-600 animate-pulse'
+                        : 'bg-zinc-950 text-amber-300 border-zinc-800'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{sla.formattedText}</span>
+                  </div>
+                </div>
+
+                {/* Order Content: Photo Thumbnail + Details */}
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  {ticket.photo_url && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPhotoPreview(ticket.photo_url || null)}
+                      className="relative shrink-0 group rounded overflow-hidden border border-zinc-700"
+                      title="Inspect Citizen Evidence"
+                    >
+                      <img
+                        src={ticket.photo_url}
+                        alt={ticket.title}
+                        className="w-24 h-24 sm:w-28 sm:h-28 object-cover group-hover:scale-105 transition"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                        <span className="text-[10px] font-bold text-white uppercase bg-black/70 px-1.5 py-0.5 rounded">
+                          Zoom
+                        </span>
+                      </div>
+                    </button>
+                  )}
+
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <h3 className="text-base font-bold text-zinc-100 leading-snug">
+                      {ticket.title}
+                    </h3>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      {ticket.description}
+                    </p>
+
+                    {/* Landmark & GPS */}
+                    <div className="pt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-400 font-mono">
+                      <div className="flex items-center gap-1 text-amber-400">
+                        <MapPin className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate max-w-sm">
+                          {ticket.location.landmark || ticket.location.address || ticket.location.ward}
+                        </span>
+                      </div>
+                      <span className="text-zinc-600">•</span>
+                      <span>
+                        GPS: {ticket.location.latitude.toFixed(4)}°N, {ticket.location.longitude.toFixed(4)}°E
+                      </span>
+                    </div>
+
+                    {/* Existing Resolution / Materials Note */}
+                    {ticket.materials_used && (
+                      <div className="p-2 rounded bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                        <strong className="text-amber-400">Materials Used:</strong> {ticket.materials_used}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Outdoor High-Touch Action Bar */}
+                <div className="pt-3 border-t border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-zinc-400 font-mono">
+                      Current Status:
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded text-xs font-bold font-mono uppercase ${
+                        ticket.status === 'resolved' || ticket.status === 'closed'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : ticket.status === 'in_progress'
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : 'bg-zinc-800 text-zinc-300'
+                      }`}
+                    >
+                      {ticket.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    {/* Google Maps Turn-by-Turn Navigation Button */}
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-h-[44px] px-4 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs transition flex items-center justify-center gap-2 shadow-xs uppercase tracking-wider"
+                    >
+                      <Navigation className="w-4 h-4 fill-zinc-950" />
+                      <span>Navigate to Site (Google Maps)</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+
+                    {/* Resolution & Status Update Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenUpdater(ticket)}
+                      className="min-h-[44px] px-4 py-2.5 rounded bg-zinc-800 hover:bg-zinc-750 text-white font-bold text-xs border border-zinc-700 transition flex items-center justify-center gap-2"
+                    >
+                      <Camera className="w-4 h-4 text-amber-400" />
+                      <span>Update &amp; Resolution Proof</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* KPI Stats Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">
-            {scope === 'specialty' ? 'Specialty Queue' : scope === 'ward' ? 'Ward Queue' : 'City Queue'}
-          </div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{totalTickets}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Assigned to operational unit</p>
-        </div>
+      {/* Status Updater Modal (Outdoor High Contrast) */}
+      {isUpdaterOpen && selectedTicket && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-white my-8">
+            <div className="p-4 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-zinc-100">
+                    On-Site Resolution &amp; Status Station
+                  </h3>
+                  <span className="font-mono text-[11px] text-amber-400">
+                    Work Order: {selectedTicket.tracking_id}
+                  </span>
+                </div>
+              </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">In Field Crew</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{inFieldCount}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Maintenance teams on-site</p>
-        </div>
+              <button
+                type="button"
+                onClick={() => setIsUpdaterOpen(false)}
+                className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">SLA Breaches</div>
-          <div className="text-2xl font-bold text-red-700 mt-1">{breachedCount}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Over statutory deadline</p>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">Resolution Rate</div>
-          <div className="text-2xl font-bold text-emerald-700 mt-1">
-            {totalTickets > 0 ? `${Math.round((resolvedCount / totalTickets) * 100)}%` : '100%'}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Target: &gt;85% within 48h</p>
-        </div>
-      </div>
-
-      {/* Officer Division & Ward Performance Strip */}
-      <div className="bg-slate-900 text-white p-3.5 sm:p-4 rounded-lg border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-md font-mono">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="text-slate-400">Division:</span>
-            <span className="text-white font-semibold">{user?.jurisdiction_zone || 'Central Zone (Ward 2)'}</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-md font-mono">
-            <Wrench className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span className="text-slate-400">Ward Resolution Ranking:</span>
-            <span className="text-emerald-400 font-semibold">Rank #1 in Velocity (129 Solved · 19.4h avg)</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-md font-mono">
-            <span className="text-slate-400">Squad Rank:</span>
-            <span className="text-amber-300 font-semibold">#2 in Division ({user?.reports_resolved_count ?? 12} Problems Resolved)</span>
+            <div className="p-4 sm:p-6">
+              <StatusUpdater
+                issue={selectedTicket}
+                onUpdate={handleStatusUpdate}
+                onCancel={() => setIsUpdaterOpen(false)}
+              />
+            </div>
           </div>
         </div>
+      )}
 
-        <Link
-          to="/rewards"
-          className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 transition self-start sm:self-auto shrink-0 group"
+      {/* Image Zoom Modal */}
+      {selectedPhotoPreview && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedPhotoPreview(null)}
         >
-          <span>View All Ward Rankings</span>
-          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-        </Link>
-      </div>
-
-      {/* Ticket List Queue */}
-      <TicketList
-        tickets={displayedTickets}
-        onOpenUpdater={handleOpenUpdater}
-        onSelectTicket={(t) => setSelectedTicket(t)}
-        selectedTicketId={selectedTicket?.id}
-      />
-
-      {/* Status Update Modal */}
-      {selectedTicket && (
-        <Modal
-          isOpen={isUpdaterOpen}
-          onClose={() => setIsUpdaterOpen(false)}
-          title={`Officer Status Update: ${selectedTicket.tracking_id}`}
-          description="Submit real-time field progress notes and attach completion photos."
-        >
-          <StatusUpdater
-            issue={selectedTicket}
-            onUpdate={handleStatusUpdate}
-            onCancel={() => setIsUpdaterOpen(false)}
-          />
-        </Modal>
+          <div className="relative max-w-3xl max-h-[85vh] w-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={selectedPhotoPreview}
+              alt="Evidence zoom"
+              className="w-full h-auto max-h-[80vh] object-contain rounded border border-zinc-700"
+            />
+            <button
+              type="button"
+              onClick={() => setSelectedPhotoPreview(null)}
+              className="absolute top-2 right-2 p-2 rounded-full bg-black/70 text-white hover:bg-black transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

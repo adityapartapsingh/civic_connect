@@ -1,6 +1,9 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from './components/layout/Layout';
+import { CitizenLayout } from './components/layout/CitizenLayout';
+import { OfficerLayout } from './components/layout/OfficerLayout';
+import { WardAdminLayout } from './components/layout/WardAdminLayout';
+import { SuperAdminLayout } from './components/layout/SuperAdminLayout';
 import { HomePage } from './pages/HomePage';
 import { ReportPage } from './pages/ReportPage';
 import { TicketPage } from './pages/TicketPage';
@@ -31,11 +34,11 @@ export const App: React.FC = () => {
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
-          <Route element={<Layout />}>
+          {/* ============================================================== */}
+          {/* 1. CITIZEN COMMUNITY PUBLIC PORTAL                             */}
+          {/* ============================================================== */}
+          <Route element={<CitizenLayout />}>
             <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<LoginPage />} />
-            <Route path="/register" element={<LoginPage />} />
             <Route
               path="/report"
               element={
@@ -77,7 +80,82 @@ export const App: React.FC = () => {
                 </Suspense>
               }
             />
-            {/* Super Admin Dedicated Portal (Single Unified URL: /super-admin) */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
+
+          {/* ============================================================== */}
+          {/* 2. AUTHENTICATION & LOGIN (STANDALONE CANVAS)                  */}
+          {/* ============================================================== */}
+          <Route path="/login" element={<div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center px-4"><LoginPage /></div>} />
+          <Route path="/signup" element={<div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center px-4"><LoginPage /></div>} />
+          <Route path="/register" element={<div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center px-4"><LoginPage /></div>} />
+          <Route path="/admin" element={<Navigate to="/login?portal=staff" replace />} />
+          <Route path="/admin/login" element={<Navigate to="/login?portal=staff" replace />} />
+          <Route path="/ward-admin" element={<Navigate to="/login?portal=staff" replace />} />
+          <Route path="/staff-portal" element={<Navigate to="/login?portal=staff" replace />} />
+          <Route
+            path="/update/:token"
+            element={
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <PublicUpdatePage />
+              </Suspense>
+            }
+          />
+
+          {/* ============================================================== */}
+          {/* 3. FIELD OFFICER WORKSTATION (RUGGED ON-SITE UTILITY)          */}
+          {/* ============================================================== */}
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}>
+                <OfficerLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route
+              path="/dashboard"
+              element={
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route path="/officer-portal" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/officer" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+
+          {/* ============================================================== */}
+          {/* 4. MUNICIPAL WARD ADMIN TACTICAL CONSOLE (ZONAL DISPATCH)      */}
+          {/* ============================================================== */}
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <WardAdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route
+              path="/admin-portal"
+              element={
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <AdminPortalPage />
+                </Suspense>
+              }
+            />
+            <Route path="/ward-console" element={<Navigate to="/admin-portal" replace />} />
+          </Route>
+
+          {/* ============================================================== */}
+          {/* 5. SUPER ADMIN ROOT GOVERNANCE (EXECUTIVE COMMAND TERMINAL)    */}
+          {/* ============================================================== */}
+          <Route element={<SuperAdminLayout />}>
             <Route
               path="/super-admin"
               element={
@@ -88,45 +166,10 @@ export const App: React.FC = () => {
             />
             <Route path="/super-admin-portal" element={<Navigate to="/super-admin" replace />} />
             <Route path="/super-admin/login" element={<Navigate to="/super-admin" replace />} />
-
-            {/* Municipal Corporation Ward Admin Dedicated Portal (Protected - Login via /login) */}
-            <Route
-              path="/admin-portal"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                  <Suspense fallback={<RouteLoadingFallback />}>
-                    <AdminPortalPage />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Remove all other /admin, /ward-admin, /staff-portal login routes -> Redirect to /login */}
-            <Route path="/admin" element={<Navigate to="/login" replace />} />
-            <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-            <Route path="/ward-admin" element={<Navigate to="/login" replace />} />
-            <Route path="/staff-portal" element={<Navigate to="/login" replace />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}>
-                  <Suspense fallback={<RouteLoadingFallback />}>
-                    <DashboardPage />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/update/:token"
-              element={
-                <Suspense fallback={<RouteLoadingFallback />}>
-                  <PublicUpdatePage />
-                </Suspense>
-              }
-            />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </ErrorBoundary>

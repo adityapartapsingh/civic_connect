@@ -80,6 +80,9 @@ class ReportDetailSerializer(serializers.Serializer):
     resolution_photo = serializers.CharField(allow_null=True, required=False)
     resolution_notes = serializers.CharField(allow_blank=True, required=False)
     resolved_at = serializers.CharField(allow_null=True, required=False)
+    assigned_officer = serializers.CharField(allow_blank=True, required=False)
+    assigned_officer_id = serializers.CharField(allow_blank=True, required=False)
+    materials_used = serializers.CharField(allow_blank=True, required=False)
     dispute_reason = serializers.CharField(allow_blank=True, required=False)
     disputed_at = serializers.CharField(allow_null=True, required=False)
     distance_meters = serializers.FloatField(required=False)
@@ -97,6 +100,9 @@ class ReportStatusUpdateSerializer(serializers.Serializer):
     role = serializers.CharField(required=False, default="officer")
     resolution_photo = serializers.ImageField(required=False, allow_null=True)
     resolution_photo_url = serializers.CharField(required=False, allow_blank=True)
+    assigned_officer = serializers.CharField(required=False, allow_blank=True)
+    assigned_officer_id = serializers.CharField(required=False, allow_blank=True)
+    materials_used = serializers.CharField(required=False, allow_blank=True)
 
 
 class ReportConfirmSerializer(serializers.Serializer):

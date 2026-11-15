@@ -560,7 +560,14 @@ export const issuesApi = {
       const formData = new FormData();
       formData.append('status', frontendStatusToBackend(payload.status));
       if (payload.notes) formData.append('notes', payload.notes);
-      if (payload.assigned_officer) formData.append('changed_by', payload.assigned_officer);
+      if (payload.materials_used) formData.append('materials_used', payload.materials_used);
+      if (payload.assigned_officer) {
+        formData.append('assigned_officer', payload.assigned_officer);
+        formData.append('changed_by', payload.assigned_officer);
+      }
+      if (payload.assigned_officer_id) {
+        formData.append('assigned_officer_id', payload.assigned_officer_id);
+      }
       formData.append('role', 'officer');
       if (payload.resolution_photo_blob) {
         formData.append('resolution_photo', payload.resolution_photo_blob, 'resolution_proof.jpg');
@@ -577,8 +584,10 @@ export const issuesApi = {
       issue.status = payload.status;
       issue.updated_at = new Date().toISOString();
       if (payload.notes) issue.resolution_notes = payload.notes;
+      if (payload.materials_used) issue.materials_used = payload.materials_used;
       if (payload.assigned_department) issue.assigned_department = payload.assigned_department;
       if (payload.assigned_officer) issue.assigned_officer = payload.assigned_officer;
+      if (payload.assigned_officer_id) issue.assigned_officer_id = payload.assigned_officer_id;
 
       if (payload.resolution_photo_data_url) {
         issue.resolution_photo = payload.resolution_photo_data_url;

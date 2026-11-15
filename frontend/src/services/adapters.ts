@@ -248,6 +248,8 @@ export function adaptBackendReportToIssue(doc: any): Issue {
     },
     assigned_department: doc.department_id || doc.assigned_department,
     assigned_officer: doc.assigned_officer,
+    assigned_officer_id: doc.assigned_officer_id,
+    materials_used: doc.materials_used,
     resolution_notes: doc.resolution_notes,
     resolution_photo: doc.resolution_photo,
     citizen_feedback: doc.citizen_feedback ?? (status === 'closed' ? 'confirmed' : status === 'disputed' ? 'disputed' : null),

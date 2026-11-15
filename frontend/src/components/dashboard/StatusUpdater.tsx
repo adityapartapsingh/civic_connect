@@ -44,6 +44,7 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
     issue.status === 'reported' ? 'acknowledged' : issue.status === 'acknowledged' ? 'in_progress' : 'resolved'
   );
   const [notes, setNotes] = useState(issue.resolution_notes || '');
+  const [materialsUsed, setMaterialsUsed] = useState(issue.materials_used || '');
   const [photoUrl, setPhotoUrl] = useState<string>(issue.resolution_photo || '');
   const [photoGeoTag, setPhotoGeoTag] = useState<PhotoGeoTag | null>(null);
 
@@ -222,6 +223,7 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
       await onUpdate({
         status,
         notes,
+        materials_used: materialsUsed || undefined,
         resolution_photo_data_url: photoUrl || undefined,
         assigned_officer: officerTitle,
         assigned_department: officerDept,
@@ -276,6 +278,20 @@ export const StatusUpdater: React.FC<StatusUpdaterProps> = ({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="E.g., Deployed maintenance team with cold asphalt mix. Completed leveling and surface compaction."
+          className="w-full px-3 py-2 rounded border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 placeholder:text-slate-400"
+        />
+      </div>
+
+      {/* Materials & Equipment Deployed */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">
+          Materials &amp; Equipment Deployed
+        </label>
+        <input
+          type="text"
+          value={materialsUsed}
+          onChange={(e) => setMaterialsUsed(e.target.value)}
+          placeholder="e.g. 4 bags cold asphalt, 1 vibratory roller, 2 hazard cones"
           className="w-full px-3 py-2 rounded border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 placeholder:text-slate-400"
         />
       </div>

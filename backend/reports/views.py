@@ -429,6 +429,9 @@ class ReportStatusUpdateAPIView(APIView):
             role=officer_role,
             notes=data.get("notes", ""),
             resolution_photo=resolution_photo_url if resolution_photo_url else None,
+            assigned_officer=data.get("assigned_officer"),
+            assigned_officer_id=data.get("assigned_officer_id"),
+            materials_used=data.get("materials_used"),
         )
 
         if not updated:
