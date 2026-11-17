@@ -383,38 +383,64 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6 pb-12">
       {/* ========================================================= */}
-      {/* PROFILE HEADER: Compact Single-Line Header */}
+      {/* 1. ACCOUNT & LOCATION DETAILS (TOP BLOCK)                */}
       {/* ========================================================= */}
-      <div className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-lg border border-slate-200 shadow-xs">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">
-            {(user.name || 'Citizen').charAt(0).toUpperCase()}
+      <div className="bg-white rounded-lg p-5 sm:p-6 border border-slate-300 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-slate-700" />
+            <h2 className="text-sm font-bold text-slate-900">Account & Location Details</h2>
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate">{user.name || 'Civic User'}</h1>
-              {isOfficer ? (
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold shrink-0">
-                  {user.designation || 'Officer'}
-                </span>
-              ) : (
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
-                  Lvl {currentLevel}
-                </span>
-              )}
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(true)}
+            className="text-xs font-semibold text-slate-700 hover:text-slate-950 flex items-center gap-1.5 transition"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-amber-500" />
+            <span>Edit Information</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Full Name</span>
+            <div className="font-semibold text-slate-900 text-sm">{user.name}</div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Registered Mobile</span>
+            <div className="font-mono font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+              <span>+91 {user.phone || ''}</span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-medium px-1.5 py-0.2 rounded border border-emerald-200">
+                Verified
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Email Address</span>
+            <div className="font-medium text-slate-800 text-sm">
+              {user.email || <span className="text-slate-400 italic">Not configured</span>}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">State Jurisdiction</span>
+            <div className="font-semibold text-slate-900 text-sm">{user.state || 'Punjab'}</div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">District</span>
+            <div className="font-semibold text-slate-900 text-sm">{user.district || 'Jalandhar'}</div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-slate-500 font-medium">Municipal Ward / Division</span>
+            <div className="font-semibold text-slate-900 text-sm">
+              {user.ward_name || user.ward || 'Ward 2 - Civil Lines'}
             </div>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsEditModalOpen(true)}
-          className="px-2.5 py-1 rounded text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1 shrink-0"
-          title="Edit Profile Details"
-        >
-          <Edit3 className="w-3 h-3 text-amber-600" />
-          <span>Edit</span>
-        </button>
       </div>
 
       {/* ========================================================= */}
@@ -555,67 +581,6 @@ export const ProfilePage: React.FC = () => {
               <span>{user.volunteer_status === 'PENDING' ? 'Track Status' : user.role === 'volunteer' ? 'Volunteer Hub' : 'Register as Volunteer'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* PROFILE DETAILS & JURISDICTION SUMMARY CARD */}
-      {/* ========================================================= */}
-      <div className="bg-white rounded-lg p-5 sm:p-6 border border-slate-300 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-slate-700" />
-            <h2 className="text-sm font-bold text-slate-900">Account & Location Details</h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsEditModalOpen(true)}
-            className="text-xs font-semibold text-slate-700 hover:text-slate-950 flex items-center gap-1.5 transition"
-          >
-            <Edit3 className="w-3.5 h-3.5 text-amber-500" />
-            <span>Edit Information</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-1">
-            <span className="text-slate-500 font-medium">Full Name</span>
-            <div className="font-semibold text-slate-900 text-sm">{user.name}</div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-slate-500 font-medium">Registered Mobile</span>
-            <div className="font-mono font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-              <span>+91 {user.phone || ''}</span>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-medium px-1.5 py-0.2 rounded border border-emerald-200">
-                Verified
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-slate-500 font-medium">Email Address</span>
-            <div className="font-medium text-slate-800 text-sm">
-              {user.email || <span className="text-slate-400 italic">Not configured</span>}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-slate-500 font-medium">State Jurisdiction</span>
-            <div className="font-semibold text-slate-900 text-sm">{user.state || 'Punjab'}</div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-slate-500 font-medium">District</span>
-            <div className="font-semibold text-slate-900 text-sm">{user.district || 'Jalandhar'}</div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-slate-500 font-medium">Municipal Ward / Division</span>
-            <div className="font-semibold text-slate-900 text-sm">
-              {user.ward_name || user.ward || 'Ward 2 - Civil Lines'}
-            </div>
           </div>
         </div>
       </div>
