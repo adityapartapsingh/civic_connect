@@ -670,7 +670,7 @@ export const LoginPage: React.FC = () => {
                         required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="e.g. 9876543210"
+                        placeholder="Enter 10-digit mobile number"
                         className="w-full pl-9 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 font-mono"
                       />
                       <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -815,7 +815,7 @@ export const LoginPage: React.FC = () => {
                           required
                           value={staffPhone}
                           onChange={(e) => setStaffPhone(e.target.value)}
-                          placeholder="e.g. 9876543210 (Admin) or 9814099881 (Officer)"
+                          placeholder="Enter registered mobile number"
                           className="w-full pl-9 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                         />
                         <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -876,7 +876,7 @@ export const LoginPage: React.FC = () => {
                         required
                         value={staffId}
                         onChange={(e) => setStaffId(e.target.value)}
-                        placeholder="Employee ID or Phone (e.g. PB-MCJ-ADM-W102 / 9876543211)"
+                        placeholder="Enter Employee ID or phone number"
                         className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                       />
                     </div>
@@ -890,7 +890,7 @@ export const LoginPage: React.FC = () => {
                         required
                         value={staffPasscode}
                         onChange={(e) => setStaffPasscode(e.target.value)}
-                        placeholder="e.g. MCJ-W102-SEC9 or OFF-W102-7492"
+                        placeholder="Enter security passcode or PIN"
                         className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                       />
                     </div>

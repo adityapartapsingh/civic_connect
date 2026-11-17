@@ -1694,7 +1694,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                   required
                   value={createPhone}
                   onChange={(e) => setCreatePhone(e.target.value)}
-                  placeholder="e.g. 9876512345"
+                  placeholder="Enter 10-digit mobile number"
                   className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded text-slate-900 font-mono focus:outline-none focus:border-slate-900"
                 />
               </div>
@@ -1945,7 +1945,7 @@ export const SuperAdminPortalPage: React.FC = () => {
                   type="tel"
                   value={testWaPhone}
                   onChange={(e) => setTestWaPhone(e.target.value)}
-                  placeholder="Test Mobile (e.g. 9876543210)"
+                  placeholder="Enter 10-digit mobile number"
                   className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-900 font-mono w-48 focus:outline-none focus:border-slate-900"
                 />
                 <button

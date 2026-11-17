@@ -940,7 +940,7 @@ export const AdminPortalPage: React.FC = () => {
                     required
                     value={newOfficerPhone}
                     onChange={(e) => setNewOfficerPhone(e.target.value)}
-                    placeholder="e.g. 9814099881"
+                    placeholder="Enter 10-digit mobile number"
                     className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
