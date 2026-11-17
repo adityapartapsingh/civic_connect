@@ -97,8 +97,9 @@ export const HomePage: React.FC = () => {
     if (filters.priority && filters.priority !== 'all') count++;
     if (filters.date_range && filters.date_range !== 'all') count++;
     if (filters.sort_by && filters.sort_by !== 'newest') count++;
+    if (proximityRadius !== 'auto') count++;
     return count;
-  }, [filters]);
+  }, [filters, proximityRadius]);
 
   // City-wide issues with immediate load and live distance ranking
   const { issues, isLoading, handleUpvote, refetch } = useNearbyReports(
@@ -597,84 +598,6 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Proximity Radius Selector (Auto Proximity vs Explicit Radius) */}
-      <div className="flex items-center gap-1.5 flex-wrap text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-        <span className="text-slate-500 font-semibold mr-1 flex items-center gap-1">
-          <Compass className="w-3.5 h-3.5 text-slate-700" />
-          <span>Proximity Scope:</span>
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            setProximityRadius('auto');
-            setVisibleCount(getScreenBatch());
-          }}
-          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
-            proximityRadius === 'auto'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          📍 Nearest First (500m → City-Wide Stream)
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setProximityRadius(500);
-            setVisibleCount(getScreenBatch());
-          }}
-          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
-            proximityRadius === 500
-              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          Within 500m
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setProximityRadius(2000);
-            setVisibleCount(getScreenBatch());
-          }}
-          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
-            proximityRadius === 2000
-              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          Within 2 km
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setProximityRadius(5000);
-            setVisibleCount(getScreenBatch());
-          }}
-          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
-            proximityRadius === 5000
-              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          Within 5 km
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setProximityRadius('all');
-            setVisibleCount(getScreenBatch());
-          }}
-          className={`px-2.5 py-1 rounded-md transition font-medium border cursor-pointer ${
-            proximityRadius === 'all'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          All City Wards
-        </button>
-      </div>
-
       {/* Optional Interactive Map View */}
       {showMap && (
         <div className="w-full h-72 sm:h-84 rounded-xl overflow-hidden border border-slate-200 shadow-xs mb-2">
@@ -733,14 +656,16 @@ export const HomePage: React.FC = () => {
             {activeFiltersCount > 0 && (
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setFilters({
                     status: 'all',
                     priority: 'all',
                     date_range: 'all',
                     sort_by: 'newest',
-                  })
-                }
+                  });
+                  setProximityRadius('auto');
+                  setVisibleCount(getScreenBatch());
+                }}
                 className="text-xs text-red-600 hover:text-red-700 font-semibold transition cursor-pointer"
               >
                 Reset All Filters
@@ -751,6 +676,11 @@ export const HomePage: React.FC = () => {
             filters={filters}
             onChange={handleFilterChange}
             showStatusFilter={true}
+            proximityRadius={proximityRadius}
+            onProximityChange={(r) => {
+              setProximityRadius(r);
+              setVisibleCount(getScreenBatch());
+            }}
           />
         </div>
       )}
@@ -759,13 +689,29 @@ export const HomePage: React.FC = () => {
       {!showFilters && activeFiltersCount > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap text-xs bg-slate-100/70 p-2 rounded-md border border-slate-200">
           <span className="text-slate-500 font-medium">Filters active:</span>
+          {proximityRadius !== 'auto' && (
+            <span className="inline-flex items-center gap-1 bg-white border border-slate-300 text-slate-800 px-2 py-0.5 rounded text-xs font-semibold">
+              Proximity: {proximityRadius === 'all' ? 'All City Wards' : proximityRadius < 1000 ? `${proximityRadius}m` : `${proximityRadius / 1000}km`}
+              <button
+                type="button"
+                onClick={() => {
+                  setProximityRadius('auto');
+                  setVisibleCount(getScreenBatch());
+                }}
+                className="text-slate-400 hover:text-slate-700 ml-0.5 cursor-pointer"
+                aria-label="Remove proximity filter"
+              >
+                ×
+              </button>
+            </span>
+          )}
           {filters.status && filters.status !== 'all' && (
             <span className="inline-flex items-center gap-1 bg-white border border-slate-300 text-slate-800 px-2 py-0.5 rounded text-xs font-semibold">
               Status: {filters.status}
               <button
                 type="button"
                 onClick={() => handleFilterChange({ status: 'all' })}
-                className="text-slate-400 hover:text-slate-700 ml-0.5"
+                className="text-slate-400 hover:text-slate-700 ml-0.5 cursor-pointer"
               >
                 ×
               </button>
@@ -777,7 +723,7 @@ export const HomePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFilterChange({ priority: 'all' })}
-                className="text-slate-400 hover:text-slate-700 ml-0.5"
+                className="text-slate-400 hover:text-slate-700 ml-0.5 cursor-pointer"
               >
                 ×
               </button>
@@ -789,7 +735,7 @@ export const HomePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFilterChange({ date_range: 'all' })}
-                className="text-slate-400 hover:text-slate-700 ml-0.5"
+                className="text-slate-400 hover:text-slate-700 ml-0.5 cursor-pointer"
               >
                 ×
               </button>
@@ -801,7 +747,7 @@ export const HomePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFilterChange({ sort_by: 'newest' })}
-                className="text-slate-400 hover:text-slate-700 ml-0.5"
+                className="text-slate-400 hover:text-slate-700 ml-0.5 cursor-pointer"
               >
                 ×
               </button>
@@ -809,14 +755,16 @@ export const HomePage: React.FC = () => {
           )}
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
               setFilters({
                 status: 'all',
                 priority: 'all',
                 date_range: 'all',
                 sort_by: 'newest',
-              })
-            }
+              });
+              setProximityRadius('auto');
+              setVisibleCount(getScreenBatch());
+            }}
             className="text-xs text-slate-600 hover:text-red-600 underline font-semibold ml-auto cursor-pointer"
           >
             Clear all

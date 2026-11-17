@@ -1,10 +1,15 @@
 import React from 'react';
+import { Compass } from 'lucide-react';
 import { ReportFilterParams } from '../../types';
+
+export type ProximityRadiusOption = 'auto' | 500 | 2000 | 5000 | 'all';
 
 interface FilterBarProps {
   filters: ReportFilterParams;
   onChange: (updated: Partial<ReportFilterParams>) => void;
   showStatusFilter?: boolean;
+  proximityRadius?: ProximityRadiusOption;
+  onProximityChange?: (radius: ProximityRadiusOption) => void;
   className?: string;
 }
 
@@ -12,6 +17,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   filters,
   onChange,
   showStatusFilter = false,
+  proximityRadius,
+  onProximityChange,
   className = '',
 }) => {
   return (
@@ -118,13 +125,45 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 key={s.id}
                 type="button"
                 onClick={() => onChange({ status: s.id, page: 1 })}
-                className={`px-2.5 py-1 rounded font-medium text-xs transition border ${
+                className={`px-2.5 py-1 rounded font-medium text-xs transition border cursor-pointer ${
                   isSelected
                     ? 'bg-slate-900 text-white border-slate-900'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 {s.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {proximityRadius !== undefined && onProximityChange && (
+        <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+          <span className="font-semibold text-slate-500 mr-1 flex items-center gap-1">
+            <Compass className="w-3.5 h-3.5 text-slate-700" />
+            <span>Proximity Scope:</span>
+          </span>
+          {[
+            { id: 'auto' as const, label: '📍 Nearest First (500m → City-Wide Stream)' },
+            { id: 500 as const, label: 'Within 500m' },
+            { id: 2000 as const, label: 'Within 2 km' },
+            { id: 5000 as const, label: 'Within 5 km' },
+            { id: 'all' as const, label: 'All City Wards' },
+          ].map((scope) => {
+            const isSelected = proximityRadius === scope.id;
+            return (
+              <button
+                key={String(scope.id)}
+                type="button"
+                onClick={() => onProximityChange(scope.id)}
+                className={`px-2.5 py-1 rounded-md transition font-medium text-xs border cursor-pointer ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {scope.label}
               </button>
             );
           })}
