@@ -223,3 +223,4 @@ CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")
 
 # Gemini AI Configuration (Server-Side Vision & Anti-Spam Pipeline)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()

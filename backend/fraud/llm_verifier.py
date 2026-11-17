@@ -51,7 +51,7 @@ def verify_hazard_content(
 
     # Step 2: Try Gemini API if key is available and non-dummy
     if not is_testing and api_key and not api_key.startswith("your_") and len(api_key) > 10:
-        model_name = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash").strip()
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
         endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         try:
             prompt_text = (
