@@ -16,6 +16,12 @@ Skills are managed via the standard [`skills`](https://skills.sh) CLI and stored
 | **`ui-ux-pro-max`** | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Comprehensive UI/UX design intelligence: 44×44px touch targets, accessibility (WCAG 4.5:1), responsive layout, form UX, charts. |
 | **`sleek-design-mobile-apps`** | [sleekdotdesign/agent-skills](https://github.com/sleekdotdesign/agent-skills) | Mobile screen generation, REST API screen rendering, and React Native / HTML mobile layouts via Sleek. |
 | **`anti-ai-slop`** | Local Workspace (`.agents/skills/anti-ai-slop`) | Enforces refusal of generic AI slop: no purple gradient soup, no universal 2xl rounded cards, authentic data-dense layouts. |
+| **`ponytail`** | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | Lazy senior developer mode: minimum viable diff, anti-overengineering, strict YAGNI ladder, zero bloat. |
+| **`ponytail-audit`** | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | Audits codebase for dead code, speculative wrappers, bloat, and unused abstractions. |
+| **`ponytail-debt`** | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | Identifies technical debt, over-engineered modules, and candidate deletions. |
+| **`ponytail-gain`** | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | Quick-win refactors that maximize code reduction and clarity with minimal risk. |
+| **`ponytail-help`** | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | Reference manual and usage commands for all Ponytail tools. |
+| **`ponytail-review`** | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | Code review focusing on whether changes are minimal, necessary, and free of over-engineering. |
 
 ---
 
@@ -33,6 +39,7 @@ npx skills add https://github.com/anthropics/skills --skill frontend-design -y -
 npx skills add https://github.com/anthropics/skills --skill canvas-design -y --copy
 npx skills add https://github.com/nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max -y --copy
 npx skills add https://github.com/sleekdotdesign/agent-skills --skill sleek-design-mobile-apps -y --copy
+npx skills add https://github.com/DietrichGebert/ponytail -y --copy
 ```
 
 ---
