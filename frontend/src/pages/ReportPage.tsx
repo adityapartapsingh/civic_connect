@@ -78,14 +78,15 @@ export const ReportPage: React.FC = () => {
     setCapturedMedia(media);
     setStep(2);
 
-    // Only analyze photos (not video blob URLs)
-    if (media.type === 'photo' && media.dataUrl.startsWith('data:')) {
+    // Trigger AI analysis on photo frame (either photo dataUrl or video poster frame)
+    const imageToAnalyze = media.type === 'photo' ? media.dataUrl : media.posterDataUrl;
+    if (imageToAnalyze && imageToAnalyze.startsWith('data:')) {
       setIsAnalyzing(true);
       setAiResult(null);
       setAiDismissed(false);
 
       try {
-        const result = await analyzeIssueImage(media.dataUrl);
+        const result = await analyzeIssueImage(imageToAnalyze);
         if (result) {
           setAiResult(result);
           // Auto-fill form fields with AI suggestions (user can override)
@@ -258,8 +259,8 @@ export const ReportPage: React.FC = () => {
         address: liveAddress,
         landmark: userLandmark || loc.landmark,
         is_anonymous: isAnonymous,
-        photo_blob: capturedMedia.type === 'photo' ? capturedMedia.blob : null,
-        photo_data_url: capturedMedia.dataUrl,
+        photo_blob: capturedMedia.type === 'photo' ? capturedMedia.blob : (capturedMedia.posterBlob || null),
+        photo_data_url: capturedMedia.type === 'photo' ? capturedMedia.dataUrl : (capturedMedia.posterDataUrl || capturedMedia.dataUrl),
         video_blob: capturedMedia.type === 'video' ? capturedMedia.blob : null,
         video_data_url: capturedMedia.type === 'video' ? capturedMedia.dataUrl : undefined,
       });

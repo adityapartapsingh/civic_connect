@@ -235,12 +235,18 @@ class ReportListCreateAPIView(APIView):
         except Exception:
             pass
 
-        # Handle photo file upload via Cloudinary (with local fallback)
+        # Handle photo and video file uploads via Cloudinary (with local fallback)
         photo_url = data.get("photo_url", "")
         photo_file = request.FILES.get("photo")
         if photo_file:
             uploaded_url, _ = upload_media(photo_file, folder="civic_connect/reports", request=request)
             photo_url = uploaded_url
+
+        video_url = data.get("video_url", "")
+        video_file = request.FILES.get("video")
+        if video_file:
+            uploaded_video_url, _ = upload_media(video_file, folder="civic_connect/reports/videos", resource_type="auto", request=request)
+            video_url = uploaded_video_url
 
         # Execute AI Content Quality, Fraud Verification & Duplicate Merging Pipeline
         from fraud.pipeline import run_report_verification_pipeline
@@ -259,6 +265,7 @@ class ReportListCreateAPIView(APIView):
             reporter_phone=reporter_phone or "",
             address=data.get("address", ""),
             ward_id=request.data.get("ward_id") or data.get("ward_id"),
+            video_url=video_url or None,
         )
 
         if not pipeline_res["is_valid"]:

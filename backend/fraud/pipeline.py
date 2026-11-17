@@ -39,6 +39,7 @@ def run_report_verification_pipeline(
     reporter_phone: str = "",
     address: str = "",
     ward_id: Optional[str] = None,
+    video_url: Optional[str] = None,
 ) -> VerificationResult:
     """
     Executes the complete verification and ingestion pipeline:
@@ -140,6 +141,8 @@ def run_report_verification_pipeline(
         "fraud_metadata": fraud_result,
         "is_flagged_fraud": fraud_result.get("is_flagged_fraud", False),
     }
+    if video_url:
+        create_payload["video_url"] = video_url
 
     report_doc = ReportManager.create_report(create_payload)
     return {
