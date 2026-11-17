@@ -447,10 +447,11 @@ export const VolunteersPage: React.FC = () => {
               </div>
 
               {/* Submit Action */}
-              <div className="pt-3 flex items-center justify-between border-t border-slate-200">
-                <span className="text-[11px] text-slate-500">
-                  Verification takes 24–48h.
-                </span>
+              <div className="pt-3 flex items-center justify-between border-t border-slate-200 gap-3 flex-wrap">
+                <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                  <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Verification typically takes <strong className="text-slate-900 font-semibold">24–48 hours</strong></span>
+                </div>
                 <button
                   type="submit"
                   disabled={isSubmitting}
