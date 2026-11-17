@@ -154,29 +154,15 @@ export const Layout: React.FC = () => {
 
           {/* Right: Actions, Role Badge, User Profile */}
           <div className="flex items-center gap-4">
-            {/* Action Button: Super Admin, Ward Admin, Field Officer, Citizen */}
-            {isSuperAdmin ? (
-              <Link
-                to="/super-admin"
-                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs squash-stretch anticipation-lift"
-              >
-                Super Admin Console
-              </Link>
-            ) : isAdmin ? (
-              <Link
-                to="/admin-portal"
-                className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs squash-stretch anticipation-lift"
-              >
-                Ward Admin Console
-              </Link>
-            ) : !isOfficer ? (
+            {/* Action Button: Citizen Report Issue */}
+            {!isSuperAdmin && !isAdmin && !isOfficer && (
               <Link
                 to="/report"
                 className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-xs squash-stretch anticipation-lift"
               >
                 Report Issue
               </Link>
-            ) : null}
+            )}
 
             {/* Authenticated User Profile or Sign In */}
             {user ? (
