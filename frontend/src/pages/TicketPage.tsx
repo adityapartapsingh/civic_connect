@@ -269,15 +269,12 @@ export const TicketPage: React.FC = () => {
             </p>
           </div>
 
-          <Link to={`/tickets/${ticket.id}/confirm`}>
-            <Button
-              variant="primary"
-              size="md"
-              className="bg-white text-emerald-800 hover:bg-emerald-50 font-bold shrink-0 shadow-sm"
-              icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-            >
-              Verify Resolution Now
-            </Button>
+          <Link
+            to={`/tickets/${ticket.id}/confirm`}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-white hover:bg-emerald-50 text-emerald-950 font-bold text-sm transition shadow-sm border border-emerald-200 shrink-0 select-none cursor-pointer"
+          >
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+            <span className="text-emerald-950 font-bold">Verify Resolution Now</span>
           </Link>
         </div>
       )}
