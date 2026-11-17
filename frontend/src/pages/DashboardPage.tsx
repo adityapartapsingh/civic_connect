@@ -348,13 +348,6 @@ export const DashboardPage: React.FC = () => {
 
       {/* Work Orders List Feed */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs font-mono text-slate-500 px-1">
-          <span>
-            SHOWING <strong className="text-slate-800">{displayedOrders.length}</strong> WORK ORDERS ({filterTab.toUpperCase()})
-          </span>
-          <span className="text-[11px]">48H STATUTORY SLA WORKSTATION</span>
-        </div>
-
         {displayedOrders.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-xl p-10 text-center text-slate-500 space-y-2 shadow-xs">
             <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
