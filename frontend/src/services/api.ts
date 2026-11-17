@@ -14,6 +14,7 @@ import {
   AdminCredentialsSlip,
   VolunteerApplication,
   VolunteerRegisterPayload,
+  NotificationItem,
 } from '../types';
 import {
   adaptBackendReportToIssue,
@@ -1310,6 +1311,44 @@ export const deletionRequestsApi = {
     } catch (err: any) {
       const errDetail = err.response?.data?.detail || err.message;
       throw new Error(errDetail || 'Failed to process deletion request review.');
+    }
+  },
+};
+
+export const notificationsApi = {
+  getAll: async (params?: { unread_only?: boolean; limit?: number }): Promise<{ results: NotificationItem[]; unread_count: number }> => {
+    try {
+      const response = await apiClient.get('/notifications/', { params });
+      return response.data;
+    } catch {
+      return { results: [], unread_count: 0 };
+    }
+  },
+
+  getUnreadCount: async (): Promise<number> => {
+    try {
+      const response = await apiClient.get('/notifications/unread-count/');
+      return response.data?.unread_count ?? 0;
+    } catch {
+      return 0;
+    }
+  },
+
+  markAsRead: async (notificationId: string): Promise<boolean> => {
+    try {
+      const response = await apiClient.post(`/notifications/${notificationId}/read/`);
+      return response.data?.success ?? true;
+    } catch {
+      return false;
+    }
+  },
+
+  markAllAsRead: async (): Promise<boolean> => {
+    try {
+      const response = await apiClient.post('/notifications/mark-all-read/');
+      return response.data?.success ?? true;
+    } catch {
+      return false;
     }
   },
 };

@@ -156,3 +156,111 @@ class GenerateActionTokenAPIView(APIView):
             "report_id": report_id,
             "officer_email": officer_email,
         }, status=status.HTTP_201_CREATED)
+
+
+from civic_connect.authentication import IsAuthenticatedCivicUser
+from notifications.models import NotificationManager
+from notifications.serializers import NotificationSerializer
+
+
+class NotificationListAPIView(APIView):
+    """
+    GET /api/notifications/
+    Lists in-app notifications for the authenticated user session.
+    Supports query parameter ?unread_only=true and ?limit=40.
+    """
+    permission_classes = [IsAuthenticatedCivicUser]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        user_id = getattr(user, "user_id", None) or getattr(user, "id", None)
+        phone = getattr(user, "phone", None)
+        role = getattr(user, "role", "citizen")
+        ward_id = getattr(user, "ward_id", None)
+
+        unread_only = request.query_params.get("unread_only", "").lower() in ("true", "1")
+        try:
+            limit = int(request.query_params.get("limit", 40))
+        except (ValueError, TypeError):
+            limit = 40
+
+        items = NotificationManager.list_for_user(
+            user_id=user_id,
+            phone=phone,
+            role=role,
+            ward_id=ward_id,
+            limit=limit,
+            only_unread=unread_only,
+        )
+        unread_count = NotificationManager.get_unread_count(
+            user_id=user_id,
+            phone=phone,
+            role=role,
+            ward_id=ward_id,
+        )
+
+        return Response({
+            "results": items,
+            "unread_count": unread_count,
+        }, status=status.HTTP_200_OK)
+
+
+class NotificationUnreadCountAPIView(APIView):
+    """
+    GET /api/notifications/unread-count/
+    Returns fast unread count for navbar notification bell badge.
+    """
+    permission_classes = [IsAuthenticatedCivicUser]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        user_id = getattr(user, "user_id", None) or getattr(user, "id", None)
+        phone = getattr(user, "phone", None)
+        role = getattr(user, "role", "citizen")
+        ward_id = getattr(user, "ward_id", None)
+
+        unread_count = NotificationManager.get_unread_count(
+            user_id=user_id,
+            phone=phone,
+            role=role,
+            ward_id=ward_id,
+        )
+        return Response({"unread_count": unread_count}, status=status.HTTP_200_OK)
+
+
+class NotificationMarkReadAPIView(APIView):
+    """
+    POST /api/notifications/<id>/read/
+    Marks a single notification as read.
+    """
+    permission_classes = [IsAuthenticatedCivicUser]
+
+    def post(self, request, notification_id: str, *args, **kwargs):
+        user = request.user
+        user_id = getattr(user, "user_id", None) or getattr(user, "id", None)
+
+        success = NotificationManager.mark_as_read(notification_id=notification_id, user_id=user_id)
+        return Response({"success": success, "notification_id": notification_id}, status=status.HTTP_200_OK)
+
+
+class NotificationMarkAllReadAPIView(APIView):
+    """
+    POST /api/notifications/mark-all-read/
+    Marks all notifications for current user as read.
+    """
+    permission_classes = [IsAuthenticatedCivicUser]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        user_id = getattr(user, "user_id", None) or getattr(user, "id", None)
+        phone = getattr(user, "phone", None)
+        role = getattr(user, "role", "citizen")
+        ward_id = getattr(user, "ward_id", None)
+
+        marked = NotificationManager.mark_all_as_read(
+            user_id=user_id,
+            phone=phone,
+            role=role,
+            ward_id=ward_id,
+        )
+        return Response({"success": True, "marked_count": marked}, status=status.HTTP_200_OK)

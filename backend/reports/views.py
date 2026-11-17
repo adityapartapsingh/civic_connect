@@ -282,6 +282,27 @@ class ReportListCreateAPIView(APIView):
             )
 
         report_data = pipeline_res["report_data"]
+
+        # Notification Trigger: Alert Ward Admin of new civic complaint
+        try:
+            from notifications.models import NotificationManager, NotificationType
+            rep_title = report_data.get("title") or data.get("title") or "Civic Hazard"
+            tkt_id = report_data.get("ticket_id") or str(report_data.get("id"))
+            w_id = report_data.get("ward_id") or data.get("ward_id")
+            NotificationManager.create_notification(
+                recipient_id=None,
+                recipient_role="admin",
+                recipient_ward=w_id,
+                title="New Civic Report Received",
+                message=f"New report '{rep_title}' submitted in {w_id or 'your area'}.",
+                link=f"/tickets/{report_data.get('id')}",
+                notification_type=NotificationType.STATUS_CHANGED,
+                report_id=report_data.get("id"),
+                ticket_id=tkt_id,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to create notification on report creation: {exc}")
+
         return Response(
             ReportDetailSerializer(report_data, context={"request": request}).data,
             status=pipeline_res["status_code"],
@@ -486,6 +507,55 @@ class ReportStatusUpdateAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Notification Triggers based on status transition and squad assignment
+        try:
+            from notifications.models import NotificationManager, NotificationType
+            rep_id = updated.get("reporter_id")
+            rep_phone = updated.get("reporter_phone")
+            rep_title = updated.get("title") or "Civic Issue"
+            tkt_id = updated.get("ticket_id") or str(updated.get("id"))
+            new_st = data["status"]
+
+            if new_st == ReportStatus.RESOLVED:
+                NotificationManager.create_notification(
+                    recipient_id=rep_id,
+                    recipient_phone=rep_phone,
+                    recipient_role="citizen",
+                    title="Municipal Repair Completed",
+                    message=f"Field squad completed repair for '{rep_title}'. Please inspect and verify on-site (+30 pts).",
+                    link=f"/tickets/{updated.get('id')}/confirm",
+                    notification_type=NotificationType.RESOLUTION_PENDING,
+                    report_id=updated.get("id"),
+                    ticket_id=tkt_id,
+                )
+            elif new_st == ReportStatus.IN_PROGRESS:
+                NotificationManager.create_notification(
+                    recipient_id=rep_id,
+                    recipient_phone=rep_phone,
+                    recipient_role="citizen",
+                    title="Work Squad On-Site",
+                    message=f"Municipal squad has begun repair work on your report: '{rep_title}'.",
+                    link=f"/tickets/{updated.get('id')}",
+                    notification_type=NotificationType.STATUS_CHANGED,
+                    report_id=updated.get("id"),
+                    ticket_id=tkt_id,
+                )
+
+            if data.get("assigned_officer_id"):
+                NotificationManager.create_notification(
+                    recipient_id=data.get("assigned_officer_id"),
+                    recipient_role="officer",
+                    recipient_ward=updated.get("ward_id"),
+                    title="Work Order Dispatched",
+                    message=f"You have been assigned to work order {tkt_id}: '{rep_title}'.",
+                    link=f"/tickets/{updated.get('id')}",
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    report_id=updated.get("id"),
+                    ticket_id=tkt_id,
+                )
+        except Exception as exc:
+            logger.warning(f"Failed to create notification on status update: {exc}")
+
         return Response(ReportDetailSerializer(updated, context={"request": request}).data, status=status.HTTP_200_OK)
 
 
@@ -553,6 +623,39 @@ class ReportConfirmAPIView(APIView):
                 {"detail": "Report not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # Notification Trigger: Alert assigned officer and ward admin of citizen verification
+        try:
+            from notifications.models import NotificationManager, NotificationType
+            tkt_id = updated.get("ticket_id") or str(updated.get("id"))
+            rep_title = updated.get("title") or "Civic Issue"
+            off_id = updated.get("assigned_officer_id")
+            w_id = updated.get("ward_id")
+            if off_id:
+                NotificationManager.create_notification(
+                    recipient_id=off_id,
+                    recipient_role="officer",
+                    recipient_ward=w_id,
+                    title="Repair Verified by Citizen",
+                    message=f"Citizen confirmed on-site resolution for {tkt_id} ('{rep_title}'). Case closed.",
+                    link=f"/tickets/{updated.get('id')}",
+                    notification_type=NotificationType.RESOLUTION_CONFIRMED,
+                    report_id=updated.get("id"),
+                    ticket_id=tkt_id,
+                )
+            NotificationManager.create_notification(
+                recipient_id=None,
+                recipient_role="admin",
+                recipient_ward=w_id,
+                title="Work Order Closed",
+                message=f"Citizen verified repair for {tkt_id} in {w_id or 'your ward'}. Closed with positive feedback.",
+                link=f"/tickets/{updated.get('id')}",
+                notification_type=NotificationType.RESOLUTION_CONFIRMED,
+                report_id=updated.get("id"),
+                ticket_id=tkt_id,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to create notification on confirmation: {exc}")
 
         return Response({
             "message": "Resolution confirmed by citizen. Ticket closed (+20 pts awarded).",
@@ -623,6 +726,40 @@ class ReportDisputeAPIView(APIView):
                 {"detail": "Report not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # Notification Trigger: Alert Ward Admin & Officer that citizen contested the resolution
+        try:
+            from notifications.models import NotificationManager, NotificationType
+            tkt_id = updated.get("ticket_id") or str(updated.get("id"))
+            off_id = updated.get("assigned_officer_id")
+            w_id = updated.get("ward_id")
+            reason = data.get("dispute_reason", "")
+
+            NotificationManager.create_notification(
+                recipient_id=None,
+                recipient_role="admin",
+                recipient_ward=w_id,
+                title="Resolution Disputed - Escalated",
+                message=f"Citizen contested resolution for {tkt_id}: '{reason}'. Escalated to High Priority.",
+                link=f"/tickets/{updated.get('id')}",
+                notification_type=NotificationType.RESOLUTION_DISPUTED,
+                report_id=updated.get("id"),
+                ticket_id=tkt_id,
+            )
+            if off_id:
+                NotificationManager.create_notification(
+                    recipient_id=off_id,
+                    recipient_role="officer",
+                    recipient_ward=w_id,
+                    title="Resolution Contested by Citizen",
+                    message=f"Repair on {tkt_id} was disputed: '{reason}'. Re-inspection required.",
+                    link=f"/tickets/{updated.get('id')}",
+                    notification_type=NotificationType.RESOLUTION_DISPUTED,
+                    report_id=updated.get("id"),
+                    ticket_id=tkt_id,
+                )
+        except Exception as exc:
+            logger.warning(f"Failed to create notification on dispute: {exc}")
 
         return Response({
             "message": "Resolution disputed by citizen. Ticket auto-escalated to DISPUTED.",

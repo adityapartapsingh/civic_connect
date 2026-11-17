@@ -19,3 +19,19 @@ class ActionTokenResponseSerializer(serializers.Serializer):
     action_url = serializers.CharField()
     expires_at = serializers.CharField()
     report_id = serializers.CharField()
+
+
+class NotificationSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    recipient_id = serializers.CharField(allow_null=True, required=False)
+    recipient_role = serializers.CharField()
+    recipient_phone = serializers.CharField(allow_null=True, required=False)
+    recipient_ward = serializers.CharField(allow_null=True, required=False)
+    title = serializers.CharField()
+    message = serializers.CharField()
+    link = serializers.CharField(allow_blank=True, default="")
+    type = serializers.CharField()
+    report_id = serializers.CharField(allow_null=True, required=False)
+    ticket_id = serializers.CharField(allow_null=True, required=False)
+    is_read = serializers.BooleanField(default=False)
+    created_at = serializers.DateTimeField()

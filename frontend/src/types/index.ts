@@ -265,3 +265,27 @@ export interface VolunteerRegisterPayload {
   statement?: string;
   user_id?: string;
 }
+
+export interface NotificationItem {
+  id: string;
+  recipient_id?: string | null;
+  recipient_role: string;
+  recipient_phone?: string | null;
+  recipient_ward?: string | null;
+  title: string;
+  message: string;
+  link?: string;
+  type:
+    | 'status_changed'
+    | 'task_assigned'
+    | 'resolution_pending'
+    | 'resolution_confirmed'
+    | 'resolution_disputed'
+    | 'deletion_request'
+    | 'system_alert'
+    | string;
+  report_id?: string | null;
+  ticket_id?: string | null;
+  is_read: boolean;
+  created_at: string;
+}

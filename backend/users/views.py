@@ -2037,6 +2037,31 @@ class DeletionRequestAPIView(APIView):
         }
         col.insert_one(doc)
 
+        # Notification Trigger: Alert reviewing authority of staff deletion application
+        try:
+            from notifications.models import NotificationManager, NotificationType
+            if caller.role == UserRole.OFFICER:
+                NotificationManager.create_notification(
+                    recipient_id=None,
+                    recipient_role="admin",
+                    recipient_ward=getattr(caller, "ward_id", ""),
+                    title="Staff Account Deletion Request",
+                    message=f"Field Officer {getattr(caller, 'name', 'Officer')} submitted an account deletion request.",
+                    link="/admin-portal",
+                    notification_type=NotificationType.DELETION_REQUEST,
+                )
+            else:
+                NotificationManager.create_notification(
+                    recipient_id=None,
+                    recipient_role="super_admin",
+                    title="Ward Admin Deletion Request",
+                    message=f"Ward Admin {getattr(caller, 'name', 'Admin')} ({getattr(caller, 'ward_name', '')}) submitted an account deletion request.",
+                    link="/super-admin",
+                    notification_type=NotificationType.DELETION_REQUEST,
+                )
+        except Exception:
+            pass
+
         approver_title = "Ward Admin" if caller.role == UserRole.OFFICER else "Super Admin"
         return Response(
             {

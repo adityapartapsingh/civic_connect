@@ -70,3 +70,71 @@ class ActionTokenTests(TestCase):
         self.assertEqual(post_res.status_code, status.HTTP_200_OK)
         self.assertEqual(post_res.data["report"]["status"], ReportStatus.RESOLVED)
         self.assertEqual(post_res.data["report"]["resolution_notes"], "Tree cleared from roadway and sent to mulch yard.")
+
+
+class InAppNotificationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        get_collection("notifications").delete_many({})
+
+        from civic_connect.authentication import generate_jwt
+        self.citizen_payload = {
+            "user_id": "cit_101",
+            "phone": "9876543210",
+            "role": "citizen",
+            "name": "Aman Deep",
+        }
+        self.citizen_token = generate_jwt(self.citizen_payload)
+
+    def test_notification_lifecycle_and_unread_count(self):
+        from notifications.models import NotificationManager, NotificationType
+
+        # 1. Create notifications for the citizen
+        n1 = NotificationManager.create_notification(
+            recipient_id="cit_101",
+            recipient_role="citizen",
+            recipient_phone="9876543210",
+            title="Repair Completed",
+            message="Field crew completed repair for pothole.",
+            link="/tickets/TKT-001/confirm",
+            notification_type=NotificationType.RESOLUTION_PENDING,
+            ticket_id="TKT-001",
+        )
+        n2 = NotificationManager.create_notification(
+            recipient_id="cit_101",
+            recipient_role="citizen",
+            recipient_phone="9876543210",
+            title="Work Squad On-Site",
+            message="Crew is on-site.",
+            link="/tickets/TKT-001",
+            notification_type=NotificationType.STATUS_CHANGED,
+            ticket_id="TKT-001",
+        )
+
+        # 2. Check unread count endpoint
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.citizen_token}")
+        count_res = self.client.get("/api/notifications/unread-count/")
+        self.assertEqual(count_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(count_res.data["unread_count"], 2)
+
+        # 3. List notifications
+        list_res = self.client.get("/api/notifications/")
+        self.assertEqual(list_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_res.data["results"]), 2)
+        self.assertEqual(list_res.data["unread_count"], 2)
+
+        # 4. Mark single notification as read
+        mark_res = self.client.post(f"/api/notifications/{n1['id']}/read/")
+        self.assertEqual(mark_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(mark_res.data["success"])
+
+        count_after = self.client.get("/api/notifications/unread-count/")
+        self.assertEqual(count_after.data["unread_count"], 1)
+
+        # 5. Mark all as read
+        mark_all = self.client.post("/api/notifications/mark-all-read/")
+        self.assertEqual(mark_all.status_code, status.HTTP_200_OK)
+        self.assertEqual(mark_all.data["marked_count"], 1)
+
+        final_count = self.client.get("/api/notifications/unread-count/")
+        self.assertEqual(final_count.data["unread_count"], 0)

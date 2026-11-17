@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { MobileNav } from './MobileNav';
+import { NotificationBell } from './NotificationBell';
 import { Toast } from '../common/Toast';
 import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
@@ -166,7 +167,8 @@ export const Layout: React.FC = () => {
 
             {/* Authenticated User Profile or Sign In */}
             {user ? (
-              <div className="flex items-center pl-3 border-l border-slate-200">
+              <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
+                <NotificationBell />
                 <Link
                   to="/profile"
                   className="w-9 h-9 rounded-full border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm flex items-center justify-center transition shadow-xs squash-stretch"
