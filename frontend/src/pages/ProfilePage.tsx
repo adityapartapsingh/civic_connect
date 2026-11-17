@@ -80,9 +80,17 @@ const DEFAULT_CIVIC_BADGES = [
 ];
 
 export const ProfilePage: React.FC = () => {
-  const { user, isOfficer, logout, setUser } = useAuthStore();
+  const { user, isOfficer, isAdmin, isSuperAdmin, logout, setUser } = useAuthStore();
   const { addToast } = useToastStore();
   const navigate = useNavigate();
+
+  const isStaffOrAdmin =
+    isOfficer ||
+    isAdmin ||
+    isSuperAdmin ||
+    user?.role === 'officer' ||
+    user?.role === 'admin' ||
+    user?.role === 'super_admin';
 
   // -------------------------------------------------------------
   // MODAL STATES
@@ -469,13 +477,15 @@ export const ProfilePage: React.FC = () => {
           </span>
         </Link>
 
-        <Link
-          to="/volunteers"
-          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] sm:text-xs rounded-lg border border-slate-300 shadow-xs transition"
-        >
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span className="truncate">Volunteer</span>
-        </Link>
+        {!isStaffOrAdmin && (
+          <Link
+            to="/volunteers"
+            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] sm:text-xs rounded-lg border border-slate-300 shadow-xs transition"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="truncate">Volunteer</span>
+          </Link>
+        )}
       </div>
 
       {/* ========================================================= */}
@@ -528,62 +538,64 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* ========================================================= */}
-      {/* CIVIC VOLUNTEER CORPS STATUS CARD */}
+      {/* CIVIC VOLUNTEER CORPS STATUS CARD (Citizens/Volunteers Only) */}
       {/* ========================================================= */}
-      <div className="bg-white rounded-lg p-5 border border-slate-300 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded bg-slate-100 text-slate-800 border border-slate-200 shrink-0">
-              <ShieldCheck className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm text-slate-900">
-                  {user.role === 'volunteer' || user.volunteer_status === 'APPROVED'
-                    ? 'Authorized Civic Youth Volunteer'
-                    : user.volunteer_status === 'PENDING'
-                    ? 'Volunteer Application Under Verification'
-                    : 'Municipal Youth Volunteer Corps'}
-                </h3>
-                {user.volunteer_status === 'APPROVED' ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
-                    APPROVED • {user.volunteer_scheme || 'COMMUNITY'}
-                  </span>
-                ) : user.volunteer_status === 'PENDING' ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300">
-                    PENDING WARD REVIEW
-                  </span>
-                ) : user.volunteer_status === 'REJECTED' ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-50 text-red-800 border border-red-300">
-                    APPLICATION DECLINED
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                    OPEN ENROLLMENT
-                  </span>
-                )}
+      {!isStaffOrAdmin && (
+        <div className="bg-white rounded-lg p-5 border border-slate-300 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded bg-slate-100 text-slate-800 border border-slate-200 shrink-0">
+                <ShieldCheck className="w-5 h-5 text-blue-600" />
               </div>
-              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                {user.role === 'volunteer' || user.volunteer_status === 'APPROVED'
-                  ? `Enlisted under ${user.volunteer_scheme || 'Community'} Scheme ${user.volunteer_institution ? `(${user.volunteer_institution})` : ''}. 1.25x Civic Point multiplier applied to all your reports and verified actions.`
-                  : user.volunteer_status === 'PENDING'
-                  ? `Application ${user.volunteer_application_id ? `#${user.volunteer_application_id}` : ''} has been submitted and is in the verification queue of the Ward Administrator.`
-                  : 'Join NSS, NCC, NYKS, or Community Sentinels to assist municipal squads, unlock a 1.25x point multiplier, and receive 100 induction bonus points & coins.'}
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-sm text-slate-900">
+                    {user.role === 'volunteer' || user.volunteer_status === 'APPROVED'
+                      ? 'Authorized Civic Youth Volunteer'
+                      : user.volunteer_status === 'PENDING'
+                      ? 'Volunteer Application Under Verification'
+                      : 'Municipal Youth Volunteer Corps'}
+                  </h3>
+                  {user.volunteer_status === 'APPROVED' ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                      APPROVED • {user.volunteer_scheme || 'COMMUNITY'}
+                    </span>
+                  ) : user.volunteer_status === 'PENDING' ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                      PENDING WARD REVIEW
+                    </span>
+                  ) : user.volunteer_status === 'REJECTED' ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-50 text-red-800 border border-red-300">
+                      APPLICATION DECLINED
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                      OPEN ENROLLMENT
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  {user.role === 'volunteer' || user.volunteer_status === 'APPROVED'
+                    ? `Enlisted under ${user.volunteer_scheme || 'Community'} Scheme ${user.volunteer_institution ? `(${user.volunteer_institution})` : ''}. 1.25x Civic Point multiplier applied to all your reports and verified actions.`
+                    : user.volunteer_status === 'PENDING'
+                    ? `Application ${user.volunteer_application_id ? `#${user.volunteer_application_id}` : ''} has been submitted and is in the verification queue of the Ward Administrator.`
+                    : 'Join NSS, NCC, NYKS, or Community Sentinels to assist municipal squads, unlock a 1.25x point multiplier, and receive 100 induction bonus points & coins.'}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="shrink-0 self-start sm:self-auto">
-            <Link
-              to="/volunteers"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs"
-            >
-              <span>{user.volunteer_status === 'PENDING' ? 'Track Status' : user.role === 'volunteer' ? 'Volunteer Hub' : 'Register as Volunteer'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            <div className="shrink-0 self-start sm:self-auto">
+              <Link
+                to="/volunteers"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs"
+              >
+                <span>{user.volunteer_status === 'PENDING' ? 'Track Status' : user.role === 'volunteer' ? 'Volunteer Hub' : 'Register as Volunteer'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ========================================================= */}
       {/* BADGES & ACHIEVEMENTS */}
