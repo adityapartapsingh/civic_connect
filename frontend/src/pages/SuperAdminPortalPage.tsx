@@ -571,115 +571,87 @@ export const SuperAdminPortalPage: React.FC = () => {
   // If not authenticated as Super Admin, display the dedicated login screen
   if (!isSuperAdmin) {
     return (
-      <div className="w-full max-w-md my-auto py-8">
-        <div className="mb-4">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-          >
-            <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-            <span>Return to Citizen Portal</span>
-          </Link>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-300 p-6 sm:p-8 shadow-xs">
-          <div className="text-center mb-6">
-            <div className="inline-flex p-3 rounded-full bg-slate-900 text-amber-400 mb-3 border border-slate-800 shadow-xs">
-              <Shield className="w-7 h-7" />
-            </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Super Admin Control
-            </h1>
-            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-              Tier 1 Root Governance Console for Civic Connect Municipal Authority
-            </p>
-            <span className="inline-block mt-2 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
-              FULL SITE GOVERNANCE
-            </span>
+      <div className="w-full flex flex-col items-center justify-center min-h-[calc(100vh-140px)] py-8">
+        <div className="w-full max-w-md">
+          <div className="mb-4">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+            >
+              <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+              <span>Return to Citizen Portal</span>
+            </Link>
           </div>
 
-          {loginError && (
-            <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-700 leading-relaxed font-medium">
-              {loginError}
-            </div>
-          )}
-
-          <form onSubmit={(e) => handleSuperAdminLogin(e)} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Super Admin Employee ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={loginId}
-                onChange={(e) => setLoginId(e.target.value)}
-                placeholder="e.g. CC-SUPERADMIN-001"
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Security Root Passcode <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                required
-                value={loginPasscode}
-                onChange={(e) => setLoginPasscode(e.target.value)}
-                placeholder="e.g. CC-ROOT-2026"
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-sm font-bold transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
-            >
-              {isLoggingIn ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
-                  <span>Verifying Root Passcode...</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>Authenticate Super Admin Session</span>
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Quick-Fill Super Admin Preset */}
-          <div className="mt-5 pt-4 border-t border-slate-200">
-            <span className="text-xs font-semibold text-slate-600 block mb-2">
-              Official Super Admin Preset:
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setLoginId('CC-SUPERADMIN-001');
-                setLoginPasscode('CC-ROOT-2026');
-                handleSuperAdminLogin(undefined, 'CC-SUPERADMIN-001', 'CC-ROOT-2026');
-              }}
-              className="w-full text-left p-3 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-slate-900 transition flex items-center justify-between group"
-            >
-              <div>
-                <div className="font-bold text-xs text-amber-950 flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-amber-600" />
-                  <span>👑 Civic Connect Team Super Admin</span>
-                </div>
-                <div className="text-[11px] font-mono text-amber-800 mt-0.5">
-                  ID: <strong>CC-SUPERADMIN-001</strong> · PIN: <strong>CC-ROOT-2026</strong>
-                </div>
+          <div className="bg-white rounded-xl border border-slate-300 p-6 sm:p-8 shadow-xs">
+            <div className="text-center mb-6">
+              <div className="inline-flex p-3 rounded-full bg-slate-900 text-amber-400 mb-3 border border-slate-800 shadow-xs">
+                <Shield className="w-7 h-7" />
               </div>
-              <span className="text-xs font-bold text-amber-900 group-hover:underline flex items-center gap-1">
-                <span>1-Click Sign In</span>
-                <ArrowRight className="w-3 h-3" />
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                Super Admin Control
+              </h1>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Tier 1 Root Governance Console for Civic Connect Municipal Authority
+              </p>
+              <span className="inline-block mt-2 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                FULL SITE GOVERNANCE
               </span>
-            </button>
+            </div>
+
+            {loginError && (
+              <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-700 leading-relaxed font-medium">
+                {loginError}
+              </div>
+            )}
+
+            <form onSubmit={(e) => handleSuperAdminLogin(e)} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Super Admin Employee ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder="Enter Super Admin Employee ID"
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Security Root Passcode <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={loginPasscode}
+                  onChange={(e) => setLoginPasscode(e.target.value)}
+                  placeholder="Enter security root passcode"
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-md text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-sm font-bold transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+                    <span>Verifying Root Passcode...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 text-amber-400" />
+                    <span>Authenticate Super Admin Session</span>
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         </div>
       </div>
