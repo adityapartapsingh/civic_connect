@@ -25,7 +25,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.cloudinary_service import upload_media
-from civic_connect.mongo import get_collection, serialize_docs
+from civic_connect.mongo import get_collection, serialize_docs, parse_object_id
 from fraud.phash import compute_image_phash
 from fraud.services import analyze_report_fraud
 import base64
@@ -495,8 +495,40 @@ class ReportConfirmAPIView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        reports_col = get_collection("reports")
+        oid = parse_object_id(report_id)
+        query = {"$or": [{"_id": oid}, {"ticket_id": report_id}]} if oid else {"ticket_id": report_id}
+        doc = reports_col.find_one(query)
+        if not doc:
+            return Response(
+                {"detail": "Report not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         data = serializer.validated_data
-        citizen_id = getattr(request.user, "user_id", None) or data.get("citizen_id", "citizen")
+        caller_user_id = getattr(request.user, "user_id", None) or getattr(request.user, "id", None) or data.get("citizen_id")
+        caller_phone = getattr(request.user, "phone", None) or data.get("citizen_phone") or data.get("phone")
+        rep_id = doc.get("reporter_id")
+        rep_phone = doc.get("reporter_phone")
+
+        is_reporter = False
+        if caller_user_id and rep_id and rep_id != "anonymous" and str(caller_user_id).strip() == str(rep_id).strip():
+            is_reporter = True
+        elif caller_phone and rep_phone:
+            clean_caller = "".join(filter(str.isdigit, str(caller_phone)))[-10:]
+            clean_rep = "".join(filter(str.isdigit, str(rep_phone)))[-10:]
+            if clean_caller and clean_caller == clean_rep:
+                is_reporter = True
+        elif (not rep_id or rep_id == "anonymous") and not rep_phone:
+            is_reporter = True
+
+        if not is_reporter:
+            return Response(
+                {"detail": "Only the citizen who originally reported this civic issue can confirm its resolution."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        citizen_id = caller_user_id or "citizen"
         updated = ReportManager.confirm_resolution(
             report_id=report_id,
             citizen_id=citizen_id,
@@ -523,14 +555,53 @@ class ReportDisputeAPIView(APIView):
     """
 
     def post(self, request, report_id: str, *args, **kwargs):
+        caller_role = getattr(request.user, "role", "citizen") if request.user else "citizen"
+        if caller_role in ("officer", "admin", "super_admin"):
+            return Response(
+                {"detail": "Only citizens and volunteers can dispute municipal resolutions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = ReportDisputeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        reports_col = get_collection("reports")
+        oid = parse_object_id(report_id)
+        query = {"$or": [{"_id": oid}, {"ticket_id": report_id}]} if oid else {"ticket_id": report_id}
+        doc = reports_col.find_one(query)
+        if not doc:
+            return Response(
+                {"detail": "Report not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         data = serializer.validated_data
+        caller_user_id = getattr(request.user, "user_id", None) or getattr(request.user, "id", None) or data.get("citizen_id")
+        caller_phone = getattr(request.user, "phone", None) or data.get("citizen_phone") or data.get("phone")
+        rep_id = doc.get("reporter_id")
+        rep_phone = doc.get("reporter_phone")
+
+        is_reporter = False
+        if caller_user_id and rep_id and rep_id != "anonymous" and str(caller_user_id).strip() == str(rep_id).strip():
+            is_reporter = True
+        elif caller_phone and rep_phone:
+            clean_caller = "".join(filter(str.isdigit, str(caller_phone)))[-10:]
+            clean_rep = "".join(filter(str.isdigit, str(rep_phone)))[-10:]
+            if clean_caller and clean_caller == clean_rep:
+                is_reporter = True
+        elif (not rep_id or rep_id == "anonymous") and not rep_phone:
+            is_reporter = True
+
+        if not is_reporter:
+            return Response(
+                {"detail": "Only the citizen who originally reported this civic issue can dispute its resolution."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         updated = ReportManager.dispute_resolution(
             report_id=report_id,
-            citizen_id=data.get("citizen_id", "citizen"),
+            citizen_id=caller_user_id or "citizen",
             dispute_reason=data["dispute_reason"],
         )
 

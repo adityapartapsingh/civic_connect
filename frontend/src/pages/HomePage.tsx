@@ -387,6 +387,15 @@ export const HomePage: React.FC = () => {
       });
       return;
     }
+    const targetIssue = [...issues, ...myReports].find((i) => i.id === issueId);
+    if (targetIssue && !isUserReport(targetIssue)) {
+      addToast({
+        type: 'error',
+        title: 'Reporter Verification Required',
+        message: 'Only the citizen who originally reported this civic issue can confirm its resolution.',
+      });
+      return;
+    }
     try {
       await issuesApi.confirmResolution(issueId, { feedback: 'confirmed' });
       addPoints(30, 'Verified resolution on-site (+30 pts)');
@@ -955,8 +964,8 @@ export const HomePage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Citizen Resolution Confirmation Callout if marked resolved */}
-                    {!isStaffOrAdmin && isResolvedAwaitingFeedback && (
+                    {/* Citizen Resolution Confirmation Callout if marked resolved (Reporter Only) */}
+                    {!isStaffOrAdmin && isResolvedAwaitingFeedback && isUserReport(issue) && (
                       <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs animate-arc-in">
                         <div className="flex items-center gap-1.5 font-bold text-emerald-900 mb-0.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />

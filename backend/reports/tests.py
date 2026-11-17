@@ -152,13 +152,28 @@ class ReportAPITests(TestCase):
             "category": "pothole",
             "latitude": 12.9716,
             "longitude": 77.5946,
-            "reporter_id": "citizen_999",
         }, format="json")
         rep_id = res.data["id"]
 
-        # Confirm resolution
+        # Unauthorized citizen attempting to confirm someone else's report -> 403 Forbidden
+        diff_token = generate_jwt({
+            "user_id": "diff_citizen_888",
+            "phone": "9999988888",
+            "name": "Different Citizen",
+            "role": "citizen",
+        })
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {diff_token}")
+        unauth_confirm = self.client.post(f"/api/reports/{rep_id}/confirm/", {
+            "citizen_id": "diff_citizen_888",
+            "notes": "Trying to confirm someone else's report",
+        }, format="json")
+        self.assertEqual(unauth_confirm.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Only the citizen who originally reported", unauth_confirm.data["detail"])
+
+        # Original reporting citizen confirms resolution -> 200 OK
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.citizen_token}")
         confirm_res = self.client.post(f"/api/reports/{rep_id}/confirm/", {
-            "citizen_id": "citizen_999",
+            "citizen_id": "user_123",
             "notes": "Looks cleanly repaired. Thank you!",
         }, format="json")
         self.assertEqual(confirm_res.status_code, status.HTTP_200_OK)
@@ -174,8 +189,25 @@ class ReportAPITests(TestCase):
         }, format="json")
         rep_id = res.data["id"]
 
+        # Unauthorized citizen attempting to dispute someone else's report -> 403 Forbidden
+        diff_token = generate_jwt({
+            "user_id": "diff_citizen_777",
+            "phone": "9999977777",
+            "name": "Different Citizen",
+            "role": "citizen",
+        })
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {diff_token}")
+        unauth_dispute = self.client.post(f"/api/reports/{rep_id}/dispute/", {
+            "citizen_id": "diff_citizen_777",
+            "dispute_reason": "Not my report but disputing",
+        }, format="json")
+        self.assertEqual(unauth_dispute.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Only the citizen who originally reported", unauth_dispute.data["detail"])
+
+        # Original reporting citizen disputes resolution -> 200 OK
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.citizen_token}")
         dispute_res = self.client.post(f"/api/reports/{rep_id}/dispute/", {
-            "citizen_id": "citizen_111",
+            "citizen_id": "user_123",
             "dispute_reason": "Only loose gravel was dumped; pothole still exists.",
         }, format="json")
         self.assertEqual(dispute_res.status_code, status.HTTP_200_OK)

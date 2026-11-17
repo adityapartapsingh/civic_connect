@@ -175,6 +175,51 @@ export const ConfirmResolutionPage: React.FC = () => {
     );
   }
 
+  const isReporter = Boolean(
+    user && ticket && (
+      (user.id && (ticket.reporter?.id === user.id || (ticket as any).reporter_id === user.id)) ||
+      (user.user_id && (ticket.reporter?.id === user.user_id || (ticket as any).reporter_id === user.user_id)) ||
+      (user.phone && (
+        (ticket.reporter?.phone && user.phone.replace(/\D/g, '').endsWith(ticket.reporter.phone.replace(/\D/g, '').slice(-10))) ||
+        ((ticket as any).reporter_phone && user.phone.replace(/\D/g, '').endsWith((ticket as any).reporter_phone.replace(/\D/g, '').slice(-10))) ||
+        (ticket.reporter?.phone_masked && user.phone.endsWith(ticket.reporter.phone_masked.slice(-4)))
+      )) ||
+      ticket.reporter?.is_anonymous
+    )
+  );
+
+  if (!isReporter) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center">
+        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
+          <div className="w-14 h-14 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-4 border border-blue-200">
+            <ShieldAlert className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">
+            Reporter Verification Required
+          </h2>
+          <p className="text-sm text-slate-600 leading-relaxed mb-6">
+            Municipal governance rules require that resolved civic complaints be verified and confirmed exclusively by the citizen who submitted the original report.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              to={`/tickets/${ticket.id}`}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs"
+            >
+              View Ticket Details
+            </Link>
+            <Link
+              to="/"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-300 transition shadow-xs"
+            >
+              Return to Feed
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto py-2 space-y-5">
       {/* Top Back Nav */}
