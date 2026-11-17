@@ -35,25 +35,21 @@ const VOLUNTEER_SCHEMES = [
     id: 'NSS',
     name: 'NSS',
     badge: 'College / Uni',
-    multiplier: '1.25x Points',
   },
   {
     id: 'NCC',
     name: 'NCC',
     badge: 'Cadet Wing',
-    multiplier: '1.25x Points',
   },
   {
     id: 'NYKS',
     name: 'NYKS',
     badge: 'Youth Cadre',
-    multiplier: '1.25x Points',
   },
   {
     id: 'COMMUNITY',
     name: 'Community',
     badge: 'Resident',
-    multiplier: '1.0x Points',
   },
 ];
 
@@ -325,9 +321,6 @@ export const VolunteersPage: React.FC = () => {
                           }`}>
                             {s.badge}
                           </span>
-                        </div>
-                        <div className={`text-[11px] font-mono mt-1 ${isSelected ? 'text-emerald-400 font-bold' : 'text-blue-600 font-semibold'}`}>
-                          {s.multiplier}
                         </div>
                       </button>
                     );
