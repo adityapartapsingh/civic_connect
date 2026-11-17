@@ -231,11 +231,8 @@ export const TicketList: React.FC<TicketListProps> = ({
                     <h4 className="font-bold text-sm text-slate-900 line-clamp-1">
                       {ticket.title}
                     </h4>
-                    <p className="text-xs text-slate-600 line-clamp-2 mt-0.5">
-                      {ticket.description}
-                    </p>
 
-                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
                       <span className="text-slate-700 truncate max-w-xs">
                         {ticket.location.landmark || ticket.location.ward}
                       </span>

@@ -854,18 +854,18 @@ export const HomePage: React.FC = () => {
               return (
                 <div
                   key={issue.id}
-                  style={{ contentVisibility: 'auto', containIntrinsicSize: '240px' }}
-                  className="bg-white rounded-xl border border-slate-200/90 anticipation-lift elevation-1 p-4 sm:p-5 flex flex-col justify-between"
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: '130px' }}
+                  className="bg-white rounded-xl border border-slate-200/90 anticipation-lift elevation-1 p-3.5 sm:p-4 flex flex-col justify-between"
                 >
                   <div>
                     {/* Top Case Meta */}
-                    <div className="flex items-center justify-between gap-2 pb-2.5 mb-3 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    <div className="flex items-center justify-between gap-1.5 pb-2 mb-2.5 border-b border-slate-100">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span className="font-mono text-[11px] font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                           {issue.tracking_id}
                         </span>
                         <StatusBadge status={issue.status} size="sm" />
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
                           issue.priority === 'urgent'
                             ? 'bg-red-50 text-red-700 border border-red-200'
                             : issue.priority === 'high'
@@ -876,75 +876,80 @@ export const HomePage: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* SLA Countdown Badge */}
-                      <div className="text-xs text-slate-500 font-mono font-medium">
-                        {sla.formattedText}
+                      {/* Compact SLA Countdown Badge */}
+                      <div className="text-[11px] font-mono shrink-0">
+                        {sla.isBreached ? (
+                          <span className="text-red-600 font-bold bg-red-50 border border-red-200 px-1.5 py-0.5 rounded text-[10px]">
+                            SLA Breached
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 font-medium">
+                            {sla.formattedText}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Content Card Body */}
-                    <div className="flex items-start gap-3.5 mb-3">
+                    {/* Content Card Body - Compact & Streamlined */}
+                    <div className="flex items-center gap-3">
                       {issue.photo_url ? (
                         <img
                           src={issue.photo_url}
                           alt={issue.title}
                           loading="lazy"
                           decoding="async"
-                          className="w-20 h-20 rounded-lg object-cover border border-slate-200 shrink-0"
+                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover border border-slate-200 shrink-0"
                         />
                       ) : (
-                        <div className="w-20 h-20 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 border border-slate-200">
-                          <MapPin className="w-6 h-6" />
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 border border-slate-200">
+                          <MapPin className="w-5 h-5" />
                         </div>
                       )}
 
                       <div className="min-w-0 flex-1">
                         <Link to={`/tickets/${issue.id}`} className="hover:text-blue-700 transition-colors">
-                          <h3 className="font-bold text-sm sm:text-base text-slate-900 line-clamp-1">
+                          <h3 className="font-bold text-sm text-slate-900 line-clamp-1 leading-snug">
                             {issue.title}
                           </h3>
                         </Link>
-                        <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-                          {issue.description}
-                        </p>
-                      </div>
-                    </div>
 
-                    {/* Location & Proximity Distance String */}
-                    <div className="text-xs text-slate-500 mb-2 flex items-center gap-1 font-mono">
-                      {(issue as any).distanceMeters !== undefined && (
-                        <>
-                          <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                            {formatDistanceString((issue as any).distanceMeters)} away
-                          </span>
-                          <span className="text-slate-300">•</span>
-                        </>
-                      )}
-                      <span className="truncate">{issue.location.address || issue.location.landmark || 'Incident Location'}</span>
+                        {/* Location & Proximity Distance String */}
+                        <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-mono truncate">
+                          {(issue as any).distanceMeters !== undefined && (
+                            <>
+                              <span className="font-bold text-slate-700 bg-slate-100 px-1 py-0.2 rounded border border-slate-200 shrink-0">
+                                {formatDistanceString((issue as any).distanceMeters)} away
+                              </span>
+                              <span className="text-slate-300">•</span>
+                            </>
+                          )}
+                          <span className="truncate">{issue.location.address || issue.location.landmark || 'Incident Location'}</span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Citizen Resolution Confirmation Callout if marked resolved */}
                     {isResolvedAwaitingFeedback && (
-                      <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs animate-arc-in">
-                        <div className="flex items-center gap-1.5 font-bold text-emerald-900 mb-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs animate-arc-in">
+                        <div className="flex items-center gap-1.5 font-bold text-emerald-900 mb-0.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                           <span>Field Squad Completed Repair</span>
                         </div>
-                        <p className="text-[11px] text-emerald-800 mb-2.5">
-                          Did this repair solve the civic hazard? Confirm on-site to award field officer points.
+                        <p className="text-[10px] text-emerald-800 mb-2">
+                          Did this repair solve the civic hazard? Confirm on-site to award points.
                         </p>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={(e) => handleConfirmResolution(e, issue.id)}
-                            className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs squash-stretch active:scale-95"
+                            className="px-2.5 py-1 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow-xs squash-stretch active:scale-95"
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            <Check className="w-3 h-3" />
                             <span>Confirm Fixed (+30 pts)</span>
                           </button>
                           <Link
                             to={`/tickets/${issue.id}/confirm`}
-                            className="px-3 py-1.5 rounded-md border border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-semibold text-xs transition squash-stretch"
+                            className="px-2.5 py-1 rounded-md border border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-semibold text-xs transition squash-stretch"
                           >
                             Inspect / Dispute
                           </Link>
@@ -953,8 +958,8 @@ export const HomePage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Card Bottom Bar (Fitts's Law touch targets & Squash/Stretch) */}
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                  {/* Card Bottom Bar */}
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     {(() => {
                       const isOwn = Boolean(
                         user && (
