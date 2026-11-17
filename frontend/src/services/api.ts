@@ -225,7 +225,7 @@ let mockIssues: Issue[] = [
       {
         id: 'ev_6',
         media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=800&q=80',
+        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
         caption: 'New 90W LED luminaires installed and powered',
         created_at: '2026-10-13T18:10:00Z',
         stage: 'resolution',
@@ -233,7 +233,7 @@ let mockIssues: Issue[] = [
       },
     ],
     photo_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
-    resolution_photo: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=800&q=80',
+    resolution_photo: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
     resolution_notes: 'Replaced burnt fuse connector and installed 5 brand new Phillips LED luminaires. Tested on line load.',
     created_at: '2026-10-11T20:45:00Z',
     updated_at: '2026-10-13T18:10:00Z',
@@ -577,6 +577,25 @@ export const issuesApi = {
       formData.append('role', 'officer');
       if (payload.resolution_photo_blob) {
         formData.append('resolution_photo', payload.resolution_photo_blob, 'resolution_proof.jpg');
+      } else if (payload.resolution_photo_data_url) {
+        try {
+          const parts = payload.resolution_photo_data_url.split(',');
+          const mimeMatch = parts[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+          const bstr = atob(parts[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          formData.append('resolution_photo', blob, 'resolution_proof.jpg');
+        } catch (err) {
+          console.error('Failed to parse resolution photo data URL to Blob', err);
+        }
+      }
+      if (payload.resolution_photo_data_url) {
+        formData.append('resolution_photo_url', payload.resolution_photo_data_url);
       }
 
       const response = await apiClient.patch(`/reports/${id}/status/`, formData, {
@@ -627,6 +646,25 @@ export const issuesApi = {
       if (payload.assigned_officer) formData.append('officer_name', payload.assigned_officer);
       if (payload.resolution_photo_blob) {
         formData.append('resolution_photo', payload.resolution_photo_blob, 'resolution_proof.jpg');
+      } else if (payload.resolution_photo_data_url) {
+        try {
+          const parts = payload.resolution_photo_data_url.split(',');
+          const mimeMatch = parts[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+          const bstr = atob(parts[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          formData.append('resolution_photo', blob, 'resolution_proof.jpg');
+        } catch (err) {
+          console.error('Failed to parse resolution photo data URL to Blob', err);
+        }
+      }
+      if (payload.resolution_photo_data_url) {
+        formData.append('resolution_photo_url', payload.resolution_photo_data_url);
       }
 
       const response = await apiClient.post(`/public-update/${token}/`, formData, {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Issue, StatusUpdatePayload } from '../types';
 import { issuesApi } from '../services/api';
@@ -22,7 +22,8 @@ import {
   Layers,
   ExternalLink,
   Edit,
-  
+  Camera,
+  Wrench,
 } from 'lucide-react';
 
 export const TicketPage: React.FC = () => {
@@ -165,6 +166,25 @@ export const TicketPage: React.FC = () => {
 
   const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
   const sla = getSlaInfo(ticket.sla_deadline, isResolved);
+
+  const resolutionPhotoUrl = ticket.resolution_photo || ticket.evidence?.find((e) => e.stage === 'resolution')?.url;
+
+  const displayEvidence = useMemo(() => {
+    if (!ticket) return [];
+    const list = [...(ticket.evidence || [])];
+    if (resolutionPhotoUrl && !list.some((e) => e.stage === 'resolution' || e.url === resolutionPhotoUrl)) {
+      list.push({
+        id: 'ev_live_resolution',
+        media_type: 'photo',
+        url: resolutionPhotoUrl,
+        caption: ticket.resolution_notes || 'Official municipal resolution proof',
+        created_at: ticket.resolved_at || ticket.updated_at,
+        stage: 'resolution',
+        uploaded_by: ticket.assigned_officer || 'Field Officer',
+      });
+    }
+    return list;
+  }, [ticket, resolutionPhotoUrl]);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -312,13 +332,74 @@ export const TicketPage: React.FC = () => {
           </Link>
         </div>
 
+        {/* Official Resolution Proof & Notes Card (Prominently displayed upon resolution) */}
+        {(resolutionPhotoUrl || ticket.resolution_notes || ticket.status === 'resolved' || ticket.status === 'closed') && (
+          <div className="p-5 bg-emerald-50/80 border border-emerald-300 rounded-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-emerald-200 pb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                <h4 className="text-sm font-bold text-emerald-950 uppercase tracking-wide">
+                  Official Municipal Resolution Proof
+                </h4>
+              </div>
+              <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase">
+                {ticket.status === 'closed' ? 'Confirmed & Closed' : 'Work Completed'}
+              </span>
+            </div>
+
+            {/* Prominent Live Resolution Photo Proof */}
+            {resolutionPhotoUrl ? (
+              <div className="space-y-1.5">
+                <div className="relative rounded-lg overflow-hidden border border-emerald-300 bg-black aspect-video max-h-96 shadow-xs">
+                  <img
+                    src={resolutionPhotoUrl}
+                    alt="Official on-site resolution proof"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2.5 left-2.5 bg-slate-900/90 text-white text-[10px] font-mono font-bold px-2.5 py-1 rounded uppercase border border-white/20 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Live On-Site Resolution Photo Proof</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-emerald-100/50 rounded-lg text-xs text-emerald-800 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>Squad marked ticket resolved with written dispatch notes.</span>
+              </div>
+            )}
+
+            {ticket.resolution_notes && (
+              <div>
+                <p className="text-xs uppercase font-bold text-emerald-900 mb-1">Field Action Notes:</p>
+                <p className="text-xs sm:text-sm text-emerald-950 leading-relaxed font-medium">
+                  {ticket.resolution_notes}
+                </p>
+              </div>
+            )}
+
+            {ticket.materials_used && (
+              <div className="text-xs text-emerald-900 font-mono bg-emerald-100/60 p-2.5 rounded border border-emerald-200">
+                <strong>Materials / Inventory Deployed:</strong> {ticket.materials_used}
+              </div>
+            )}
+
+            {ticket.assigned_officer && (
+              <p className="text-xs text-emerald-800 font-semibold pt-2 border-t border-emerald-200/60 flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Signed off by: {ticket.assigned_officer} {ticket.assigned_department ? `(${ticket.assigned_department})` : ''}</span>
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Evidence Stack Gallery (Photos over time) */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-brand-600" />
               <h3 className="font-bold text-sm text-slate-900">
-                Verified Evidence Stack ({ticket.evidence.length} Record{ticket.evidence.length > 1 ? 's' : ''})
+                Verified Evidence Stack ({displayEvidence.length} Record{displayEvidence.length > 1 ? 's' : ''})
               </h3>
             </div>
             <span className="text-[11px] font-medium text-slate-400">
@@ -327,7 +408,7 @@ export const TicketPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {ticket.evidence.map((item, idx) => (
+            {displayEvidence.map((item, idx) => (
               <div
                 key={item.id}
                 className="bg-slate-50 rounded-lg overflow-hidden border border-slate-300 flex flex-col justify-between"
@@ -342,7 +423,9 @@ export const TicketPage: React.FC = () => {
                       className="w-full h-full object-cover"
                     />
                   )}
-                  <span className="absolute top-2.5 left-2.5 bg-slate-900/90 text-white text-[10px] font-mono font-medium px-2 py-0.5 rounded uppercase border border-white/20">
+                  <span className={`absolute top-2.5 left-2.5 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase border border-white/20 ${
+                    item.stage === 'resolution' ? 'bg-emerald-700/90' : 'bg-slate-900/90'
+                  }`}>
                     Stage {idx + 1}: {item.stage}
                   </span>
                 </div>
@@ -358,23 +441,6 @@ export const TicketPage: React.FC = () => {
             ))}
           </div>
         </div>
-
-        {/* Resolution Notes (If present) */}
-        {ticket.resolution_notes && (
-          <div className="p-4 bg-emerald-50/70 border border-emerald-300 rounded-lg">
-            <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wide mb-1">
-              Official Resolution Notes
-            </h4>
-            <p className="text-xs sm:text-sm text-emerald-900 leading-relaxed">
-              {ticket.resolution_notes}
-            </p>
-            {ticket.assigned_officer && (
-              <p className="text-[11px] text-emerald-700 font-semibold mt-2">
-                Signed off by: {ticket.assigned_officer} ({ticket.assigned_department})
-              </p>
-            )}
-          </div>
-        )}
 
         {/* Upvote & Engagement Bar */}
         <div className="pt-4 border-t border-slate-100 flex items-center justify-between">

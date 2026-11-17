@@ -18,6 +18,7 @@ import {
   Clock,
   ShieldCheck,
   ShieldAlert,
+  Camera,
 } from 'lucide-react';
 
 export const ConfirmResolutionPage: React.FC = () => {
@@ -343,15 +344,25 @@ export const ConfirmResolutionPage: React.FC = () => {
 
               {/* After Photo (Resolution) */}
               <div className="rounded-lg overflow-hidden border border-slate-300 bg-slate-50 flex flex-col justify-between">
-                <div className="relative aspect-video bg-black">
-                  <img
-                    src={ticket.resolution_photo || 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=800&q=80'}
-                    alt="After: Officer Resolution Proof"
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-2.5 left-2.5 bg-slate-900/90 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase border border-white/20">
-                    After: Crew Resolution Proof
-                  </span>
+                <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+                  {ticket.resolution_photo ? (
+                    <>
+                      <img
+                        src={ticket.resolution_photo}
+                        alt="After: Officer Resolution Proof"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-emerald-600/95 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase border border-white/20">
+                        After: Crew Resolution Proof
+                      </span>
+                    </>
+                  ) : (
+                    <div className="text-center p-4 text-slate-400 flex flex-col items-center justify-center">
+                      <Camera className="w-8 h-8 text-slate-500 mb-1.5" />
+                      <p className="text-xs font-bold text-slate-300">No Resolution Photo Uploaded</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Crew signed off with notes only</p>
+                    </div>
+                  )}
                 </div>
                 <div className="p-3 text-xs text-slate-700 font-medium">
                   {ticket.resolution_notes || 'Field repair completed by municipal maintenance team.'}

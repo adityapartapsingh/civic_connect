@@ -554,11 +554,23 @@ class ReportManager:
         if materials_used:
             update_set["materials_used"] = materials_used
 
+        push_dict: Dict[str, Any] = {"status_history": status_entry}
+        if resolution_photo:
+            evidence_entry = {
+                "id": f"ev_res_{int(now.timestamp())}",
+                "photo_url": resolution_photo,
+                "submitted_by": changed_by or "Field Officer",
+                "notes": notes or "Official municipal resolution proof",
+                "timestamp": now.isoformat(),
+                "stage": "resolution",
+            }
+            push_dict["evidence"] = evidence_entry
+
         doc = col.find_one_and_update(
             query,
             {
                 "$set": update_set,
-                "$push": {"status_history": status_entry},
+                "$push": push_dict,
             },
             return_document=True,
         )

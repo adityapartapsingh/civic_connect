@@ -451,6 +451,19 @@ class ReportStatusUpdateAPIView(APIView):
         if photo_file:
             uploaded_url, _ = upload_media(photo_file, folder="civic_connect/resolutions", request=request)
             resolution_photo_url = uploaded_url
+        elif resolution_photo_url and str(resolution_photo_url).startswith("data:image"):
+            import base64
+            from django.core.files.base import ContentFile
+            try:
+                header, imgstr = resolution_photo_url.split(";base64,")
+                ext = header.split("/")[-1].split("+")[0]
+                if ext == "jpeg":
+                    ext = "jpg"
+                data_file = ContentFile(base64.b64decode(imgstr), name=f"resolution_{report_id}.{ext}")
+                uploaded_url, _ = upload_media(data_file, folder="civic_connect/resolutions", request=request)
+                resolution_photo_url = uploaded_url
+            except Exception as e:
+                logger.error(f"Failed to decode base64 resolution_photo_url: {e}")
 
         officer_name = getattr(request.user, "name", None) or data.get("changed_by", "Officer")
         officer_role = getattr(request.user, "role", None) or data.get("role", "officer")

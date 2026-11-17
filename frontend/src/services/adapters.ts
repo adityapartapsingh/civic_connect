@@ -198,18 +198,23 @@ export function adaptBackendReportToIssue(doc: any): Issue {
     });
   }
 
-  // If resolution photo exists, append resolution evidence
-  if (doc.resolution_photo) {
-    const hasResEv = evidence.some((e) => e.stage === 'resolution');
+  // If resolution photo exists on doc OR in status_history, append resolution evidence
+  const historyResPhoto = Array.isArray(doc.status_history)
+    ? [...doc.status_history].reverse().find((h: any) => h.photo_url)?.photo_url
+    : null;
+  const resolutionPhoto = doc.resolution_photo || historyResPhoto || null;
+
+  if (resolutionPhoto) {
+    const hasResEv = evidence.some((e) => e.stage === 'resolution' || e.url === resolutionPhoto);
     if (!hasResEv) {
       evidence.push({
         id: 'ev_resolution',
         media_type: 'photo',
-        url: doc.resolution_photo,
+        url: resolutionPhoto,
         caption: doc.resolution_notes || 'Official municipal resolution proof',
         created_at: doc.resolved_at || updatedAtIso,
         stage: 'resolution',
-        uploaded_by: 'Field Officer',
+        uploaded_by: doc.assigned_officer || 'Field Officer',
       });
     }
   }
@@ -251,7 +256,7 @@ export function adaptBackendReportToIssue(doc: any): Issue {
     assigned_officer_id: doc.assigned_officer_id,
     materials_used: doc.materials_used,
     resolution_notes: doc.resolution_notes,
-    resolution_photo: doc.resolution_photo,
+    resolution_photo: resolutionPhoto || doc.resolution_photo || null,
     citizen_feedback: doc.citizen_feedback ?? (status === 'closed' ? 'confirmed' : status === 'disputed' ? 'disputed' : null),
     dispute_reason: doc.dispute_reason,
   };
