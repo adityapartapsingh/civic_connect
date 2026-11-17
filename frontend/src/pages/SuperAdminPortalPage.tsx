@@ -863,9 +863,6 @@ export const SuperAdminPortalPage: React.FC = () => {
                 <Building2 className="w-4 h-4 text-slate-800" />
                 <span>City-Wide Municipal Ward Governance Matrix</span>
               </h2>
-              <p className="text-xs text-slate-500">
-                Every municipal ward has exactly one assigned Ward Admin who authorizes on-site field officers.
-              </p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1125,9 +1122,6 @@ export const SuperAdminPortalPage: React.FC = () => {
                 <ShieldCheck className="w-4 h-4 text-cyan-600" />
                 <span>City-Wide On-Site Field Officers &amp; Squads</span>
               </h2>
-              <p className="text-xs text-slate-500">
-                Super Admin cross-ward control: View, edit, update, assign tasks, delete, or suspend any Field Officer.
-              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -1299,9 +1293,6 @@ export const SuperAdminPortalPage: React.FC = () => {
                 <Users className="w-4 h-4 text-emerald-600" />
                 <span>Registered Citizens &amp; Public Users Directory</span>
               </h2>
-              <p className="text-xs text-slate-500">
-                Super Admin control: Inspect citizen accounts, view activity metrics, edit profiles, or suspend bad actors for spam/illegal behavior.
-              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -1466,9 +1457,6 @@ export const SuperAdminPortalPage: React.FC = () => {
                 <Ban className="w-4 h-4 text-red-700" />
                 <span>Suspended / Blocked Accounts Register (Spam &amp; Violations)</span>
               </h2>
-              <p className="text-xs text-red-800">
-                Every suspended user account is documented with a statutory reason. Blocked accounts cannot request OTP, log in, or submit civic reports.
-              </p>
             </div>
             <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-red-200 text-red-900 border border-red-300">
               {blockedUsers.length} Suspended
@@ -1572,9 +1560,6 @@ export const SuperAdminPortalPage: React.FC = () => {
                 <h2 className="font-bold text-sm sm:text-base text-slate-900">
                   Provision New Account (Ward Admin, Field Officer, or Citizen)
                 </h2>
-                <p className="text-xs text-slate-500">
-                  Super Admin direct provisioning with automated credential codes and role authorization.
-                </p>
               </div>
             </div>
           </div>
