@@ -824,14 +824,9 @@ export const ProfilePage: React.FC = () => {
         maxWidth="sm"
       >
         <div className="space-y-4 py-2">
-          <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">
-            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-900 mb-0.5">Are you sure you want to sign out?</p>
-              <p>
-                You will need your mobile number (+91 {user.phone || ''}) to sign back into your account.
-              </p>
-            </div>
+          <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+            <p className="font-semibold text-red-900">Are you sure you want to sign out?</p>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2">
