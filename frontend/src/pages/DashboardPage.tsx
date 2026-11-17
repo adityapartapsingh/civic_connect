@@ -21,6 +21,7 @@ import {
   Filter,
   X,
   Building2,
+  Eye,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -376,9 +377,13 @@ export const DashboardPage: React.FC = () => {
                 {/* Order Top Bar: Tracking ID + Category + SLA Radar */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-bold bg-slate-100 border border-slate-200 text-slate-900 px-2.5 py-1 rounded">
+                    <Link
+                      to={`/tickets/${ticket.id}`}
+                      className="font-mono text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 text-slate-900 px-2.5 py-1 rounded transition-colors"
+                      title="Inspect Report Case Details"
+                    >
                       {ticket.tracking_id}
-                    </span>
+                    </Link>
                     <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] uppercase font-semibold border border-slate-200">
                       {ticket.category.replace(/_/g, ' ')}
                     </span>
@@ -436,9 +441,15 @@ export const DashboardPage: React.FC = () => {
                   )}
 
                   <div className="flex-1 min-w-0 space-y-2">
-                    <h3 className="text-base font-bold text-slate-900 leading-snug">
-                      {ticket.title}
-                    </h3>
+                    <Link
+                      to={`/tickets/${ticket.id}`}
+                      className="hover:text-blue-600 transition-colors inline-block"
+                      title="Inspect Report Case Details"
+                    >
+                      <h3 className="text-base font-bold text-slate-900 hover:text-blue-600 leading-snug">
+                        {ticket.title}
+                      </h3>
+                    </Link>
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                       {ticket.description}
                     </p>
@@ -486,6 +497,16 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    {/* Inspect Report Case Details Button */}
+                    <Link
+                      to={`/tickets/${ticket.id}`}
+                      className="px-4 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 transition flex items-center justify-center gap-2 shadow-xs squash-stretch min-h-[40px]"
+                      title="Inspect Complete Report Details & Case History"
+                    >
+                      <Eye className="w-4 h-4 text-slate-600" />
+                      <span>Inspect Report</span>
+                    </Link>
+
                     {/* Google Maps Turn-by-Turn Navigation Button (Fitts's Law + Squash/Stretch) */}
                     <a
                       href={mapsUrl}

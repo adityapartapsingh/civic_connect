@@ -37,10 +37,18 @@ export const TicketPage: React.FC = () => {
   const { addToast } = useToastStore();
   const [isUpvoting, setIsUpvoting] = useState(false);
 
+  const isStaffOrAdmin = isOfficer || user?.role === 'admin' || user?.role === 'super_admin';
+
   const isOwnTicket = Boolean(
     ticket && user && (
-      (user.id && ticket.reporter?.id === user.id) ||
-      (user.phone && ticket.reporter?.phone_masked && user.phone.endsWith(ticket.reporter.phone_masked.slice(-4)))
+      (user.id && (ticket.reporter?.id === user.id || (ticket as any).reporter_id === user.id)) ||
+      (user.user_id && (ticket.reporter?.id === user.user_id || (ticket as any).reporter_id === user.user_id)) ||
+      (user.phone && (
+        (ticket.reporter?.phone && user.phone.replace(/\D/g, '').endsWith(ticket.reporter.phone.replace(/\D/g, '').slice(-10))) ||
+        ((ticket as any).reporter_phone && user.phone.replace(/\D/g, '').endsWith((ticket as any).reporter_phone.replace(/\D/g, '').slice(-10))) ||
+        (ticket.reporter?.phone_masked && user.phone.endsWith(ticket.reporter.phone_masked.slice(-4)))
+      )) ||
+      ticket.reporter?.is_anonymous
     )
   );
 
@@ -231,8 +239,8 @@ export const TicketPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Citizen Verification Call-to-Action (If marked resolved) */}
-      {ticket.status === 'resolved' && !ticket.citizen_feedback && (
+      {/* Citizen Verification Call-to-Action (If marked resolved, Reporter Citizen Only) */}
+      {!isStaffOrAdmin && isOwnTicket && ticket.status === 'resolved' && !ticket.citizen_feedback && (
         <div className="bg-emerald-800 text-white p-5 rounded-lg border border-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h4 className="font-bold text-base">Municipal field crew marked this resolved</h4>

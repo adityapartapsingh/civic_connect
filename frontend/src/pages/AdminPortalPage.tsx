@@ -781,10 +781,11 @@ export const AdminPortalPage: React.FC = () => {
 
                           <Link
                             to={`/tickets/${ticket.id}`}
-                            className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition border border-slate-200"
-                            title="Inspect Details"
+                            className="px-2.5 py-1.5 rounded-md bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-bold text-xs transition border border-slate-300 flex items-center gap-1 shadow-xs shrink-0"
+                            title="Inspect Complete Report Details & History"
                           >
-                            <ChevronRight className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Inspect</span>
                           </Link>
                         </div>
                       </div>
