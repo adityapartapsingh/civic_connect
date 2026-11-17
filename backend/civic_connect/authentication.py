@@ -173,6 +173,16 @@ class JWTBearerAuthentication(BaseAuthentication):
         if not is_valid or not payload:
             raise AuthenticationFailed(f"Invalid authentication token: {err}")
 
+        uid = payload.get("user_id")
+        if uid:
+            try:
+                if UserManager.is_user_blocked(str(uid)):
+                    raise AuthenticationFailed("Account has been suspended by municipal administrators.")
+            except AuthenticationFailed:
+                raise
+            except Exception as e:
+                logger.debug(f"Could not check user suspension status: {e}")
+
         user = CivicUserPrincipal(payload)
         return (user, payload)
 

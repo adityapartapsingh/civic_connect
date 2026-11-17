@@ -46,10 +46,13 @@ def verify_hazard_content(
         }
 
     api_key = get_gemini_api_key()
+    import sys
+    is_testing = getattr(settings, "TESTING", False) or "test" in sys.argv
 
     # Step 2: Try Gemini API if key is available and non-dummy
-    if api_key and not api_key.startswith("your_") and len(api_key) > 10:
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+    if not is_testing and api_key and not api_key.startswith("your_") and len(api_key) > 10:
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash").strip()
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         try:
             prompt_text = (
                 f"You are a strict municipal civic issue validator for a civic reporting app. Analyze this citizen complaint:\n"

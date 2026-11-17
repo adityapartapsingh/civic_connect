@@ -842,6 +842,18 @@ class UserManager:
         return serialize_doc(doc)
 
     @classmethod
+    def is_user_blocked(cls, user_id: str) -> bool:
+        """Check if user account has been suspended or blocked."""
+        if not user_id:
+            return False
+        oid = parse_object_id(user_id)
+        clauses = [{"user_id": user_id}, {"employee_id": user_id}]
+        if oid:
+            clauses.insert(0, {"_id": oid})
+        doc = cls.get_collection().find_one({"$or": clauses}, {"is_blocked": 1})
+        return bool(doc and doc.get("is_blocked") is True)
+
+    @classmethod
     def delete_user_by_admin(cls, user_id: str) -> bool:
         """Permanently delete a user account."""
         oid = parse_object_id(user_id)

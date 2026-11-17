@@ -115,12 +115,18 @@ def get_mongo_client() -> Any:
             logger.warning(f"Could not auto-initialize indexes: {e}")
     except (ConnectionFailure, ServerSelectionTimeoutError, Exception) as exc:
         is_render = "RENDER" in os.environ or bool(os.getenv("RENDER_SERVICE_ID"))
+        is_prod = is_render or os.environ.get("ENVIRONMENT") == "production"
         if is_render and is_localhost:
             logger.error(
                 "🚨 [Render Deployment] MONGODB_URI environment variable is not set in Render dashboard! "
                 "Defaulting to localhost:27017 failed because Render web services do not run local MongoDB. "
                 "Please add MONGODB_URI (e.g. mongodb+srv://...) to your Render Environment Variables."
             )
+        # Never silently write production citizen data to volatile in-memory mongomock
+        if is_prod and not is_localhost:
+            logger.critical(f"🚨 CRITICAL: Live production MongoDB connection failed: {exc}. Refusing silent fallback to in-memory mongomock.")
+            raise exc
+
         if HAS_MONGOMOCK:
             logger.warning(f"Live MongoDB unreachable ({exc}). Initializing in-memory mongomock engine for development/testing.")
             _mongo_client = mongomock.MongoClient()

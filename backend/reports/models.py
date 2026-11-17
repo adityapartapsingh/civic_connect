@@ -183,6 +183,8 @@ INITIAL_SAMPLE_REPORTS = [
 class ReportManager:
     """Core Data Access Layer for Civic Reports in MongoDB."""
 
+    _reports_seeded: bool = False
+
     @staticmethod
     def get_collection():
         return get_collection("reports")
@@ -190,6 +192,8 @@ class ReportManager:
     @classmethod
     def ensure_seed_reports(cls) -> None:
         """Seed default sample civic reports if reports collection is empty or only has test residue."""
+        if cls._reports_seeded:
+            return
         col = cls.get_collection()
         try:
             count = col.count_documents({})
@@ -242,6 +246,7 @@ class ReportManager:
                 if docs_to_insert:
                     col.insert_many(docs_to_insert)
                     logger.info(f"Seeded {len(docs_to_insert)} initial civic reports.")
+            cls._reports_seeded = True
         except Exception as exc:
             logger.warning(f"Error ensuring seed reports: {exc}")
 
@@ -773,30 +778,38 @@ class ReportManager:
         if existing:
             # TOGGLE OFF: REMOVE UPVOTE
             upvotes_col.delete_one({"_id": existing["_id"]})
-            new_upvote_count = max(0, doc.get("upvote_count", 1) - 1)
+            pull_dict = {"upvoted_by": str(user_id)} if user_id else {}
+            update_ops: Dict[str, Any] = {
+                "$inc": {"upvote_count": -1},
+                "$set": {"updated_at": now},
+            }
+            if pull_dict:
+                update_ops["$pull"] = pull_dict
+
+            updated_doc = reports_col.find_one_and_update(
+                {"_id": doc["_id"]},
+                update_ops,
+                return_document=True,
+            )
+            curr_count = max(0, updated_doc.get("upvote_count", 0)) if updated_doc else 0
             score, level, breakdown = calculate_priority_score(
                 category=doc.get("category", "other"),
-                upvote_count=new_upvote_count,
+                upvote_count=curr_count,
                 lat=coords[1],
                 lng=coords[0],
                 is_recurring=doc.get("priority_factors", {}).get("is_recurring", False),
                 is_flagged_fraud=doc.get("is_flagged_fraud", False),
             )
-            update_ops: Dict[str, Any] = {
-                "$set": {
-                    "upvote_count": new_upvote_count,
-                    "priority_score": score,
-                    "priority_level": level,
-                    "priority_factors": breakdown,
-                    "updated_at": now,
-                }
-            }
-            if user_id:
-                update_ops["$pull"] = {"upvoted_by": str(user_id)}
-
             updated_doc = reports_col.find_one_and_update(
                 {"_id": doc["_id"]},
-                update_ops,
+                {
+                    "$set": {
+                        "upvote_count": curr_count,
+                        "priority_score": score,
+                        "priority_level": level,
+                        "priority_factors": breakdown,
+                    }
+                },
                 return_document=True,
             )
 
@@ -828,23 +841,9 @@ class ReportManager:
             }
             upvotes_col.insert_one(upvote_record)
 
-            new_upvote_count = doc.get("upvote_count", 0) + 1
-            score, level, breakdown = calculate_priority_score(
-                category=doc.get("category", "other"),
-                upvote_count=new_upvote_count,
-                lat=coords[1],
-                lng=coords[0],
-                is_recurring=doc.get("priority_factors", {}).get("is_recurring", False),
-                is_flagged_fraud=doc.get("is_flagged_fraud", False),
-            )
             update_ops: Dict[str, Any] = {
-                "$set": {
-                    "upvote_count": new_upvote_count,
-                    "priority_score": score,
-                    "priority_level": level,
-                    "priority_factors": breakdown,
-                    "updated_at": now,
-                }
+                "$inc": {"upvote_count": 1},
+                "$set": {"updated_at": now},
             }
             if user_id:
                 update_ops["$addToSet"] = {"upvoted_by": str(user_id)}
@@ -854,6 +853,26 @@ class ReportManager:
             updated_doc = reports_col.find_one_and_update(
                 {"_id": doc["_id"]},
                 update_ops,
+                return_document=True,
+            )
+            curr_count = updated_doc.get("upvote_count", 1) if updated_doc else 1
+            score, level, breakdown = calculate_priority_score(
+                category=doc.get("category", "other"),
+                upvote_count=curr_count,
+                lat=coords[1],
+                lng=coords[0],
+                is_recurring=doc.get("priority_factors", {}).get("is_recurring", False),
+                is_flagged_fraud=doc.get("is_flagged_fraud", False),
+            )
+            updated_doc = reports_col.find_one_and_update(
+                {"_id": doc["_id"]},
+                {
+                    "$set": {
+                        "priority_score": score,
+                        "priority_level": level,
+                        "priority_factors": breakdown,
+                    }
+                },
                 return_document=True,
             )
 

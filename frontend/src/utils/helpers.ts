@@ -1,5 +1,3 @@
-import { formatDistanceToNow, format, parseISO, isPast, differenceInSeconds } from 'date-fns';
-
 /**
  * Calculates distance in meters between two lat/lng coordinates using Haversine formula
  */
@@ -47,7 +45,7 @@ export interface SlaInfo {
  * Returns detailed SLA countdown metrics
  */
 export function getSlaInfo(deadlineIso: string, isResolved = false): SlaInfo {
-  const deadline = parseISO(deadlineIso);
+  const deadline = new Date(deadlineIso);
   const now = new Date();
 
   if (isResolved) {
@@ -62,8 +60,8 @@ export function getSlaInfo(deadlineIso: string, isResolved = false): SlaInfo {
     };
   }
 
-  const seconds = differenceInSeconds(deadline, now);
-  const isBreached = seconds <= 0 || isPast(deadline);
+  const seconds = Math.floor((deadline.getTime() - now.getTime()) / 1000);
+  const isBreached = seconds <= 0;
 
   if (isBreached) {
     const overdueSeconds = Math.abs(seconds);
@@ -121,7 +119,15 @@ export function getSlaInfo(deadlineIso: string, isResolved = false): SlaInfo {
 
 export function formatRelativeDate(isoDate: string): string {
   try {
-    return formatDistanceToNow(parseISO(isoDate), { addSuffix: true });
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return 'recently';
+    const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diffSec < 60) return 'just now';
+    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    if (diffSec < 3600) return rtf.format(-Math.floor(diffSec / 60), 'minute');
+    if (diffSec < 86400) return rtf.format(-Math.floor(diffSec / 3600), 'hour');
+    if (diffSec < 2592000) return rtf.format(-Math.floor(diffSec / 86400), 'day');
+    return rtf.format(-Math.floor(diffSec / 2592000), 'month');
   } catch {
     return 'recently';
   }
@@ -129,7 +135,16 @@ export function formatRelativeDate(isoDate: string): string {
 
 export function formatDateTime(isoDate: string): string {
   try {
-    return format(parseISO(isoDate), 'MMM d, yyyy · h:mm a');
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return isoDate;
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    }).format(date);
   } catch {
     return isoDate;
   }
