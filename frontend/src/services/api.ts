@@ -58,296 +58,10 @@ function getCurrentStoredUser(): UserProfile | null {
   }
 }
 
-// Rich Mock Data Store for MVP resilience & offline/demo operation
-let mockIssues: Issue[] = [
-  {
-    id: 'iss_901',
-    tracking_id: 'CC-2026-901',
-    title: 'Severe Road Craters on Civil Lines Intersection',
-    description: 'Deep road potholes causing two-wheelers to skid near Company Bagh junction. Water accumulates during rain masking depth.',
-    category: 'pothole',
-    status: 'in_progress',
-    priority: 'high',
-    location: {
-      latitude: 31.3265,
-      longitude: 75.5768,
-      address: 'Civil Lines Road, Jalandhar, Punjab',
-      landmark: 'Near Company Bagh Chowk',
-      ward: 'Ward 2 - Civil Lines, Jalandhar',
-      accuracy: 8,
-    },
-    evidence: [
-      {
-        id: 'ev_1',
-        media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80',
-        caption: 'Initial photo taken by citizen',
-        created_at: '2026-10-15T09:30:00Z',
-        stage: 'initial',
-      },
-      {
-        id: 'ev_2',
-        media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=800&q=80',
-        caption: 'Asphalt cold-mix batch unloaded by road maintenance squad',
-        created_at: '2026-10-16T14:20:00Z',
-        stage: 'in_progress',
-      },
-    ],
-    photo_url: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80',
-    created_at: '2026-10-15T09:30:00Z',
-    updated_at: '2026-10-16T14:20:00Z',
-    acknowledged_at: '2026-10-15T10:15:00Z',
-    sla_hours: 48,
-    sla_deadline: new Date(Date.now() + 3 * 3600 * 1000).toISOString(), // 3 hours left (urgent)
-    sla_breached: false,
-    upvotes_count: 19,
-    has_upvoted: true,
-    reporter: {
-      id: 'usr_c19284',
-      name: 'Ravinder Kaur',
-      is_anonymous: false,
-      phone_masked: '98***43210',
-    },
-    assigned_department: 'Municipal Roads & Infrastructure Division',
-    assigned_officer: 'S. K. Murthy (AE)',
-    public_token: 'tok-pothole-civillines-901',
-  },
-  {
-    id: 'iss_902',
-    tracking_id: 'CC-2026-902',
-    title: 'Overflowing Garbage Dump Near Public Park Gate',
-    description: 'Black trash bags ripped open by stray cattle. Foul odor preventing residents and morning walkers from using the park.',
-    category: 'garbage',
-    status: 'reported',
-    priority: 'urgent',
-    location: {
-      latitude: 31.3105,
-      longitude: 75.5812,
-      address: 'Model Town Market Rd, Jalandhar, Punjab',
-      landmark: 'Opposite Model Town Geeta Mandir',
-      ward: 'Ward 1 - Model Town, Jalandhar',
-      accuracy: 6,
-    },
-    evidence: [
-      {
-        id: 'ev_3',
-        media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?auto=format&fit=crop&w=800&q=80',
-        caption: 'Garbage heap on pedestrian pathway',
-        created_at: '2026-10-16T08:00:00Z',
-        stage: 'initial',
-      },
-    ],
-    photo_url: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?auto=format&fit=crop&w=800&q=80',
-    created_at: '2026-10-16T08:00:00Z',
-    updated_at: '2026-10-16T08:00:00Z',
-    sla_hours: 24,
-    sla_deadline: new Date(Date.now() + 14 * 3600 * 1000).toISOString(),
-    sla_breached: false,
-    upvotes_count: 31,
-    has_upvoted: false,
-    reporter: {
-      id: 'usr_882',
-      name: 'Rohan Mehta',
-      is_anonymous: false,
-      phone_masked: '91***22114',
-    },
-    public_token: 'tok-garbage-park-902',
-  },
-  {
-    id: 'iss_903',
-    tracking_id: 'CC-2026-903',
-    title: 'High Pressure Water Main Leak Flooding Lane',
-    description: 'Continuous drinking water leakage from underground municipal pipe since yesterday morning. Road submerged in 3 inches water.',
-    category: 'water_leakage',
-    status: 'reported',
-    priority: 'urgent',
-    location: {
-      latitude: 31.2850,
-      longitude: 75.6180,
-      address: 'Cantt Road, Jalandhar Cantt, Punjab',
-      landmark: 'Near Military Hospital Gate',
-      ward: 'Ward 3 - Cantt Road, Jalandhar',
-      accuracy: 5,
-    },
-    evidence: [
-      {
-        id: 'ev_4',
-        media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb186156f?auto=format&fit=crop&w=800&q=80',
-        caption: 'Flooding street from burst valve',
-        created_at: '2026-10-14T07:15:00Z',
-        stage: 'initial',
-      },
-    ],
-    photo_url: 'https://images.unsplash.com/photo-1541888946425-d0fbb186156f?auto=format&fit=crop&w=800&q=80',
-    created_at: '2026-10-14T07:15:00Z',
-    updated_at: '2026-10-14T07:15:00Z',
-    sla_hours: 12,
-    sla_deadline: new Date(Date.now() - 5 * 3600 * 1000).toISOString(), // Breached by 5 hours!
-    sla_breached: true,
-    upvotes_count: 42,
-    has_upvoted: true,
-    reporter: {
-      id: 'usr_441',
-      name: 'Anita Desai',
-      is_anonymous: false,
-      phone_masked: '97***11099',
-    },
-    assigned_department: 'Water Supply & Sewerage Unit',
-    public_token: 'tok-waterleak-cantt-903',
-  },
-  {
-    id: 'iss_904',
-    tracking_id: 'CC-2026-904',
-    title: 'Streetlights Dark for 200m Stretch on Fort Road',
-    description: 'Five consecutive LED poles not illuminating after 7 PM. Serious safety risk for pedestrians and women returning from bus stop.',
-    category: 'streetlight',
-    status: 'resolved',
-    priority: 'medium',
-    location: {
-      latitude: 31.0210,
-      longitude: 75.7825,
-      address: 'Fort Road, Phillaur, Punjab',
-      landmark: 'Near Historic Phillaur Fort',
-      ward: 'Ward 6 - Phillaur Fort Road',
-      accuracy: 7,
-    },
-    evidence: [
-      {
-        id: 'ev_5',
-        media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
-        caption: 'Pitch dark roadway at night',
-        created_at: '2026-10-11T20:45:00Z',
-        stage: 'initial',
-      },
-      {
-        id: 'ev_6',
-        media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
-        caption: 'New 90W LED luminaires installed and powered',
-        created_at: '2026-10-13T18:10:00Z',
-        stage: 'resolution',
-        uploaded_by: 'Lineman Harpreet Singh',
-      },
-    ],
-    photo_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
-    resolution_photo: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
-    resolution_notes: 'Replaced burnt fuse connector and installed 5 brand new Phillips LED luminaires. Tested on line load.',
-    created_at: '2026-10-11T20:45:00Z',
-    updated_at: '2026-10-13T18:10:00Z',
-    acknowledged_at: '2026-10-12T09:00:00Z',
-    resolved_at: '2026-10-13T18:10:00Z',
-    sla_hours: 36,
-    sla_deadline: '2026-10-13T19:00:00Z',
-    sla_breached: false,
-    upvotes_count: 15,
-    has_upvoted: false,
-    citizen_feedback: null, // Ready for citizen verification!
-    assigned_department: 'Electrical & Street Lighting Cell',
-    assigned_officer: 'Lineman Harpreet Singh',
-    public_token: 'tok-streetlight-phillaur-904',
-  },
-  {
-    id: 'iss_905',
-    tracking_id: 'CC-2026-905',
-    title: 'Broken Stormwater Drain Slab with Exposed Rebar',
-    description: 'Footpath slab collapsed into drain leaving 4-foot open trench. Pedestrians forced into busy traffic lane.',
-    category: 'drainage',
-    status: 'acknowledged',
-    priority: 'high',
-    location: {
-      latitude: 31.3125,
-      longitude: 75.6295,
-      address: 'Hoshiarpur Road, Rama Mandi, Jalandhar, Punjab',
-      landmark: 'Near Rama Mandi Chowk',
-      ward: 'Ward 4 - Rama Mandi, Jalandhar',
-      accuracy: 4,
-    },
-    evidence: [
-      {
-        id: 'ev_7',
-        media_type: 'photo',
-        url: 'https://images.unsplash.com/photo-1590496793929-36417d3117de?auto=format&fit=crop&w=800&q=80',
-        caption: 'Dangerous open manhole cavity',
-        created_at: '2026-10-16T12:00:00Z',
-        stage: 'initial',
-      },
-    ],
-    photo_url: 'https://images.unsplash.com/photo-1590496793929-36417d3117de?auto=format&fit=crop&w=800&q=80',
-    created_at: '2026-10-16T12:00:00Z',
-    updated_at: '2026-10-16T15:30:00Z',
-    acknowledged_at: '2026-10-16T15:30:00Z',
-    sla_hours: 24,
-    sla_deadline: new Date(Date.now() + 20 * 3600 * 1000).toISOString(),
-    sla_breached: false,
-    upvotes_count: 8,
-    has_upvoted: false,
-    assigned_department: 'Municipal Roads & Infrastructure Division',
-    assigned_officer: 'Naveen Kumar (AE)',
-    public_token: 'tok-drain-ramamandi-905',
-  },
-];
+// Clean Data Store: All reports originate authentically from backend MongoDB
+let mockIssues: Issue[] = [];
 
-const mockLeaderboard: WardLeaderboardItem[] = [
-  {
-    ward_id: 'ward_2',
-    ward_name: 'Ward 2 - Civil Lines, Jalandhar',
-    zone: 'North Zone',
-    total_reports: 142,
-    resolved_reports: 129,
-    resolution_rate_percent: 90.8,
-    avg_resolution_hours: 19.4,
-    rank: 1,
-    active_citizens: 420,
-  },
-  {
-    ward_id: 'ward_1',
-    ward_name: 'Ward 1 - Model Town, Jalandhar',
-    zone: 'Central Zone',
-    total_reports: 118,
-    resolved_reports: 104,
-    resolution_rate_percent: 88.1,
-    avg_resolution_hours: 22.1,
-    rank: 2,
-    active_citizens: 312,
-  },
-  {
-    ward_id: 'ward_3',
-    ward_name: 'Ward 3 - Cantt Road & Defense Colony',
-    zone: 'East Zone',
-    total_reports: 96,
-    resolved_reports: 83,
-    resolution_rate_percent: 86.4,
-    avg_resolution_hours: 24.6,
-    rank: 3,
-    active_citizens: 260,
-  },
-  {
-    ward_id: 'ward_4',
-    ward_name: 'Ward 4 - Rama Mandi Hub',
-    zone: 'East Zone',
-    total_reports: 185,
-    resolved_reports: 151,
-    resolution_rate_percent: 81.6,
-    avg_resolution_hours: 27.2,
-    rank: 4,
-    active_citizens: 580,
-  },
-  {
-    ward_id: 'ward_5',
-    ward_name: 'Ward 5 - Urban Estate Phase II',
-    zone: 'South Zone',
-    total_reports: 134,
-    resolved_reports: 105,
-    resolution_rate_percent: 78.3,
-    avg_resolution_hours: 31.0,
-    rank: 5,
-    active_citizens: 390,
-  },
-];
+const mockLeaderboard: WardLeaderboardItem[] = [];
 
 export const issuesApi = {
   // Get paginated issues with filtering by priority, status, category, date range, sort from MongoDB
@@ -1138,6 +852,52 @@ export const wardsApi = {
     lng?: number;
   }): Promise<any> => {
     const response = await apiClient.post('/wards/', payload);
+    return response.data;
+  },
+};
+
+export interface LeaderboardEntry {
+  rank: number;
+  id?: string;
+  name: string;
+  role: string;
+  volunteer_scheme?: string;
+  points: number;
+  coins?: number;
+  badge: string;
+  ward_id?: string;
+  ward_name?: string;
+  ward?: string;
+  district?: string;
+  state?: string;
+  phone_masked?: string;
+  reports_resolved_count?: number;
+  reports_submitted_count?: number;
+  designation?: string;
+  department?: string;
+  employee_id?: string;
+  credential_code?: string;
+  jurisdiction_zone?: string;
+}
+
+export const gamificationApi = {
+  getLeaderboard: async (params?: {
+    role?: string;
+    ward_id?: string;
+    district?: string;
+    state?: string;
+    limit?: number;
+  }): Promise<LeaderboardEntry[]> => {
+    try {
+      const response = await apiClient.get('/gamification/leaderboard/', { params });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (err) {
+      console.warn('Failed to fetch gamification leaderboard:', err);
+      return [];
+    }
+  },
+  getUserSummary: async (userId: string): Promise<any> => {
+    const response = await apiClient.get(`/gamification/summary/${userId}/`);
     return response.data;
   },
 };

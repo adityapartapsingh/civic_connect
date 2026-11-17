@@ -29,11 +29,20 @@ class GamificationLeaderboardAPIView(APIView):
 
     def get(self, request, *args, **kwargs):
         role_filter = request.query_params.get("role")
+        ward_id = request.query_params.get("ward_id")
+        district = request.query_params.get("district")
+        state_filter = request.query_params.get("state")
         try:
             limit = int(request.query_params.get("limit", 50))
         except ValueError:
             limit = 50
 
-        leaderboard = GamificationManager.get_leaderboard(filter_role=role_filter, limit=limit)
+        leaderboard = GamificationManager.get_leaderboard(
+            filter_role=role_filter,
+            ward_id=ward_id,
+            district=district,
+            state=state_filter,
+            limit=limit,
+        )
         serializer = GamificationLeaderboardEntrySerializer(leaderboard, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

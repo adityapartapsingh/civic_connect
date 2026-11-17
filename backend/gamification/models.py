@@ -117,20 +117,57 @@ class GamificationManager:
         }
 
     @classmethod
-    def get_leaderboard(cls, filter_role: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
-        """Retrieve ranked community leaderboard."""
+    def get_leaderboard(
+        cls,
+        filter_role: Optional[str] = None,
+        ward_id: Optional[str] = None,
+        district: Optional[str] = None,
+        state: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve ranked community leaderboard with authentic user data."""
         users_col = get_collection("users")
         query: Dict[str, Any] = {"is_active": True}
         if filter_role and filter_role != "all":
             query["role"] = filter_role
+        if ward_id and ward_id != "all":
+            query["$or"] = [{"ward_id": ward_id}, {"ward": ward_id}]
+        if district and district != "all":
+            query["district"] = {"$regex": f"^{district}", "$options": "i"}
+        if state and state != "all":
+            query["state"] = {"$regex": f"^{state}", "$options": "i"}
 
         cursor = users_col.find(
             query,
-            {"name": 1, "role": 1, "volunteer_scheme": 1, "points": 1, "badge": 1, "ward_id": 1},
+            {
+                "name": 1,
+                "role": 1,
+                "volunteer_scheme": 1,
+                "points": 1,
+                "coins": 1,
+                "badge": 1,
+                "ward_id": 1,
+                "ward_name": 1,
+                "ward": 1,
+                "district": 1,
+                "state": 1,
+                "phone": 1,
+                "reports_resolved_count": 1,
+                "reports_submitted_count": 1,
+                "designation": 1,
+                "department": 1,
+                "employee_id": 1,
+                "jurisdiction_zone": 1,
+            },
         ).sort("points", -1).limit(limit)
 
         results = serialize_docs(list(cursor))
         for idx, item in enumerate(results, start=1):
             item["rank"] = idx
+            phone = item.get("phone") or ""
+            if len(phone) >= 10:
+                item["phone_masked"] = f"{phone[:2]}***{phone[-4:]}"
+            else:
+                item["phone_masked"] = "Verified"
 
         return results
