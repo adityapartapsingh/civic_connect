@@ -202,7 +202,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
                   }`}
                 >
                   <Camera className="w-3.5 h-3.5" />
-                  Photo Evidence
+                  Photo
                 </button>
                 <button
                   type="button"
@@ -214,7 +214,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
                   }`}
                 >
                   <Video className="w-3.5 h-3.5" />
-                  3s Pan Video
+                  Video
                 </button>
               </div>
             </div>
@@ -237,7 +237,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
                   onClick={recordThreeSecondPanVideo}
                   disabled={!isStreaming || !!cameraError || isRecordingVideo}
                   className="w-18 h-18 p-1 rounded-full border-4 border-red-400/60 hover:border-red-400 transition flex items-center justify-center group active:scale-90 disabled:opacity-40"
-                  aria-label="Record 3-second pan video"
+                  aria-label="Record video"
                 >
                   <div className="w-14 h-14 rounded bg-red-600 group-hover:scale-95 transition-transform flex items-center justify-center">
                     <Video className="w-6 h-6 text-white" />

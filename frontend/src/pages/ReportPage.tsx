@@ -318,7 +318,7 @@ export const ReportPage: React.FC = () => {
         <div className="space-y-4">
           <div className="text-center max-w-md mx-auto">
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Capture Live Photo or 3s Pan Video
+              Capture Live Photo or Video
             </h1>
           </div>
 
@@ -351,7 +351,7 @@ export const ReportPage: React.FC = () => {
                 <div className="min-w-0">
                   <span className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
                     <ShieldCheck className="w-3 h-3 text-emerald-700" />
-                    Verified {capturedMedia.type === 'photo' ? 'Photo' : '3s Pan Video'}
+                    Verified {capturedMedia.type === 'photo' ? 'Photo' : 'Video'}
                   </span>
                   <p className="text-xs text-slate-500 mt-0.5 truncate">
                     Auto-stamped with municipal coordinates
