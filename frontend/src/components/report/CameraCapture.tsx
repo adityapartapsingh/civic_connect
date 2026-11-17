@@ -214,7 +214,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
                   }`}
                 >
                   <Video className="w-3.5 h-3.5" />
-                  3s Pan Video (+10 pts)
+                  3s Pan Video
                 </button>
               </div>
             </div>
@@ -245,12 +245,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
                 </button>
               )}
             </div>
-
-            <p className="text-center text-[11px] text-slate-400 mt-3 font-medium">
-              {activeTab === 'photo'
-                ? 'Camera stream captured directly to canvas. No gallery uploads allowed.'
-                : 'Records continuous 3-second spatial pan for tamper-proof evidence.'}
-            </p>
           </div>
         )}
       </div>
