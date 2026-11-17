@@ -320,9 +320,6 @@ export const ReportPage: React.FC = () => {
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               Capture Live Photo or 3s Pan Video
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-              Civic Connect requires direct camera verification to guarantee real-time evidence authenticity and GPS correlation.
-            </p>
           </div>
 
           <CameraCapture
