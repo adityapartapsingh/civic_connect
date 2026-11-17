@@ -1216,3 +1216,62 @@ export const superAdminUsersApi = {
     }
   },
 };
+
+export interface DeletionRequest {
+  request_id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_phone?: string;
+  applicant_role: string;
+  ward_id?: string;
+  ward_name?: string;
+  department?: string;
+  designation?: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  target_approver_role: string;
+  created_at: string;
+  reviewed_at?: string | null;
+  reviewed_by?: string | null;
+  reviewed_by_name?: string | null;
+  review_notes?: string;
+}
+
+export const deletionRequestsApi = {
+  submitRequest: async (reason: string): Promise<{ message: string; request: DeletionRequest }> => {
+    try {
+      const response = await apiClient.post('/users/deletion-request/', { reason });
+      return response.data;
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to submit deletion request.');
+    }
+  },
+
+  listRequests: async (): Promise<DeletionRequest[]> => {
+    try {
+      const response = await apiClient.get('/users/deletion-requests/');
+      return response.data.requests || [];
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to fetch deletion requests.');
+    }
+  },
+
+  reviewRequest: async (
+    requestId: string,
+    action: 'approve' | 'reject',
+    reviewNotes?: string
+  ): Promise<{ message: string; status: 'approved' | 'rejected'; request_id: string }> => {
+    try {
+      const response = await apiClient.post(`/users/deletion-requests/${requestId}/review/`, {
+        action,
+        review_notes: reviewNotes,
+      });
+      return response.data;
+    } catch (err: any) {
+      const errDetail = err.response?.data?.detail || err.message;
+      throw new Error(errDetail || 'Failed to process deletion request review.');
+    }
+  },
+};

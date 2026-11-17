@@ -192,6 +192,13 @@ class ReportListCreateAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        caller_role = getattr(request.user, "role", "citizen") if request.user else "citizen"
+        if caller_role in ("officer", "admin", "super_admin"):
+            return Response(
+                {"detail": "Municipal staff and administrator accounts cannot submit public civic complaints."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = ReportCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -477,6 +484,13 @@ class ReportConfirmAPIView(APIView):
     """
 
     def post(self, request, report_id: str, *args, **kwargs):
+        caller_role = getattr(request.user, "role", "citizen") if request.user else "citizen"
+        if caller_role in ("officer", "admin", "super_admin"):
+            return Response(
+                {"detail": "Only citizens and volunteers can confirm municipal resolutions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = ReportConfirmSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -592,6 +606,13 @@ class ReportUpvoteAPIView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request, report_id: str, *args, **kwargs):
+        caller_role = getattr(request.user, "role", "citizen") if request.user else "citizen"
+        if caller_role in ("officer", "admin", "super_admin"):
+            return Response(
+                {"detail": "Official staff and administrators cannot upvote civic reports."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = ReportUpvoteCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

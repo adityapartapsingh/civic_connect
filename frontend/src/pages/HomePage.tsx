@@ -34,6 +34,15 @@ const getScreenBatch = () => (typeof window !== 'undefined' && window.innerWidth
 export const HomePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { coords, address, isLoading: geoLoading, refreshLocation } = useGeolocation();
+  const { user, isOfficer, isAdmin, isSuperAdmin, addPoints, deductPoints } = useAuthStore();
+  const isStaffOrAdmin = Boolean(
+    isOfficer ||
+    isAdmin ||
+    isSuperAdmin ||
+    user?.role === 'officer' ||
+    user?.role === 'admin' ||
+    user?.role === 'super_admin'
+  );
 
   // Proximity scope: 'auto' (500m -> 2km -> city-wide) or specific distance
   const [proximityRadius, setProximityRadius] = useState<'auto' | 500 | 2000 | 5000 | 'all'>('auto');
@@ -43,7 +52,7 @@ export const HomePage: React.FC = () => {
 
   // Main View Tab: 'feed' | 'my_reports'
   const [activeTab, setActiveTab] = useState<'feed' | 'my_reports'>(() => {
-    return searchParams.get('tab') === 'my_reports' ? 'my_reports' : 'feed';
+    return (!isStaffOrAdmin && searchParams.get('tab') === 'my_reports') ? 'my_reports' : 'feed';
   });
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -67,12 +76,12 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'my_reports') {
+    if (tabParam === 'my_reports' && !isStaffOrAdmin) {
       setActiveTab('my_reports');
-    } else if (tabParam === 'feed') {
+    } else if (tabParam === 'feed' || isStaffOrAdmin) {
       setActiveTab('feed');
     }
-  }, [searchParams]);
+  }, [searchParams, isStaffOrAdmin]);
 
   // User-Controlled Filters Drawer
   const [filters, setFilters] = useState<ReportFilterParams>({
@@ -97,7 +106,6 @@ export const HomePage: React.FC = () => {
     coords?.longitude
   );
 
-  const { user, addPoints, deductPoints } = useAuthStore();
   const { addToast } = useToastStore();
   const [upvotingIds, setUpvotingIds] = useState<Record<string, boolean>>({});
 
@@ -306,6 +314,15 @@ export const HomePage: React.FC = () => {
       return;
     }
 
+    if (isStaffOrAdmin) {
+      addToast({
+        type: 'error',
+        title: 'Action Prohibited',
+        message: 'Official staff and administrators cannot upvote civic reports.',
+      });
+      return;
+    }
+
     if (upvotingIds[issueId]) return;
 
     const targetIssue = [...issues, ...myReports].find((i) => i.id === issueId);
@@ -359,6 +376,14 @@ export const HomePage: React.FC = () => {
         type: 'info',
         title: 'Sign In Required',
         message: 'Please sign in to verify on-site resolution and award officer points.',
+      });
+      return;
+    }
+    if (isStaffOrAdmin) {
+      addToast({
+        type: 'error',
+        title: 'Action Prohibited',
+        message: 'Resolution verification is reserved for citizens and community volunteers.',
       });
       return;
     }
@@ -495,31 +520,33 @@ export const HomePage: React.FC = () => {
             <span>Resolved ({resolvedCount})</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('my_reports');
-              setVisibleCount(getScreenBatch());
-              fetchMyReports();
-            }}
-            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === 'my_reports'
-                ? 'border-slate-900 text-slate-900 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>My Reports</span>
-            {myReports.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-800 text-[10px] font-bold">
-                {myReports.length}
-              </span>
-            )}
-            {pendingConfirmationsCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
-                {pendingConfirmationsCount}
-              </span>
-            )}
-          </button>
+          {!isStaffOrAdmin && (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('my_reports');
+                setVisibleCount(getScreenBatch());
+                fetchMyReports();
+              }}
+              className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === 'my_reports'
+                  ? 'border-slate-900 text-slate-900 font-bold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>My Reports</span>
+              {myReports.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-800 text-[10px] font-bold">
+                  {myReports.length}
+                </span>
+              )}
+              {pendingConfirmationsCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
+                  {pendingConfirmationsCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
@@ -929,7 +956,7 @@ export const HomePage: React.FC = () => {
                     </div>
 
                     {/* Citizen Resolution Confirmation Callout if marked resolved */}
-                    {isResolvedAwaitingFeedback && (
+                    {!isStaffOrAdmin && isResolvedAwaitingFeedback && (
                       <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs animate-arc-in">
                         <div className="flex items-center gap-1.5 font-bold text-emerald-900 mb-0.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -961,6 +988,18 @@ export const HomePage: React.FC = () => {
                   {/* Card Bottom Bar */}
                   <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     {(() => {
+                      if (isStaffOrAdmin) {
+                        return (
+                          <div
+                            className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg font-semibold text-xs border border-slate-200 bg-slate-50 text-slate-600 min-h-[38px]"
+                            title="Official staff and admins cannot upvote civic reports"
+                          >
+                            <ThumbsUp className="w-4 h-4 text-slate-400" />
+                            <span>{issue.upvotes_count || 0} Upvotes</span>
+                          </div>
+                        );
+                      }
+
                       const isOwn = Boolean(
                         user && (
                           (user.id && issue.reporter?.id === user.id) ||

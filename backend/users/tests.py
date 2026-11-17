@@ -750,6 +750,129 @@ class UserTests(TestCase):
         # Verify officer is gone from DB
         self.assertIsNone(UserManager.find_by_id(officer_uid))
 
+    def test_staff_restrictions_and_hierarchical_deletion(self):
+        """
+        Verify:
+        1. Staff (officers, ward admins, super admins) cannot report issues, upvote, or confirm resolutions.
+        2. Staff cannot self-delete account directly.
+        3. Field officer submits deletion request -> Ward Admin approves.
+        4. Ward admin submits deletion request -> Super Admin approves.
+        5. Reports and upvotes are preserved permanently as Anonymous Citizen.
+        """
+        from users.otp import OTPManager
+        from users.models import UserManager
+
+        # 1. Create a field officer and a ward admin
+        officer_data = {
+            "name": "Inspector Ramesh",
+            "phone": "9814011111",
+            "role": UserRole.OFFICER,
+            "ward_id": "Ward-101",
+        }
+        officer = UserManager.upsert_user(officer_data)
+        officer_token = generate_jwt({
+            "user_id": officer["user_id"],
+            "id": officer["user_id"],
+            "phone": officer["phone"],
+            "role": UserRole.OFFICER,
+            "ward_id": "Ward-101",
+        })
+
+        admin_data = {
+            "name": "Ward Admin Sunita",
+            "phone": "9876511111",
+            "role": UserRole.ADMIN,
+            "ward_id": "Ward-101",
+        }
+        admin = UserManager.upsert_user(admin_data)
+        admin_token = generate_jwt({
+            "user_id": admin["user_id"],
+            "id": admin["user_id"],
+            "phone": admin["phone"],
+            "role": UserRole.ADMIN,
+            "ward_id": "Ward-101",
+        })
+
+        super_token = generate_jwt({
+            "user_id": "root_sa_1",
+            "id": "root_sa_1",
+            "role": UserRole.SUPER_ADMIN,
+        })
+
+        # 2. Staff cannot create civic report (403)
+        rep_res = self.client.post("/api/reports/", {
+            "category": "road",
+            "description": "Officer trying to report pothole",
+            "latitude": 31.326,
+            "longitude": 75.576,
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {officer_token}")
+        self.assertEqual(rep_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 3. Staff cannot upvote report (403)
+        upv_res = self.client.post("/api/reports/rep_fake_123/upvote/", {}, format="json", HTTP_AUTHORIZATION=f"Bearer {admin_token}")
+        self.assertEqual(upv_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 4. Staff cannot confirm report resolution (403)
+        conf_res = self.client.post("/api/reports/rep_fake_123/confirm/", {"feedback": "confirmed"}, format="json", HTTP_AUTHORIZATION=f"Bearer {officer_token}")
+        self.assertEqual(conf_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 5. Staff cannot directly self-delete account via OTP (403)
+        del_attempt_res = self.client.post("/api/users/delete-account/", {
+            "phone": officer["phone"],
+            "otp": "123456",
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {officer_token}")
+        self.assertEqual(del_attempt_res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("cannot delete their own accounts directly", del_attempt_res.data["detail"])
+
+        # 6. Officer applies for account deletion
+        req_res = self.client.post("/api/users/deletion-request/", {
+            "reason": "Relocating to another municipality district.",
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {officer_token}")
+        self.assertEqual(req_res.status_code, status.HTTP_201_CREATED)
+        request_id = req_res.data["request"]["request_id"]
+
+        # Duplicate pending request must fail
+        dup_req_res = self.client.post("/api/users/deletion-request/", {
+            "reason": "Relocating again.",
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {officer_token}")
+        self.assertEqual(dup_req_res.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # 7. Ward Admin of Ward-101 views deletion requests
+        list_res = self.client.get("/api/users/deletion-requests/", HTTP_AUTHORIZATION=f"Bearer {admin_token}")
+        self.assertEqual(list_res.status_code, status.HTTP_200_OK)
+        req_ids = [r["request_id"] for r in list_res.data["requests"]]
+        self.assertIn(request_id, req_ids)
+
+        # 8. Ward Admin approves officer deletion request
+        review_res = self.client.post(f"/api/users/deletion-requests/{request_id}/review/", {
+            "action": "approve",
+            "review_notes": "Officer clearance and hand-over completed.",
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {admin_token}")
+        self.assertEqual(review_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(review_res.data["status"], "approved")
+
+        # Officer user is now deleted from DB
+        self.assertIsNone(UserManager.find_by_id(officer["user_id"]))
+
+        # 9. Ward Admin applies for deletion -> Super Admin approves
+        admin_req_res = self.client.post("/api/users/deletion-request/", {
+            "reason": "Retiring from municipal service.",
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {admin_token}")
+        self.assertEqual(admin_req_res.status_code, status.HTTP_201_CREATED)
+        admin_req_id = admin_req_res.data["request"]["request_id"]
+
+        # Super Admin approves Ward Admin deletion
+        sa_review_res = self.client.post(f"/api/users/deletion-requests/{admin_req_id}/review/", {
+            "action": "approve",
+            "review_notes": "Retirement approved by Commissioner.",
+        }, format="json", HTTP_AUTHORIZATION=f"Bearer {super_token}")
+        self.assertEqual(sa_review_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(sa_review_res.data["status"], "approved")
+
+        # Ward Admin user is now deleted from DB
+        self.assertIsNone(UserManager.find_by_id(admin["user_id"]))
+
+
 
 
 

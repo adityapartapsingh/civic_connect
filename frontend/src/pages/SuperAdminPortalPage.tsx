@@ -10,6 +10,8 @@ import {
   SuperAdminUserStats,
   WhatsAppGatewayStatus,
   WardItem,
+  deletionRequestsApi,
+  DeletionRequest,
 } from '../services/api';
 import { UserProfile, AdminCredentialsSlip, Issue } from '../types';
 import {
@@ -89,8 +91,12 @@ export const SuperAdminPortalPage: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Active View Tab: 'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'whatsapp'
-  const [activeTab, setActiveTab] = useState<'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'whatsapp'>('admins');
+  // Active View Tab: 'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'whatsapp' | 'deletions'
+  const [activeTab, setActiveTab] = useState<'admins' | 'officers' | 'citizens' | 'blocked' | 'create' | 'whatsapp' | 'deletions'>('admins');
+
+  // Deletion Requests State
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
+  const [isReviewingDeletion, setIsReviewingDeletion] = useState<boolean>(false);
 
   // Master Users State
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -184,9 +190,44 @@ export const SuperAdminPortalPage: React.FC = () => {
     }
   };
 
+  // Load deletion requests
+  const loadDeletionRequests = async () => {
+    try {
+      const list = await deletionRequestsApi.listRequests();
+      setDeletionRequests(list);
+    } catch {
+      // ignore
+    }
+  };
+
+  const pendingDeletions = deletionRequests.filter((r) => r.status === 'pending');
+
+  const handleReviewDeletion = async (requestId: string, action: 'approve' | 'reject') => {
+    setIsReviewingDeletion(true);
+    try {
+      const res = await deletionRequestsApi.reviewRequest(requestId, action);
+      addToast({
+        type: action === 'approve' ? 'success' : 'info',
+        title: action === 'approve' ? 'Account Deletion Approved' : 'Request Rejected',
+        message: res.message,
+      });
+      await loadDeletionRequests();
+      await loadUsersData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Action Failed',
+        message: err.message || 'Could not process deletion review.',
+      });
+    } finally {
+      setIsReviewingDeletion(false);
+    }
+  };
+
   useEffect(() => {
     if (isSuperAdmin) {
       loadUsersData();
+      loadDeletionRequests();
     }
   }, [isSuperAdmin, selectedWard]);
 
@@ -848,6 +889,24 @@ export const SuperAdminPortalPage: React.FC = () => {
             <Smartphone className="w-3.5 h-3.5" />
             <span>WhatsApp Gateway</span>
             <span className={`w-2 h-2 rounded-full ${waStatus?.connected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('deletions')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 squash-stretch min-h-[38px] cursor-pointer ${
+              activeTab === 'deletions'
+                ? 'bg-red-700 text-white shadow-xs'
+                : 'text-red-700 hover:text-red-900 hover:bg-red-50'
+            }`}
+          >
+            <UserX className="w-3.5 h-3.5 text-red-500" />
+            <span>Resignations / Deletions</span>
+            {pendingDeletions.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-red-600 text-white">
+                {pendingDeletions.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -1916,6 +1975,120 @@ export const SuperAdminPortalPage: React.FC = () => {
               </form>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 6. MUNICIPAL OFFICIAL DELETIONS & RESIGNATIONS QUEUE           */}
+      {/* ============================================================== */}
+      {activeTab === 'deletions' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                <UserX className="w-4 h-4 text-red-600" />
+                <span>Municipal Official Resignation &amp; Account Deletion Approvals</span>
+              </h2>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-red-100 text-red-900 border border-red-200">
+              {pendingDeletions.length} Pending Review
+            </span>
+          </div>
+
+          <div className="p-4 bg-slate-50 border-b border-slate-200 text-xs text-slate-600 leading-relaxed">
+            Administrative governance rule: Ward Administrators and Field Officers cannot self-delete accounts. Ward Admin resignations require Tier 1 Super Admin approval. Upon approval, credentials are permanently revoked and the account record deleted from the database. All civic reports, maintenance activity, and upvotes are preserved permanently as Anonymous Citizen.
+          </div>
+
+          {deletionRequests.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">
+              <UserCheck className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+              <p className="font-semibold text-sm">No municipal deletion requests logged</p>
+              <p className="text-xs text-slate-400 mt-1">All ward administrators and municipal officers are in active standing.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="px-4 py-3">Applicant Name &amp; Contact</th>
+                    <th className="px-4 py-3">Role &amp; Jurisdiction</th>
+                    <th className="px-4 py-3">Department &amp; Designation</th>
+                    <th className="px-4 py-3">Documented Resignation Reason</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Date Submitted</th>
+                    <th className="px-4 py-3 text-right">Super Admin Authority</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {deletionRequests.map((req) => (
+                    <tr key={req.request_id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-4 py-3.5">
+                        <div className="font-bold text-slate-900">{req.applicant_name}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">+91 {req.applicant_phone || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white uppercase tracking-wider">
+                          {req.applicant_role?.replace('_', ' ')}
+                        </span>
+                        <div className="text-[11px] text-slate-600 mt-1 font-semibold">{req.ward_name || req.ward_id || 'City-Wide'}</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="font-medium text-slate-800">{req.department || 'Municipal Administration'}</div>
+                        <div className="text-[11px] text-slate-500">{req.designation || 'Administrator'}</div>
+                      </td>
+                      <td className="px-4 py-3.5 max-w-xs">
+                        <p className="text-slate-700 line-clamp-2">{req.reason}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {req.status === 'pending' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                            Pending Clearance
+                          </span>
+                        ) : req.status === 'approved' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                            Approved &amp; Cleared
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-900 border border-red-300">
+                            Rejected
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-500 font-mono text-[11px]">
+                        {new Date(req.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        {req.status === 'pending' ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={isReviewingDeletion}
+                              onClick={() => handleReviewDeletion(req.request_id, 'approve')}
+                              className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition shadow-xs disabled:opacity-50"
+                            >
+                              Approve Deletion
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isReviewingDeletion}
+                              onClick={() => handleReviewDeletion(req.request_id, 'reject')}
+                              className="px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs transition disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 font-medium text-[11px]">
+                            Processed by {req.reviewed_by_name || 'Super Admin'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

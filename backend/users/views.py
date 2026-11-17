@@ -4,7 +4,7 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from civic_connect.mongo import get_collection, serialize_docs
+from civic_connect.mongo import get_collection, serialize_docs, serialize_doc
 from users.models import UserManager, UserRole
 from users.serializers import UserProfileSerializer, UserSyncSerializer
 
@@ -647,6 +647,20 @@ class DeleteAccountAPIView(APIView):
             user = UserManager.find_by_phone(phone)
         if not user and raw_phone:
             user = UserManager.find_by_phone(raw_phone)
+
+        # Restriction: Only citizens and volunteers can self-delete their accounts.
+        # Staff (officers, ward admins, super admins) cannot self-delete.
+        user_role = (user.get("role") if user else getattr(request.user, "role", "citizen")) or "citizen"
+        if user_role in ("officer", "admin", "super_admin"):
+            return Response(
+                {
+                    "detail": (
+                        "Municipal staff and administrative accounts cannot delete their own accounts directly. "
+                        "Field Officers must apply for deletion via their Ward Admin, and Ward Admins must apply via the Super Admin."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         target_phone = phone or (user.get("phone") if user else raw_phone)
 
@@ -1912,3 +1926,286 @@ class WhatsAppAdminTestAPIView(APIView):
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+class DeletionRequestAPIView(APIView):
+    """
+    GET  /api/users/deletion-requests/
+    POST /api/users/deletion-request/
+
+    Hierarchical Account Deletion:
+    - Citizens self-delete directly via OTP.
+    - Field Officers apply for deletion -> Ward Admin approves.
+    - Ward Admins apply for deletion -> Super Admin approves.
+    - Reports and upvotes are never destroyed; they are preserved as Anonymous Citizen.
+    """
+
+    def get(self, request, *args, **kwargs):
+        from civic_connect.authentication import JWTBearerAuthentication
+        auth = JWTBearerAuthentication()
+        user_auth = auth.authenticate(request)
+        if not user_auth or not user_auth[0]:
+            return Response({"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+        caller = user_auth[0]
+
+        col = get_collection("deletion_requests")
+        query = {}
+        if caller.role == UserRole.OFFICER:
+            query = {"applicant_id": caller.user_id}
+        elif caller.role == UserRole.ADMIN:
+            # Ward Admin sees officer requests for their ward or own requests
+            query = {
+                "$or": [
+                    {"applicant_role": UserRole.OFFICER, "ward_id": caller.ward_id},
+                    {"applicant_id": caller.user_id},
+                ]
+            }
+        elif caller.role == UserRole.SUPER_ADMIN:
+            # Super Admin sees all requests or ward admin requests
+            query = {}
+        else:
+            query = {"applicant_id": caller.user_id}
+
+        docs = list(col.find(query).sort("created_at", -1))
+        return Response({"requests": [serialize_doc(d) for d in docs]}, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        import uuid
+        import datetime
+        from civic_connect.authentication import JWTBearerAuthentication
+        auth = JWTBearerAuthentication()
+        user_auth = auth.authenticate(request)
+        if not user_auth or not user_auth[0]:
+            return Response({"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+        caller = user_auth[0]
+
+        if caller.role in (UserRole.CITIZEN, UserRole.VOLUNTEER):
+            return Response(
+                {"detail": "Citizens can delete their account directly using OTP verification at /api/users/delete-account/."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if caller.role == UserRole.SUPER_ADMIN:
+            return Response(
+                {"detail": "Super Admin root accounts cannot request self-deletion."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if caller.role not in (UserRole.OFFICER, UserRole.ADMIN):
+            return Response(
+                {"detail": "Only Field Officers and Ward Admins can submit hierarchical deletion requests."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        reason = str(request.data.get("reason", "")).strip()
+        if len(reason) < 5:
+            return Response(
+                {"detail": "A valid reason for account deletion (minimum 5 characters) is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        col = get_collection("deletion_requests")
+        pending = col.find_one({"applicant_id": caller.user_id, "status": "pending"})
+        if pending:
+            return Response(
+                {"detail": "You already have an account deletion request pending administrative review."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_approver_role = UserRole.ADMIN if caller.role == UserRole.OFFICER else UserRole.SUPER_ADMIN
+        request_id = f"del_{uuid.uuid4().hex[:12]}"
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        doc = {
+            "request_id": request_id,
+            "applicant_id": caller.user_id,
+            "applicant_name": getattr(caller, "name", "") or "Official",
+            "applicant_phone": getattr(caller, "phone", "") or "",
+            "applicant_role": caller.role,
+            "ward_id": getattr(caller, "ward_id", "") or "",
+            "ward_name": getattr(caller, "ward_name", "") or "",
+            "department": getattr(caller, "department", "") or "",
+            "designation": getattr(caller, "designation", "") or "",
+            "reason": reason,
+            "status": "pending",
+            "target_approver_role": target_approver_role,
+            "created_at": now,
+            "reviewed_at": None,
+            "reviewed_by": None,
+            "reviewed_by_name": None,
+            "review_notes": "",
+        }
+        col.insert_one(doc)
+
+        approver_title = "Ward Admin" if caller.role == UserRole.OFFICER else "Super Admin"
+        return Response(
+            {
+                "message": f"Account deletion request submitted. Pending review and approval by your {approver_title}.",
+                "request": serialize_doc(doc),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class DeletionRequestReviewAPIView(APIView):
+    """
+    POST /api/users/deletion-requests/<str:request_id>/review/
+
+    Approves or rejects an official account deletion request:
+    - Officer request: Ward Admin of that ward or Super Admin can approve.
+    - Ward Admin request: Only Super Admin can approve.
+    When approved:
+    - User account is deleted permanently from database.
+    - All civic reports and upvotes remain permanently in database, attributed to Anonymous Citizen.
+    """
+
+    def post(self, request, request_id: str, *args, **kwargs):
+        import datetime
+        from civic_connect.authentication import JWTBearerAuthentication
+        from users.models import UserManager
+
+        auth = JWTBearerAuthentication()
+        user_auth = auth.authenticate(request)
+        if not user_auth or not user_auth[0]:
+            return Response({"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+        reviewer = user_auth[0]
+
+        action = str(request.data.get("action", "")).strip().lower()
+        if action not in ("approve", "reject"):
+            return Response(
+                {"detail": "Review action must be either 'approve' or 'reject'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        review_notes = str(request.data.get("review_notes", "")).strip()
+
+        col = get_collection("deletion_requests")
+        req_doc = col.find_one({"request_id": request_id})
+        if not req_doc:
+            return Response(
+                {"detail": f"Deletion request '{request_id}' not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if req_doc.get("status") != "pending":
+            return Response(
+                {"detail": f"This deletion request has already been {req_doc.get('status')}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_role = req_doc.get("applicant_role")
+        target_ward = req_doc.get("ward_id")
+
+        # Authorization check:
+        if target_role == UserRole.OFFICER:
+            if reviewer.role == UserRole.ADMIN:
+                if str(reviewer.ward_id or "").strip() != str(target_ward or "").strip():
+                    return Response(
+                        {"detail": "You can only approve deletion requests for Field Officers in your assigned ward."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            elif reviewer.role != UserRole.SUPER_ADMIN:
+                return Response(
+                    {"detail": "Only the assigned Ward Admin or Super Admin can review Field Officer deletion requests."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        elif target_role == UserRole.ADMIN:
+            if reviewer.role != UserRole.SUPER_ADMIN:
+                return Response(
+                    {"detail": "Only Super Admin can approve Ward Admin deletion requests."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            return Response(
+                {"detail": "Invalid target account role for administrative deletion review."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        reviewer_name = getattr(reviewer, "name", "") or getattr(reviewer, "phone", "Administrator")
+
+        if action == "approve":
+            applicant_id = req_doc.get("applicant_id")
+            applicant_phone = req_doc.get("applicant_phone")
+
+            # Step 1: Anonymize any reports or upvotes (keep community record permanent)
+            reports_col = get_collection("reports")
+            rep_clauses = [{"reporter_id": applicant_id}]
+            if applicant_phone:
+                rep_clauses.append({"reporter_phone": applicant_phone})
+            reports_col.update_many(
+                {"$or": rep_clauses},
+                {
+                    "$set": {
+                        "reporter_id": "anonymous",
+                        "reporter_name": "Anonymous Citizen",
+                        "reporter_phone": "",
+                        "updated_at": now,
+                    }
+                },
+            )
+
+            upvotes_col = get_collection("upvotes")
+            upv_clauses = [{"user_id": applicant_id}]
+            if applicant_phone:
+                upv_clauses.append({"phone": applicant_phone})
+            upvotes_col.update_many(
+                {"$or": upv_clauses},
+                {
+                    "$set": {
+                        "user_id": "anonymous_user",
+                        "user_name": "Anonymous Citizen",
+                        "phone": "",
+                        "anonymized": True,
+                    }
+                },
+            )
+
+            # Step 2: Delete official user account permanently
+            UserManager.delete_user_by_admin(applicant_id)
+
+            # Step 3: Update deletion request status
+            col.update_one(
+                {"request_id": request_id},
+                {
+                    "$set": {
+                        "status": "approved",
+                        "reviewed_at": now,
+                        "reviewed_by": reviewer.user_id,
+                        "reviewed_by_name": reviewer_name,
+                        "review_notes": review_notes or "Account deletion approved by administrative authority.",
+                    }
+                },
+            )
+
+            return Response(
+                {
+                    "message": f"Account for {req_doc.get('applicant_name')} has been approved for deletion and permanently removed.",
+                    "status": "approved",
+                    "request_id": request_id,
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            # Action == reject
+            col.update_one(
+                {"request_id": request_id},
+                {
+                    "$set": {
+                        "status": "rejected",
+                        "reviewed_at": now,
+                        "reviewed_by": reviewer.user_id,
+                        "reviewed_by_name": reviewer_name,
+                        "review_notes": review_notes or "Deletion request rejected by administrative authority.",
+                    }
+                },
+            )
+
+            return Response(
+                {
+                    "message": f"Deletion request for {req_doc.get('applicant_name')} has been rejected.",
+                    "status": "rejected",
+                    "request_id": request_id,
+                },
+                status=status.HTTP_200_OK,
+            )

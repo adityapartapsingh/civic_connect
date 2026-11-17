@@ -17,6 +17,7 @@ import {
   MapPin,
   Clock,
   ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const ConfirmResolutionPage: React.FC = () => {
@@ -29,7 +30,15 @@ export const ConfirmResolutionPage: React.FC = () => {
   const [disputeReason, setDisputeReason] = useState('');
   const [verificationDone, setVerificationDone] = useState<'confirmed' | 'disputed' | null>(null);
 
-  const { addPoints } = useAuthStore();
+  const { user, isOfficer, isAdmin, isSuperAdmin, addPoints } = useAuthStore();
+  const isStaffOrAdmin = Boolean(
+    isOfficer ||
+    isAdmin ||
+    isSuperAdmin ||
+    user?.role === 'officer' ||
+    user?.role === 'admin' ||
+    user?.role === 'super_admin'
+  );
   const { addToast } = useToastStore();
 
   useEffect(() => {
@@ -130,6 +139,38 @@ export const ConfirmResolutionPage: React.FC = () => {
         <Link to="/">
           <Button variant="primary" size="sm" className="mt-4">Back to Feed</Button>
         </Link>
+      </div>
+    );
+  }
+
+  if (isStaffOrAdmin) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center">
+        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
+          <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-200">
+            <ShieldAlert className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">
+            Verification Restricted
+          </h2>
+          <p className="text-sm text-slate-600 leading-relaxed mb-6">
+            Resolution verification is strictly reserved for local citizens and community volunteers. Municipal staff and administrators cannot verify or dispute municipal repairs.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              to={user?.role === 'super_admin' ? '/super-admin' : user?.role === 'admin' ? '/admin' : '/'}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs"
+            >
+              Go to Official Console
+            </Link>
+            <Link
+              to="/"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-300 transition shadow-xs"
+            >
+              Return to Feed
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

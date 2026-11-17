@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { authApi } from '../services/api';
+import { authApi, deletionRequestsApi, DeletionRequest } from '../services/api';
 import { INDIAN_STATES, STATE_DISTRICTS_MAP, getWardsForDistrict } from '../utils/constants';
 import { Modal } from '../components/common/Modal';
 import {
@@ -239,6 +239,61 @@ export const ProfilePage: React.FC = () => {
   const [deleteDemoOtpNotice, setDeleteDemoOtpNotice] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Hierarchical Deletion Request State for Officers and Ward Admins
+  const [isDeletionRequestModalOpen, setIsDeletionRequestModalOpen] = useState(false);
+  const [deletionReason, setDeletionReason] = useState('');
+  const [isSubmittingDeletionRequest, setIsSubmittingDeletionRequest] = useState(false);
+  const [myDeletionRequest, setMyDeletionRequest] = useState<DeletionRequest | null>(null);
+
+  // Fetch officer or admin's existing deletion request status
+  const fetchMyDeletionRequest = React.useCallback(async () => {
+    if (!user || (user.role !== 'officer' && user.role !== 'admin')) return;
+    try {
+      const list = await deletionRequestsApi.listRequests();
+      if (list && list.length > 0) {
+        setMyDeletionRequest(list[0]);
+      }
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchMyDeletionRequest();
+  }, [fetchMyDeletionRequest]);
+
+  const handleSubmitDeletionRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deletionReason.trim() || deletionReason.trim().length < 5) {
+      addToast({
+        type: 'error',
+        title: 'Reason Required',
+        message: 'Please provide a detailed reason for account deletion (minimum 5 characters).',
+      });
+      return;
+    }
+    setIsSubmittingDeletionRequest(true);
+    try {
+      const res = await deletionRequestsApi.submitRequest(deletionReason.trim());
+      addToast({
+        type: 'success',
+        title: 'Deletion Request Submitted',
+        message: res.message,
+      });
+      setMyDeletionRequest(res.request);
+      setIsDeletionRequestModalOpen(false);
+      setDeletionReason('');
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Submission Failed',
+        message: err.message || 'Could not submit deletion request.',
+      });
+    } finally {
+      setIsSubmittingDeletionRequest(false);
+    }
+  };
+
   // Cooldown countdown timer for account deletion OTP
   useEffect(() => {
     let timer: any = null;
@@ -452,19 +507,55 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* ========================================================= */}
+      {/* PENDING DELETION REQUEST BANNER (For Officers / Admins)   */}
+      {/* ========================================================= */}
+      {myDeletionRequest && myDeletionRequest.status === 'pending' && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg text-xs text-amber-900 flex items-start gap-3 shadow-xs">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <div className="font-bold text-sm text-amber-950">
+              Account Deletion Request Pending Administrative Approval
+            </div>
+            <p className="mt-1 text-xs text-amber-800 leading-relaxed">
+              You submitted an official resignation / account deletion request on{' '}
+              <strong>{new Date(myDeletionRequest.created_at).toLocaleDateString()}</strong>.
+              Your request is currently awaiting formal review and clearance by your{' '}
+              <strong>{myDeletionRequest.target_approver_role === 'admin' ? 'Ward Administrator' : 'Super Admin'}</strong>.
+            </p>
+            {myDeletionRequest.reason && (
+              <div className="mt-2 p-2 bg-white/70 rounded border border-amber-200 text-[11px] text-amber-900">
+                <span className="font-semibold text-amber-950">Submitted Reason: </span>
+                <span>"{myDeletionRequest.reason}"</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
       {/* QUICK ACTION BUTTONS: Single Line on Mobile */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-3 gap-2">
-        <Link
-          to="/?tab=my_reports"
-          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] sm:text-xs rounded-lg border border-slate-300 shadow-xs transition"
-        >
-          <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-          <span className="truncate">Reports</span>
-          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-blue-100 text-blue-800 font-bold">
-            {user.reports_submitted_count ?? 0}
-          </span>
-        </Link>
+      <div className={`grid ${isStaffOrAdmin ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+        {!isStaffOrAdmin ? (
+          <Link
+            to="/?tab=my_reports"
+            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] sm:text-xs rounded-lg border border-slate-300 shadow-xs transition"
+          >
+            <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="truncate">Reports</span>
+            <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-blue-100 text-blue-800 font-bold">
+              {user.reports_submitted_count ?? 0}
+            </span>
+          </Link>
+        ) : (
+          <Link
+            to={user.role === 'super_admin' ? '/super-admin' : '/admin'}
+            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] sm:text-xs rounded-lg border border-slate-800 shadow-xs transition"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="truncate">Official Console</span>
+          </Link>
+        )}
 
         <Link
           to="/rewards?tab=rewards"
@@ -491,51 +582,77 @@ export const ProfilePage: React.FC = () => {
       {/* ========================================================= */}
       {/* IMPACT STATS: Mobile Single-Line Strip vs Desktop Grid */}
       {/* ========================================================= */}
-      <div>
-        {/* Mobile Single-Line Strip */}
-        <div className="sm:hidden flex items-center justify-between text-[11px] font-mono font-bold text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
-          <span>Reports: <strong className="text-slate-900">{user.reports_submitted_count ?? 0}</strong></span>
-          <span className="text-slate-300">|</span>
-          <span>Fixes: <strong className="text-emerald-700">{user.reports_resolved_count ?? 0}</strong></span>
-          <span className="text-slate-300">|</span>
-          <span>Points: <strong className="text-amber-800">{user.points ?? 0}</strong></span>
-          <span className="text-slate-300">|</span>
-          <span>Upvotes: <strong className="text-slate-900">{user.upvotes_given_count ?? 0}</strong></span>
+      {!isStaffOrAdmin ? (
+        <div>
+          {/* Mobile Single-Line Strip */}
+          <div className="sm:hidden flex items-center justify-between text-[11px] font-mono font-bold text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+            <span>Reports: <strong className="text-slate-900">{user.reports_submitted_count ?? 0}</strong></span>
+            <span className="text-slate-300">|</span>
+            <span>Fixes: <strong className="text-emerald-700">{user.reports_resolved_count ?? 0}</strong></span>
+            <span className="text-slate-300">|</span>
+            <span>Points: <strong className="text-amber-800">{user.points ?? 0}</strong></span>
+            <span className="text-slate-300">|</span>
+            <span>Upvotes: <strong className="text-slate-900">{user.upvotes_given_count ?? 0}</strong></span>
+          </div>
+
+          {/* Desktop 4-Card Grid */}
+          <div className="hidden sm:grid sm:grid-cols-4 gap-3">
+            <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500">Reports Filed</span>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">
+                {user.reports_submitted_count ?? 0}
+              </div>
+              <span className="text-[11px] text-slate-600 font-medium">All verified live</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500">Fixes Completed</span>
+              <div className="text-2xl font-black text-emerald-700 mt-0.5">
+                {user.reports_resolved_count ?? 0}
+              </div>
+              <span className="text-[11px] text-emerald-800 font-medium">80% resolution rate</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500">Civic Points</span>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">{user.points ?? 0}</div>
+              <span className="text-[11px] text-slate-600 font-medium">Top 5% in Ward</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500">Upvotes Given</span>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">
+                {user.upvotes_given_count ?? 0}
+              </div>
+              <span className="text-[11px] text-slate-600 font-medium">Community priority votes</span>
+            </div>
+          </div>
         </div>
-
-        {/* Desktop 4-Card Grid */}
-        <div className="hidden sm:grid sm:grid-cols-4 gap-3">
-          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-            <span className="text-xs font-semibold text-slate-500">Reports Filed</span>
-            <div className="text-2xl font-black text-slate-900 mt-0.5">
-              {user.reports_submitted_count ?? 0}
+      ) : (
+        <div className="bg-white rounded-lg p-4 sm:p-5 border border-slate-300 shadow-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <span className="text-slate-500 font-medium">Official Role</span>
+              <div className="font-bold text-slate-900 capitalize mt-0.5">{user.role?.replace('_', ' ')}</div>
             </div>
-            <span className="text-[11px] text-slate-600 font-medium">All verified live</span>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-            <span className="text-xs font-semibold text-slate-500">Fixes Completed</span>
-            <div className="text-2xl font-black text-emerald-700 mt-0.5">
-              {user.reports_resolved_count ?? 0}
+            <div>
+              <span className="text-slate-500 font-medium">Jurisdiction</span>
+              <div className="font-bold text-slate-900 mt-0.5">{user.ward_name || user.ward || 'Municipal Matrix'}</div>
             </div>
-            <span className="text-[11px] text-emerald-800 font-medium">80% resolution rate</span>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-            <span className="text-xs font-semibold text-slate-500">Civic Points</span>
-            <div className="text-2xl font-black text-slate-900 mt-0.5">{user.points ?? 0}</div>
-            <span className="text-[11px] text-slate-600 font-medium">Top 5% in Ward</span>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs">
-            <span className="text-xs font-semibold text-slate-500">Upvotes Given</span>
-            <div className="text-2xl font-black text-slate-900 mt-0.5">
-              {user.upvotes_given_count ?? 0}
+            <div>
+              <span className="text-slate-500 font-medium">Department</span>
+              <div className="font-bold text-slate-900 mt-0.5">{user.department || 'Municipal Administration'}</div>
             </div>
-            <span className="text-[11px] text-slate-600 font-medium">Community priority votes</span>
+            <div>
+              <span className="text-slate-500 font-medium">Service Status</span>
+              <div className="font-bold text-emerald-700 mt-0.5 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Active Duty</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ========================================================= */}
       {/* CIVIC VOLUNTEER CORPS STATUS CARD (Citizens/Volunteers Only) */}
@@ -673,14 +790,26 @@ export const ProfilePage: React.FC = () => {
           <span>Sign Out</span>
         </button>
 
-        <button
-          type="button"
-          onClick={handleOpenDeleteAccountModal}
-          className="w-full sm:w-auto min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition shadow-xs"
-        >
-          <Trash2 className="w-4 h-4 text-red-600" />
-          <span>Delete My Account</span>
-        </button>
+        {/* Deletion / Resignation Action based on Role Hierarchy */}
+        {user.role === 'citizen' || user.role === 'volunteer' ? (
+          <button
+            type="button"
+            onClick={handleOpenDeleteAccountModal}
+            className="w-full sm:w-auto min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition shadow-xs"
+          >
+            <Trash2 className="w-4 h-4 text-red-600" />
+            <span>Delete My Account</span>
+          </button>
+        ) : user.role === 'officer' || user.role === 'admin' ? (
+          <button
+            type="button"
+            onClick={() => setIsDeletionRequestModalOpen(true)}
+            className="w-full sm:w-auto min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition shadow-xs"
+          >
+            <Trash2 className="w-4 h-4 text-red-600" />
+            <span>Request Account Deletion</span>
+          </button>
+        ) : null}
       </div>
 
       {/* ========================================================= */}
@@ -964,6 +1093,69 @@ export const ProfilePage: React.FC = () => {
               </div>
             </form>
           )}
+        </div>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL: OFFICIAL ACCOUNT DELETION / RESIGNATION REQUEST   */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={isDeletionRequestModalOpen}
+        onClose={() => setIsDeletionRequestModalOpen(false)}
+        title={user.role === 'officer' ? 'Apply for Account Deletion (Ward Admin Review)' : 'Apply for Account Deletion (Super Admin Review)'}
+        description=""
+        maxWidth="md"
+      >
+        <div className="space-y-4 py-1">
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded-md text-xs text-amber-900 space-y-1.5">
+            <p className="font-semibold">
+              {user.role === 'officer'
+                ? 'Field Officers cannot delete their accounts directly.'
+                : 'Ward Administrators cannot delete their accounts directly.'}
+            </p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              {user.role === 'officer'
+                ? 'Submitting this application forwards your resignation to your designated Ward Administrator for formal clearance and account termination.'
+                : 'Submitting this application forwards your resignation to the Super Administrator for administrative review and account clearance.'}
+            </p>
+            <p className="text-[11px] text-amber-800 font-medium">
+              Municipal public interest rule: Past civic maintenance activity and resolved issues remain preserved permanently in the database.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmitDeletionRequest} className="space-y-4 pt-1">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Reason for Account Resignation / Deletion *
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+                placeholder="e.g. Relocating to another district, municipal contract completion, retirement..."
+                className="w-full text-xs p-2.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-900 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setIsDeletionRequestModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md border border-slate-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingDeletionRequest || deletionReason.trim().length < 5}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition shadow-xs disabled:opacity-50"
+              >
+                {isSubmittingDeletionRequest && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Submit Deletion Application</span>
+              </button>
+            </div>
+          </form>
         </div>
       </Modal>
     </div>

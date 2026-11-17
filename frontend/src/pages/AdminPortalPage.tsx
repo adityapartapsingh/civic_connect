@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { adminApi, issuesApi } from '../services/api';
+import { adminApi, issuesApi, deletionRequestsApi, DeletionRequest } from '../services/api';
 import { UserProfile, AdminCredentialsSlip, Issue, IssueStatus } from '../types';
 import { getSlaInfo, formatRelativeDate } from '../utils/helpers';
 import {
@@ -34,6 +34,7 @@ import {
   X,
   Scale,
   Lock,
+  UserX,
 } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 
@@ -90,12 +91,14 @@ export const AdminPortalPage: React.FC = () => {
   // Active Ward: Can be switched by Super Admin, or locked to user's assigned ward
   const [activeWardId, setActiveWardId] = useState<string>(user?.ward_id || 'Ward-102');
 
-  // Navigation Tabs: 'dispatch' | 'roster'
-  const [activeTab, setActiveTab] = useState<'dispatch' | 'roster'>('dispatch');
+  // Navigation Tabs: 'dispatch' | 'roster' | 'deletions'
+  const [activeTab, setActiveTab] = useState<'dispatch' | 'roster' | 'deletions'>('dispatch');
 
   // Data States
   const [officersList, setOfficersList] = useState<UserProfile[]>([]);
   const [allTickets, setAllTickets] = useState<Issue[]>([]);
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
+  const [isReviewingDeletion, setIsReviewingDeletion] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -213,10 +216,41 @@ export const AdminPortalPage: React.FC = () => {
       // 2. Fetch Tickets for this ward
       const tickets = await issuesApi.getAll();
       setAllTickets(tickets);
+
+      // 3. Fetch Deletion Requests for this ward
+      const delReqs = await deletionRequestsApi.listRequests();
+      setDeletionRequests(delReqs);
     } catch (err) {
       console.warn('Ward data load notice:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const pendingOfficerDeletions = useMemo(() => {
+    return deletionRequests.filter((r) => r.status === 'pending' && r.applicant_role === 'officer');
+  }, [deletionRequests]);
+
+  const handleReviewDeletion = async (requestId: string, action: 'approve' | 'reject') => {
+    setIsReviewingDeletion(true);
+    try {
+      const res = await deletionRequestsApi.reviewRequest(requestId, action);
+      addToast({
+        type: action === 'approve' ? 'success' : 'info',
+        title: action === 'approve' ? 'Account Deletion Approved' : 'Request Rejected',
+        message: res.message,
+      });
+      const delReqs = await deletionRequestsApi.listRequests();
+      setDeletionRequests(delReqs);
+      await loadWardData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Action Failed',
+        message: err.message || 'Could not process deletion review.',
+      });
+    } finally {
+      setIsReviewingDeletion(false);
     }
   };
 
@@ -564,6 +598,25 @@ export const AdminPortalPage: React.FC = () => {
             }`}>
               {officersList.length}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('deletions')}
+            className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-md text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
+              activeTab === 'deletions'
+                ? 'bg-red-700 text-white shadow-xs'
+                : 'text-red-700 hover:text-red-900 hover:bg-red-50'
+            }`}
+          >
+            <UserX className="w-3.5 h-3.5 text-red-500" />
+            <span className="hidden sm:inline">Squad Resignations / Deletions</span>
+            <span className="sm:hidden">Resignations</span>
+            {pendingOfficerDeletions.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-red-600 text-white">
+                {pendingOfficerDeletions.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -1110,6 +1163,113 @@ export const AdminPortalPage: React.FC = () => {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 3: FIELD OFFICER RESIGNATION & DELETION REQUESTS          */}
+      {/* ============================================================== */}
+      {activeTab === 'deletions' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                <UserX className="w-4 h-4 text-red-600" />
+                <span>Field Squad Resignation &amp; Account Deletion Queue</span>
+              </h2>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-red-100 text-red-900 border border-red-200">
+              {pendingOfficerDeletions.length} Pending Approval
+            </span>
+          </div>
+
+          <div className="p-4 bg-slate-50 border-b border-slate-200 text-xs text-slate-600 leading-relaxed">
+            Field officers cannot delete their own accounts. As Ward Administrator, you must formally verify and approve their resignation. Upon approval, their access is terminated and account removed, while all resolved issues and work history remain permanently in the database.
+          </div>
+
+          {deletionRequests.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">
+              <UserCheck className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+              <p className="font-semibold text-sm">No resignation or deletion requests logged</p>
+              <p className="text-xs text-slate-400 mt-1">All field officers in this jurisdiction are in active service.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="px-4 py-3">Officer Name &amp; Contact</th>
+                    <th className="px-4 py-3">Department &amp; Designation</th>
+                    <th className="px-4 py-3">Submitted Reason</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Requested At</th>
+                    <th className="px-4 py-3 text-right">Administrative Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {deletionRequests.map((req) => (
+                    <tr key={req.request_id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-4 py-3.5">
+                        <div className="font-bold text-slate-900">{req.applicant_name}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">+91 {req.applicant_phone || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="font-medium text-slate-800">{req.department || 'Field Squad'}</div>
+                        <div className="text-[11px] text-slate-500">{req.designation || 'Field Officer'}</div>
+                      </td>
+                      <td className="px-4 py-3.5 max-w-xs">
+                        <p className="text-slate-700 line-clamp-2">{req.reason}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {req.status === 'pending' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                            Pending Review
+                          </span>
+                        ) : req.status === 'approved' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                            Approved &amp; Deleted
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-900 border border-red-300">
+                            Rejected
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-500 font-mono text-[11px]">
+                        {new Date(req.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        {req.status === 'pending' ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={isReviewingDeletion}
+                              onClick={() => handleReviewDeletion(req.request_id, 'approve')}
+                              className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition shadow-xs disabled:opacity-50"
+                            >
+                              Approve Deletion
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isReviewingDeletion}
+                              onClick={() => handleReviewDeletion(req.request_id, 'reject')}
+                              className="px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs transition disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 font-medium text-[11px]">
+                            Resolved by {req.reviewed_by_name || 'Admin'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

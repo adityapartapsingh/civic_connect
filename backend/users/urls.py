@@ -22,6 +22,8 @@ from users.views import (
     SuperAdminUsersAPIView,
     SuperAdminUserDetailAPIView,
     SuperAdminBlockUserAPIView,
+    DeletionRequestAPIView,
+    DeletionRequestReviewAPIView,
 )
 
 urlpatterns = [
@@ -35,6 +37,9 @@ urlpatterns = [
     path("login-password/", PasswordLoginAPIView.as_view(), name="user-login-password"),
     path("change-password/", ChangePasswordAPIView.as_view(), name="user-change-password"),
     path("delete-account/", DeleteAccountAPIView.as_view(), name="user-delete-account"),
+    path("deletion-request/", DeletionRequestAPIView.as_view(), name="user-deletion-request-create"),
+    path("deletion-requests/", DeletionRequestAPIView.as_view(), name="user-deletion-requests-list"),
+    path("deletion-requests/<str:request_id>/review/", DeletionRequestReviewAPIView.as_view(), name="user-deletion-request-review"),
     path("redeem/", RedeemRewardAPIView.as_view(), name="user-redeem"),
     path("admin/provision/", AdminProvisionAPIView.as_view(), name="admin-provision"),
     path("admin/roster/", AdminRosterAPIView.as_view(), name="admin-roster"),
