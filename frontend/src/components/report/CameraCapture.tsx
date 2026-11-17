@@ -228,26 +228,22 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         {capturedMedia ? (
           /* Decision controls */
           <div className="flex items-center gap-3">
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              size="lg"
-              className="flex-1 bg-slate-800 text-white font-bold border border-slate-600 hover:bg-slate-700 hover:text-white"
               onClick={handleRetake}
-              icon={<RefreshCw className="w-4 h-4 text-white" />}
+              className="flex-1 h-12 px-5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm rounded-[6px] border border-slate-600 transition flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
             >
-              Retake
-            </Button>
-            <Button
+              <RefreshCw className="w-4 h-4 text-white shrink-0" />
+              <span>Retake</span>
+            </button>
+            <button
               type="button"
-              variant="success"
-              size="lg"
-              className="flex-1"
               onClick={handleConfirmMedia}
-              icon={<Check className="w-5 h-5" />}
+              className="flex-1 h-12 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-[6px] border border-emerald-500 transition flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
             >
-              Use This {capturedMedia.type === 'photo' ? 'Photo' : 'Video'}
-            </Button>
+              <Check className="w-5 h-5 text-white shrink-0" />
+              <span>Use This {capturedMedia.type === 'photo' ? 'Photo' : 'Video'}</span>
+            </button>
           </div>
         ) : (
           /* Snapchat-style Hold-to-Record Shutter */
