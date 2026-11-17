@@ -842,44 +842,7 @@ export const LoginPage: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Quick Demo Pre-fill Pills */}
-                    <div className="bg-slate-50 p-2.5 rounded-md border border-slate-200">
-                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
-                        Quick Official Accounts (Registered in Atlas):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStaffPhone('9876543210');
-                            setErrorMsg(null);
-                          }}
-                          className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[10px] font-mono font-semibold text-slate-800 transition"
-                        >
-                          Ward 101 Admin (9876543210)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStaffPhone('9876543211');
-                            setErrorMsg(null);
-                          }}
-                          className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[10px] font-mono font-semibold text-slate-800 transition"
-                        >
-                          Ward 102 Admin (9876543211)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStaffPhone('9814099881');
-                            setErrorMsg(null);
-                          }}
-                          className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[10px] font-mono font-semibold text-slate-800 transition"
-                        >
-                          Field Officer (9814099881)
-                        </button>
-                      </div>
-                    </div>
+
 
                     <button
                       type="submit"
