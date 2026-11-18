@@ -42,6 +42,30 @@ export const TicketPage: React.FC = () => {
 
   const isOwnTicket = Boolean(isReportReporter(ticket, user));
 
+  const isResolved = ticket ? (ticket.status === 'resolved' || ticket.status === 'closed') : false;
+  const sla = getSlaInfo(ticket?.sla_deadline, isResolved);
+
+  const resolutionPhotoUrl = ticket
+    ? (ticket.resolution_photo || ticket.evidence?.find((e) => e?.stage === 'resolution')?.url)
+    : null;
+
+  const displayEvidence = useMemo(() => {
+    if (!ticket) return [];
+    const list = Array.isArray(ticket.evidence) ? [...ticket.evidence].filter(Boolean) : [];
+    if (resolutionPhotoUrl && !list.some((e) => e?.stage === 'resolution' || e?.url === resolutionPhotoUrl)) {
+      list.push({
+        id: 'ev_live_resolution',
+        media_type: 'photo',
+        url: resolutionPhotoUrl,
+        caption: ticket.resolution_notes || 'Official municipal resolution proof',
+        created_at: ticket.resolved_at || ticket.updated_at,
+        stage: 'resolution',
+        uploaded_by: ticket.assigned_officer || 'Field Officer',
+      });
+    }
+    return list;
+  }, [ticket, resolutionPhotoUrl]);
+
   useEffect(() => {
     const loadTicket = async () => {
       if (!id) return;
@@ -152,28 +176,6 @@ export const TicketPage: React.FC = () => {
       </div>
     );
   }
-
-  const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
-  const sla = getSlaInfo(ticket.sla_deadline, isResolved);
-
-  const resolutionPhotoUrl = ticket.resolution_photo || ticket.evidence?.find((e) => e.stage === 'resolution')?.url;
-
-  const displayEvidence = useMemo(() => {
-    if (!ticket) return [];
-    const list = [...(ticket.evidence || [])];
-    if (resolutionPhotoUrl && !list.some((e) => e.stage === 'resolution' || e.url === resolutionPhotoUrl)) {
-      list.push({
-        id: 'ev_live_resolution',
-        media_type: 'photo',
-        url: resolutionPhotoUrl,
-        caption: ticket.resolution_notes || 'Official municipal resolution proof',
-        created_at: ticket.resolved_at || ticket.updated_at,
-        stage: 'resolution',
-        uploaded_by: ticket.assigned_officer || 'Field Officer',
-      });
-    }
-    return list;
-  }, [ticket, resolutionPhotoUrl]);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

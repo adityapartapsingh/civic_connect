@@ -63,38 +63,6 @@ export const ReportPage: React.FC = () => {
   // 1 = Camera, 2 = Category & Details, 3 = Duplicate Check, 4 = Success
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  if (isStaffOrAdmin) {
-    return (
-      <div className="max-w-xl mx-auto px-4 py-16 text-center">
-        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
-          <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-200">
-            <ShieldAlert className="w-7 h-7" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">
-            Citizen Reporting Restricted
-          </h2>
-          <p className="text-sm text-slate-600 leading-relaxed mb-6">
-            Municipal staff, Field Officers, and Ward Administrators cannot submit public citizen complaints. Please use your official console to inspect, dispatch, or manage issues.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              to={user?.role === 'super_admin' ? '/super-admin' : user?.role === 'admin' ? '/admin' : '/'}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs"
-            >
-              Go to Official Console
-            </Link>
-            <Link
-              to="/"
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-300 transition shadow-xs"
-            >
-              Return to Feed
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Form states
   const [capturedMedia, setCapturedMedia] = useState<CapturedMedia | null>(null);
   const [title, setTitle] = useState('');
@@ -143,6 +111,38 @@ export const ReportPage: React.FC = () => {
       }
     }
   }, []);
+
+  if (isStaffOrAdmin) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 text-center">
+        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
+          <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-200">
+            <ShieldAlert className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">
+            Citizen Reporting Restricted
+          </h2>
+          <p className="text-sm text-slate-600 leading-relaxed mb-6">
+            Municipal staff, Field Officers, and Ward Administrators cannot submit public citizen complaints. Please use your official console to inspect, dispatch, or manage issues.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              to={user?.role === 'super_admin' ? '/super-admin' : user?.role === 'admin' ? '/admin' : '/'}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs"
+            >
+              Go to Official Console
+            </Link>
+            <Link
+              to="/"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-300 transition shadow-xs"
+            >
+              Return to Feed
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Step 2 to Step 3: Validate and proceed to duplicate check with visual scanning animation
   const handleProceedToDuplicateCheck = async (e: React.FormEvent) => {
