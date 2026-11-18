@@ -175,3 +175,58 @@ export function formatDateTime(isoDate?: string | null): string {
     return String(isoDate);
   }
 }
+
+/**
+ * Accurately determines if the current logged-in user is the original reporter of a report/ticket.
+ * Handles user.id, user.user_id, masked phones (e.g. 83******77), raw phones (+918360941177 vs 8360941177).
+ */
+export function isReportReporter(ticket: any, user: any): boolean {
+  if (!ticket || !user) return false;
+
+  const userId = String(user.id || user.user_id || user._id || '').trim();
+  const ticketRepId = String(ticket.reporter?.id || ticket.reporter_id || '').trim();
+  if (
+    userId &&
+    ticketRepId &&
+    userId !== 'anonymous' &&
+    ticketRepId !== 'anonymous' &&
+    userId === ticketRepId
+  ) {
+    return true;
+  }
+
+  const userPhone = String(user.phone || '').trim().replace(/\D/g, '');
+  const repPhoneRaw = String(ticket.reporter?.phone || ticket.reporter_phone || '').trim();
+  const repPhoneMasked = String(ticket.reporter?.phone_masked || '').trim();
+
+  const phoneToCheck = repPhoneRaw || repPhoneMasked;
+  if (userPhone && phoneToCheck) {
+    // If masked like "83******77" or "••••••1177"
+    if (phoneToCheck.includes('*') || phoneToCheck.includes('•')) {
+      const cleanDigits = phoneToCheck.replace(/[^\d*•]/g, '');
+      const firstTwo = cleanDigits.slice(0, 2);
+      const lastTwo = cleanDigits.slice(-2);
+      const lastFour = cleanDigits.slice(-4).replace(/\D/g, '');
+
+      if (!firstTwo.includes('*') && !firstTwo.includes('•') && !lastTwo.includes('*') && !lastTwo.includes('•')) {
+        if (userPhone.startsWith(firstTwo) && userPhone.endsWith(lastTwo)) {
+          return true;
+        }
+      }
+      if (lastFour && lastFour.length >= 2 && userPhone.endsWith(lastFour)) {
+        return true;
+      }
+    } else {
+      const repClean = phoneToCheck.replace(/\D/g, '');
+      if (repClean && userPhone) {
+        if (repClean === userPhone) return true;
+        if (userPhone.length >= 10 && repClean.length >= 10 && userPhone.slice(-10) === repClean.slice(-10)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+

@@ -6,7 +6,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { StatusUpdater } from '../components/dashboard/StatusUpdater';
-import { getSlaInfo, formatDateTime, formatRelativeDate } from '../utils/helpers';
+import { getSlaInfo, formatDateTime, formatRelativeDate, isReportReporter } from '../utils/helpers';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import {
@@ -40,17 +40,7 @@ export const TicketPage: React.FC = () => {
 
   const isStaffOrAdmin = isOfficer || user?.role === 'admin' || user?.role === 'super_admin';
 
-  const isOwnTicket = Boolean(
-    ticket && user && (
-      (user.id && (String(ticket.reporter?.id || '') === String(user.id) || String((ticket as any).reporter_id || '') === String(user.id))) ||
-      (user.user_id && (String(ticket.reporter?.id || '') === String(user.user_id) || String((ticket as any).reporter_id || '') === String(user.user_id))) ||
-      (user.phone && (
-        (ticket.reporter?.phone && String(user.phone).replace(/\D/g, '').endsWith(String(ticket.reporter.phone).replace(/\D/g, '').slice(-10))) ||
-        ((ticket as any).reporter_phone && String(user.phone).replace(/\D/g, '').endsWith(String((ticket as any).reporter_phone).replace(/\D/g, '').slice(-10))) ||
-        (ticket.reporter?.phone_masked && String(user.phone).endsWith(String(ticket.reporter.phone_masked).slice(-4)))
-      ))
-    )
-  );
+  const isOwnTicket = Boolean(isReportReporter(ticket, user));
 
   useEffect(() => {
     const loadTicket = async () => {
@@ -310,11 +300,11 @@ export const TicketPage: React.FC = () => {
             <MapPin className="w-5 h-5 text-slate-600 mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-slate-900">
-                {ticket.location?.address || (ticket.location?.latitude != null && ticket.location?.longitude != null ? `GPS: ${ticket.location.latitude.toFixed(5)}, ${ticket.location.longitude.toFixed(5)}` : 'Location on file')}
+                {ticket.location?.address || (ticket.location?.latitude != null && ticket.location?.longitude != null && !isNaN(Number(ticket.location.latitude)) ? `GPS: ${Number(ticket.location.latitude).toFixed(5)}, ${Number(ticket.location.longitude).toFixed(5)}` : 'Location on file')}
               </p>
               <p className="text-slate-500 text-xs mt-1">
                 {ticket.location?.landmark ? `Landmark: ${ticket.location.landmark} · ` : ''}
-                Record GPS: {ticket.location?.latitude != null && ticket.location?.longitude != null ? `${ticket.location.latitude.toFixed(5)}, ${ticket.location.longitude.toFixed(5)}` : 'On file'}
+                Record GPS: {ticket.location?.latitude != null && ticket.location?.longitude != null && !isNaN(Number(ticket.location.latitude)) ? `${Number(ticket.location.latitude).toFixed(5)}, ${Number(ticket.location.longitude).toFixed(5)}` : 'On file'}
                 {ticket.location?.ward ? ` (${ticket.location.ward})` : ''}
               </p>
             </div>

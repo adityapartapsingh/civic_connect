@@ -3,7 +3,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useNearbyReports } from '../hooks/useNearbyReports';
 import { Issue, ReportFilterParams } from '../types';
 import { CATEGORIES } from '../utils/constants';
-import { formatDistanceString, getSlaInfo } from '../utils/helpers';
+import { formatDistanceString, getSlaInfo, isReportReporter } from '../utils/helpers';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { IssueMap } from '../components/map/IssueMap';
 import { CardSkeleton } from '../components/common/LoadingSpinner';
@@ -115,20 +115,7 @@ export const HomePage: React.FC = () => {
   const [isFetchingMyReports, setIsFetchingMyReports] = useState(false);
 
   const isUserReport = useCallback((i: Issue) => {
-    if (!user) return false;
-    const matchesId = Boolean(
-      i.reporter?.id && (
-        i.reporter.id === user.id ||
-        (user.user_id && i.reporter.id === user.user_id)
-      )
-    );
-    const matchesPhone = Boolean(
-      user.phone && (
-        (i.reporter?.phone && i.reporter.phone === user.phone) ||
-        (i.reporter?.phone_masked && user.phone.endsWith(i.reporter.phone_masked.slice(-4)))
-      )
-    );
-    return matchesId || matchesPhone;
+    return isReportReporter(i, user);
   }, [user]);
 
   const fetchMyReports = useCallback(async () => {
@@ -548,11 +535,6 @@ export const HomePage: React.FC = () => {
               {myReports.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-800 text-[10px] font-bold">
                   {myReports.length}
-                </span>
-              )}
-              {pendingConfirmationsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
-                  {pendingConfirmationsCount}
                 </span>
               )}
             </button>

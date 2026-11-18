@@ -119,17 +119,31 @@ export function adaptBackendReportToIssue(doc: any): Issue {
   const priority = backendPriorityToFrontend(doc.priority_level || doc.priority);
   const slaHours = doc.sla_hours || getCategorySlaHours(category);
   
-  const createdAtIso = doc.created_at
-    ? new Date(doc.created_at).toISOString()
-    : new Date().toISOString();
-  const updatedAtIso = doc.updated_at
-    ? new Date(doc.updated_at).toISOString()
-    : createdAtIso;
+  const toIsoSafe = (d: any, fallback?: string): string => {
+    if (!d) return fallback || new Date().toISOString();
+    try {
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return fallback || new Date().toISOString();
+      return dt.toISOString();
+    } catch {
+      return fallback || new Date().toISOString();
+    }
+  };
+
+  const createdAtIso = toIsoSafe(doc.created_at);
+  const updatedAtIso = toIsoSafe(doc.updated_at, createdAtIso);
 
   // Compute SLA deadline
-  const slaDeadline = doc.sla_deadline
-    ? new Date(doc.sla_deadline).toISOString()
-    : new Date(new Date(createdAtIso).getTime() + slaHours * 3600 * 1000).toISOString();
+  let slaDeadline: string;
+  if (doc.sla_deadline) {
+    slaDeadline = toIsoSafe(doc.sla_deadline);
+  } else {
+    try {
+      slaDeadline = new Date(new Date(createdAtIso).getTime() + slaHours * 3600 * 1000).toISOString();
+    } catch {
+      slaDeadline = new Date(Date.now() + slaHours * 3600 * 1000).toISOString();
+    }
+  }
 
   const isResolved = status === 'resolved' || status === 'closed';
   const slaBreached = doc.sla_breached !== undefined

@@ -4,6 +4,7 @@ import { Issue } from '../types';
 import { issuesApi } from '../services/api';
 import { Button } from '../components/common/Button';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { isReportReporter } from '../utils/helpers';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import confetti from 'canvas-confetti';
@@ -176,17 +177,7 @@ export const ConfirmResolutionPage: React.FC = () => {
     );
   }
 
-  const isReporter = Boolean(
-    user && ticket && (
-      (user.id && (String(ticket.reporter?.id || '') === String(user.id) || String((ticket as any).reporter_id || '') === String(user.id))) ||
-      (user.user_id && (String(ticket.reporter?.id || '') === String(user.user_id) || String((ticket as any).reporter_id || '') === String(user.user_id))) ||
-      (user.phone && (
-        (ticket.reporter?.phone && String(user.phone).replace(/\D/g, '').endsWith(String(ticket.reporter.phone).replace(/\D/g, '').slice(-10))) ||
-        ((ticket as any).reporter_phone && String(user.phone).replace(/\D/g, '').endsWith(String((ticket as any).reporter_phone).replace(/\D/g, '').slice(-10))) ||
-        (ticket.reporter?.phone_masked && String(user.phone).endsWith(String(ticket.reporter.phone_masked).slice(-4)))
-      ))
-    )
-  );
+  const isReporter = isReportReporter(ticket, user);
 
   if (!isReporter) {
     return (

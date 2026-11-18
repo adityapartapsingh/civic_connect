@@ -38,9 +38,15 @@ export class ErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-bold text-slate-900 mb-2">Something unexpected happened</h1>
-            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+            <p className="text-sm text-slate-600 mb-4 leading-relaxed">
               We encountered a display issue loading this civic view. Your reported data and municipal records remain safe.
             </p>
+            {this.state.error && (
+              <div className="text-left bg-slate-100 p-3 rounded text-xs font-mono text-red-600 mb-6 overflow-x-auto max-h-32 border border-slate-200">
+                <span className="font-bold">Error: </span>
+                {this.state.error.message || String(this.state.error)}
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
