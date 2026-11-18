@@ -178,14 +178,13 @@ export const ConfirmResolutionPage: React.FC = () => {
 
   const isReporter = Boolean(
     user && ticket && (
-      (user.id && (ticket.reporter?.id === user.id || (ticket as any).reporter_id === user.id)) ||
-      (user.user_id && (ticket.reporter?.id === user.user_id || (ticket as any).reporter_id === user.user_id)) ||
+      (user.id && (String(ticket.reporter?.id || '') === String(user.id) || String((ticket as any).reporter_id || '') === String(user.id))) ||
+      (user.user_id && (String(ticket.reporter?.id || '') === String(user.user_id) || String((ticket as any).reporter_id || '') === String(user.user_id))) ||
       (user.phone && (
-        (ticket.reporter?.phone && user.phone.replace(/\D/g, '').endsWith(ticket.reporter.phone.replace(/\D/g, '').slice(-10))) ||
-        ((ticket as any).reporter_phone && user.phone.replace(/\D/g, '').endsWith((ticket as any).reporter_phone.replace(/\D/g, '').slice(-10))) ||
-        (ticket.reporter?.phone_masked && user.phone.endsWith(ticket.reporter.phone_masked.slice(-4)))
-      )) ||
-      ticket.reporter?.is_anonymous
+        (ticket.reporter?.phone && String(user.phone).replace(/\D/g, '').endsWith(String(ticket.reporter.phone).replace(/\D/g, '').slice(-10))) ||
+        ((ticket as any).reporter_phone && String(user.phone).replace(/\D/g, '').endsWith(String((ticket as any).reporter_phone).replace(/\D/g, '').slice(-10))) ||
+        (ticket.reporter?.phone_masked && String(user.phone).endsWith(String(ticket.reporter.phone_masked).slice(-4)))
+      ))
     )
   );
 

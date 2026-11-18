@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LocationData } from '../types';
+import { calculateDistanceMeters } from '../utils/helpers';
 
 interface GeolocationState {
   coords: { latitude: number; longitude: number } | null;
@@ -163,21 +164,35 @@ export function useGeolocation() {
       }
     );
 
-    // Step 2: Continuous live position updates
+    // Step 2: Continuous live position updates (with micro-jitter threshold)
     const watchId = navigator.geolocation.watchPosition(
       async (pos) => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         const acc = Math.round(pos.coords.accuracy);
 
-        // Update live coordinates immediately
-        setGeoState((prev) => ({
-          ...prev,
-          coords: { latitude: lat, longitude: lon },
-          accuracy: acc,
-          readingsCount: prev.readingsCount + 1,
-          isLoading: false,
-        }));
+        // Filter out GPS float micro-jitter under 25 meters to prevent render loops
+        setGeoState((prev) => {
+          if (prev.coords) {
+            const deltaMeters = calculateDistanceMeters(
+              prev.coords.latitude,
+              prev.coords.longitude,
+              lat,
+              lon
+            );
+            if (deltaMeters < 25) {
+              return prev;
+            }
+          }
+
+          return {
+            ...prev,
+            coords: { latitude: lat, longitude: lon },
+            accuracy: acc,
+            readingsCount: prev.readingsCount + 1,
+            isLoading: false,
+          };
+        });
       },
       (err) => {
         console.warn('Live watch error:', err.message);
@@ -185,7 +200,7 @@ export function useGeolocation() {
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 5000,
+        maximumAge: 10000,
       }
     );
 

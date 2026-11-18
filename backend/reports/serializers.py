@@ -80,6 +80,8 @@ class ReportDetailSerializer(serializers.Serializer):
     evidence = EvidenceEntrySerializer(many=True, required=False, default=list)
     is_flagged_fraud = serializers.BooleanField(default=False)
     fraud_metadata = serializers.DictField(required=False, default=dict)
+    sla_deadline = serializers.CharField(required=False, allow_null=True)
+    sla_hours = serializers.IntegerField(required=False)
     resolution_photo = serializers.CharField(allow_null=True, required=False)
     resolution_notes = serializers.CharField(allow_blank=True, required=False)
     resolved_at = serializers.CharField(allow_null=True, required=False)

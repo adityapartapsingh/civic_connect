@@ -26,7 +26,13 @@ SECRET_KEY = os.getenv(
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
 allowed_hosts_raw = os.getenv("ALLOWED_HOSTS", "*")
-ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(",") if h.strip()]
+ALLOWED_HOSTS = []
+for h in allowed_hosts_raw.split(","):
+    clean_h = h.strip().replace("https://", "").replace("http://", "").split("/")[0]
+    if clean_h:
+        ALLOWED_HOSTS.append(clean_h)
+if "localhost" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.extend(["localhost", "127.0.0.1", "testserver"])
 render_external_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 if render_external_hostname and render_external_hostname not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(render_external_hostname)

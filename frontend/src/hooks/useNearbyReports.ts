@@ -13,25 +13,48 @@ const DEFAULT_FALLBACK_LNG = 75.5762;
 export function useNearbyReports(
   userLat?: number,
   userLng?: number,
-  radiusMeters?: number
+  radiusMeters = 50000
 ) {
   const [issues, setIssues] = useState<NearbyIssueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Cached raw issues to allow instant in-memory distance recalculation when GPS locks
+  // Cached raw issues to allow instant in-memory distance recalculation without network lag
   const rawIssuesRef = useRef<Issue[]>([]);
+  const lastFetchedOriginRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const lat = userLat ?? DEFAULT_FALLBACK_LAT;
   const lng = userLng ?? DEFAULT_FALLBACK_LNG;
 
-  const fetchNearby = useCallback(async () => {
-    setIsLoading(true);
+  const fetchNearby = useCallback(async (force = false) => {
+    // Prevent redundant network queries if we already have city data and user moved < 2000m
+    if (
+      !force &&
+      lastFetchedOriginRef.current &&
+      rawIssuesRef.current.length > 0
+    ) {
+      const distFromLastFetch = calculateDistanceMeters(
+        lastFetchedOriginRef.current.lat,
+        lastFetchedOriginRef.current.lng,
+        lat,
+        lng
+      );
+      if (distFromLastFetch < 2000) {
+        return;
+      }
+    }
+
+    // Only show full loading skeleton if we don't already have issues in memory
+    if (rawIssuesRef.current.length === 0) {
+      setIsLoading(true);
+    }
     setError(null);
+
     try {
-      // Query city-wide reports (50km radius) so all city map issues are accessible
-      const rawIssues = await issuesApi.getNearby(lat, lng, 50000, undefined, undefined, true);
+      // Query city-wide reports (50km radius)
+      const rawIssues = await issuesApi.getNearby(lat, lng, radiusMeters, undefined, undefined, true);
       rawIssuesRef.current = rawIssues;
+      lastFetchedOriginRef.current = { lat, lng };
 
       const itemsWithDistance: NearbyIssueItem[] = rawIssues.map((issue) => {
         const dist = calculateDistanceMeters(
@@ -56,27 +79,29 @@ export function useNearbyReports(
     } finally {
       setIsLoading(false);
     }
-  }, [lat, lng]);
+  }, [lat, lng, radiusMeters]);
 
-  // Initial instant fetch on component mount
+  // Initial instant fetch on component mount or significant move
   useEffect(() => {
-    fetchNearby();
+    fetchNearby(false);
   }, [fetchNearby]);
 
-  // When live GPS updates, recalculate distances in-memory instantly without network lag
+  // When live GPS updates, recalculate distances in-memory instantly without network lag or loading flicker
   useEffect(() => {
     if (rawIssuesRef.current.length > 0 && userLat && userLng) {
-      const updated = rawIssuesRef.current.map((issue) => ({
-        ...issue,
-        distanceMeters: calculateDistanceMeters(
-          userLat,
-          userLng,
-          issue.location.latitude,
-          issue.location.longitude
-        ),
-      }));
-      updated.sort((a, b) => a.distanceMeters - b.distanceMeters);
-      setIssues(updated);
+      setIssues((prev) => {
+        const updated = rawIssuesRef.current.map((issue) => ({
+          ...issue,
+          distanceMeters: calculateDistanceMeters(
+            userLat,
+            userLng,
+            issue.location.latitude,
+            issue.location.longitude
+          ),
+        }));
+        updated.sort((a, b) => a.distanceMeters - b.distanceMeters);
+        return updated;
+      });
     }
   }, [userLat, userLng]);
 
@@ -101,7 +126,7 @@ export function useNearbyReports(
     issues,
     isLoading,
     error,
-    refetch: fetchNearby,
+    refetch: () => fetchNearby(true),
     handleUpvote,
   };
 }

@@ -44,10 +44,7 @@ export interface SlaInfo {
 /**
  * Returns detailed SLA countdown metrics
  */
-export function getSlaInfo(deadlineIso: string, isResolved = false): SlaInfo {
-  const deadline = new Date(deadlineIso);
-  const now = new Date();
-
+export function getSlaInfo(deadlineIso?: string | null, isResolved = false): SlaInfo {
   if (isResolved) {
     return {
       isBreached: false,
@@ -56,6 +53,33 @@ export function getSlaInfo(deadlineIso: string, isResolved = false): SlaInfo {
       totalSeconds: 0,
       formattedText: 'Met SLA on time',
       badgeColorClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      urgency: 'normal',
+    };
+  }
+
+  if (!deadlineIso) {
+    return {
+      isBreached: false,
+      hoursLeft: 48,
+      minutesLeft: 0,
+      totalSeconds: 48 * 3600,
+      formattedText: '48h SLA Active',
+      badgeColorClass: 'bg-slate-100 text-slate-800 border-slate-300',
+      urgency: 'normal',
+    };
+  }
+
+  const deadline = new Date(deadlineIso);
+  const now = new Date();
+
+  if (isNaN(deadline.getTime())) {
+    return {
+      isBreached: false,
+      hoursLeft: 48,
+      minutesLeft: 0,
+      totalSeconds: 48 * 3600,
+      formattedText: '48h SLA Active',
+      badgeColorClass: 'bg-slate-100 text-slate-800 border-slate-300',
       urgency: 'normal',
     };
   }
@@ -117,7 +141,8 @@ export function getSlaInfo(deadlineIso: string, isResolved = false): SlaInfo {
   };
 }
 
-export function formatRelativeDate(isoDate: string): string {
+export function formatRelativeDate(isoDate?: string | null): string {
+  if (!isoDate) return 'recently';
   try {
     const date = new Date(isoDate);
     if (isNaN(date.getTime())) return 'recently';
@@ -133,10 +158,11 @@ export function formatRelativeDate(isoDate: string): string {
   }
 }
 
-export function formatDateTime(isoDate: string): string {
+export function formatDateTime(isoDate?: string | null): string {
+  if (!isoDate) return 'N/A';
   try {
     const date = new Date(isoDate);
-    if (isNaN(date.getTime())) return isoDate;
+    if (isNaN(date.getTime())) return String(isoDate);
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
@@ -146,6 +172,6 @@ export function formatDateTime(isoDate: string): string {
       hour12: true,
     }).format(date);
   } catch {
-    return isoDate;
+    return String(isoDate);
   }
 }

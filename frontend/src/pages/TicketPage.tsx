@@ -42,14 +42,13 @@ export const TicketPage: React.FC = () => {
 
   const isOwnTicket = Boolean(
     ticket && user && (
-      (user.id && (ticket.reporter?.id === user.id || (ticket as any).reporter_id === user.id)) ||
-      (user.user_id && (ticket.reporter?.id === user.user_id || (ticket as any).reporter_id === user.user_id)) ||
+      (user.id && (String(ticket.reporter?.id || '') === String(user.id) || String((ticket as any).reporter_id || '') === String(user.id))) ||
+      (user.user_id && (String(ticket.reporter?.id || '') === String(user.user_id) || String((ticket as any).reporter_id || '') === String(user.user_id))) ||
       (user.phone && (
-        (ticket.reporter?.phone && user.phone.replace(/\D/g, '').endsWith(ticket.reporter.phone.replace(/\D/g, '').slice(-10))) ||
-        ((ticket as any).reporter_phone && user.phone.replace(/\D/g, '').endsWith((ticket as any).reporter_phone.replace(/\D/g, '').slice(-10))) ||
-        (ticket.reporter?.phone_masked && user.phone.endsWith(ticket.reporter.phone_masked.slice(-4)))
-      )) ||
-      ticket.reporter?.is_anonymous
+        (ticket.reporter?.phone && String(user.phone).replace(/\D/g, '').endsWith(String(ticket.reporter.phone).replace(/\D/g, '').slice(-10))) ||
+        ((ticket as any).reporter_phone && String(user.phone).replace(/\D/g, '').endsWith(String((ticket as any).reporter_phone).replace(/\D/g, '').slice(-10))) ||
+        (ticket.reporter?.phone_masked && String(user.phone).endsWith(String(ticket.reporter.phone_masked).slice(-4)))
+      ))
     )
   );
 
@@ -311,12 +310,12 @@ export const TicketPage: React.FC = () => {
             <MapPin className="w-5 h-5 text-slate-600 mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-slate-900">
-                {ticket.location.address || `GPS: ${ticket.location.latitude.toFixed(5)}, ${ticket.location.longitude.toFixed(5)}`}
+                {ticket.location?.address || (ticket.location?.latitude != null && ticket.location?.longitude != null ? `GPS: ${ticket.location.latitude.toFixed(5)}, ${ticket.location.longitude.toFixed(5)}` : 'Location on file')}
               </p>
               <p className="text-slate-500 text-xs mt-1">
-                {ticket.location.landmark ? `Landmark: ${ticket.location.landmark} · ` : ''}
-                Record GPS: {ticket.location.latitude.toFixed(5)}, {ticket.location.longitude.toFixed(5)}
-                {ticket.location.ward ? ` (${ticket.location.ward})` : ''}
+                {ticket.location?.landmark ? `Landmark: ${ticket.location.landmark} · ` : ''}
+                Record GPS: {ticket.location?.latitude != null && ticket.location?.longitude != null ? `${ticket.location.latitude.toFixed(5)}, ${ticket.location.longitude.toFixed(5)}` : 'On file'}
+                {ticket.location?.ward ? ` (${ticket.location.ward})` : ''}
               </p>
             </div>
           </div>
